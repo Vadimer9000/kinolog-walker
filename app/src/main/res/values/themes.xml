@@ -1,0 +1,9 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <style name="Theme.KinologWalker" parent="android:Theme.Material.Light.NoActionBar">
+        <item name="android:statusBarColor">#F8F6F1</item>
+        <item name="android:windowLightStatusBar">true</item>
+        <item name="android:navigationBarColor">#EFECE6</item>
+        <item name="android:windowLightNavigationBar">true</item>
+    </style>
+</resources>
