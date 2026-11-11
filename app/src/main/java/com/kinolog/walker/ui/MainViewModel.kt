@@ -23,13 +23,18 @@ import com.kinolog.walker.util.IntentHelper
 import com.kinolog.walker.util.PreferencesManager
 import android.location.LocationManager
 import com.google.android.gms.location.Priority
+import com.kinolog.walker.util.AddressSuggestion
 import com.kinolog.walker.util.GeocoderHelper
 import com.kinolog.walker.util.ThemeMode
+import kotlinx.coroutines.FlowPreview
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.SharingStarted
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
+import kotlinx.coroutines.flow.collectLatest
 import kotlinx.coroutines.flow.combine
+import kotlinx.coroutines.flow.debounce
+import kotlinx.coroutines.flow.distinctUntilChanged
 import kotlinx.coroutines.flow.flatMapLatest
 import kotlinx.coroutines.flow.stateIn
 import kotlinx.coroutines.launch
@@ -87,6 +92,15 @@ class MainViewModel(application: Application) : AndroidViewModel(application) {
     // Live GPS coordinates of user (myLat, myLon)
     private val _currentLocation = MutableStateFlow<Pair<Double, Double>?>(null)
     val currentLocation: StateFlow<Pair<Double, Double>?> = _currentLocation.asStateFlow()
+
+    // Address Autocomplete Suggestions
+    private val _addressSuggestions = MutableStateFlow<List<AddressSuggestion>>(emptyList())
+    val addressSuggestions: StateFlow<List<AddressSuggestion>> = _addressSuggestions.asStateFlow()
+
+    private val _isSearchingAddress = MutableStateFlow(false)
+    val isSearchingAddress: StateFlow<Boolean> = _isSearchingAddress.asStateFlow()
+
+    private val addressQueryFlow = MutableStateFlow("")
 
     // Clients flow
     val clients: StateFlow<List<ClientEntity>> = _searchQuery
@@ -150,6 +164,44 @@ class MainViewModel(application: Application) : AndroidViewModel(application) {
         viewModelScope.launch {
             repository.autoGeocodeMissingClients()
         }
+
+        @OptIn(FlowPreview::class)
+        viewModelScope.launch {
+            addressQueryFlow
+                .debounce(350)
+                .distinctUntilChanged()
+                .collectLatest { rawQuery ->
+                    val query = rawQuery.trim()
+                    if (query.length < 3) {
+                        _addressSuggestions.value = emptyList()
+                        _isSearchingAddress.value = false
+                        return@collectLatest
+                    }
+                    _isSearchingAddress.value = true
+                    try {
+                        val results = GeocoderHelper.suggestAddresses(
+                            context = getApplication(),
+                            rawQuery = query,
+                            yandexApiKey = prefs.yandexApiKey
+                        )
+                        _addressSuggestions.value = results
+                    } catch (_: Exception) {
+                        _addressSuggestions.value = emptyList()
+                    } finally {
+                        _isSearchingAddress.value = false
+                    }
+                }
+        }
+    }
+
+    fun onAddressQueryChanged(query: String) {
+        addressQueryFlow.value = query
+    }
+
+    fun clearAddressSuggestions() {
+        addressQueryFlow.value = ""
+        _addressSuggestions.value = emptyList()
+        _isSearchingAddress.value = false
     }
 
     fun setTab(tab: NavigationTab) {
@@ -172,6 +224,7 @@ class MainViewModel(application: Application) : AndroidViewModel(application) {
     fun setYandexApiKey(key: String) {
         _yandexApiKey.value = key
         prefs.yandexApiKey = key
+        GeocoderHelper.init(getApplication(), key)
     }
 
     @SuppressLint("MissingPermission")

@@ -19,6 +19,7 @@ import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
+import androidx.compose.foundation.layout.heightIn
 import androidx.compose.foundation.layout.imePadding
 import androidx.compose.foundation.layout.offset
 import androidx.compose.foundation.layout.padding
@@ -37,6 +38,7 @@ import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.rounded.Add
 import androidx.compose.material.icons.rounded.Call
 import androidx.compose.material.icons.rounded.Chat
+import androidx.compose.material.icons.rounded.CheckCircle
 import androidx.compose.material.icons.rounded.Clear
 import androidx.compose.material.icons.rounded.Close
 import androidx.compose.material.icons.rounded.Delete
@@ -51,8 +53,10 @@ import androidx.compose.material3.Button
 import androidx.compose.material3.ButtonDefaults
 import androidx.compose.material3.Card
 import androidx.compose.material3.CardDefaults
+import androidx.compose.material3.CircularProgressIndicator
 import androidx.compose.material3.FilledTonalIconButton
 import androidx.compose.material3.FloatingActionButton
+import androidx.compose.material3.HorizontalDivider
 import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
 import androidx.compose.material3.IconButtonDefaults
@@ -62,6 +66,7 @@ import androidx.compose.material3.OutlinedTextFieldDefaults
 import androidx.compose.material3.Text
 import androidx.compose.material3.TextButton
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableFloatStateOf
@@ -477,8 +482,13 @@ fun ClientsScreen(
     if (showEditDialog) {
         ClientFormDialog(
             client = clientToEdit,
-            onDismiss = { showEditDialog = false },
+            viewModel = viewModel,
+            onDismiss = {
+                viewModel.clearAddressSuggestions()
+                showEditDialog = false
+            },
             onSave = { updatedClient, pets ->
+                viewModel.clearAddressSuggestions()
                 viewModel.saveClient(
                     id = updatedClient.id,
                     fullName = updatedClient.fullName,
@@ -718,11 +728,22 @@ private fun ContourInputField(
 @Composable
 fun ClientFormDialog(
     client: ClientEntity?,
+    viewModel: MainViewModel,
     onDismiss: () -> Unit,
     onSave: (ClientEntity, List<PetItem>) -> Unit
 ) {
     val context = LocalContext.current
     val json = remember { Json { ignoreUnknownKeys = true } }
+
+    val addressSuggestions by viewModel.addressSuggestions.collectAsState()
+    val isSearchingAddress by viewModel.isSearchingAddress.collectAsState()
+
+    var selectedLat by remember { mutableStateOf(client?.latitude) }
+    var selectedLon by remember { mutableStateOf(client?.longitude) }
+
+    LaunchedEffect(Unit) {
+        viewModel.clearAddressSuggestions()
+    }
 
     var fullName by remember { mutableStateOf(client?.fullName ?: "") }
     var phoneDigits by remember {
@@ -1151,11 +1172,103 @@ fun ClientFormDialog(
 
                 OutlinedTextField(
                     value = addressStreet,
-                    onValueChange = { addressStreet = it },
+                    onValueChange = { newValue ->
+                        addressStreet = newValue
+                        selectedLat = null
+                        selectedLon = null
+                        viewModel.onAddressQueryChanged(newValue)
+                    },
                     label = { Text("Город, улица, дом") },
                     singleLine = true,
+                    trailingIcon = {
+                        if (isSearchingAddress) {
+                            CircularProgressIndicator(
+                                modifier = Modifier.size(18.dp),
+                                strokeWidth = 2.dp,
+                                color = SageGreenPrimary
+                            )
+                        } else if (selectedLat != null && selectedLon != null) {
+                            Icon(
+                                imageVector = Icons.Rounded.CheckCircle,
+                                contentDescription = "Координаты определены",
+                                tint = SageGreenPrimary,
+                                modifier = Modifier.size(20.dp)
+                            )
+                        }
+                    },
                     modifier = Modifier.fillMaxWidth()
                 )
+
+                if (addressSuggestions.isNotEmpty()) {
+                    Card(
+                        modifier = Modifier
+                            .fillMaxWidth()
+                            .padding(top = 4.dp)
+                            .heightIn(max = 240.dp),
+                        shape = RoundedCornerShape(14.dp),
+                        colors = CardDefaults.cardColors(containerColor = Color.White),
+                        border = BorderStroke(1.dp, SageGreenPrimary.copy(alpha = 0.35f)),
+                        elevation = CardDefaults.cardElevation(defaultElevation = 6.dp)
+                    ) {
+                        Column(
+                            modifier = Modifier
+                                .fillMaxWidth()
+                                .verticalScroll(rememberScrollState())
+                                .padding(vertical = 4.dp)
+                        ) {
+                            addressSuggestions.forEachIndexed { index, suggestion ->
+                                Column(
+                                    modifier = Modifier
+                                        .fillMaxWidth()
+                                        .clickable {
+                                            addressStreet = suggestion.fullAddress
+                                            selectedLat = suggestion.lat
+                                            selectedLon = suggestion.lon
+                                            viewModel.clearAddressSuggestions()
+                                        }
+                                        .padding(horizontal = 14.dp, vertical = 9.dp)
+                                ) {
+                                    Row(
+                                        verticalAlignment = Alignment.CenterVertically
+                                    ) {
+                                        Icon(
+                                            imageVector = Icons.Rounded.LocationOn,
+                                            contentDescription = null,
+                                            tint = SageGreenPrimary,
+                                            modifier = Modifier.size(16.dp)
+                                        )
+                                        Spacer(modifier = Modifier.width(8.dp))
+                                        Text(
+                                            text = suggestion.fullAddress,
+                                            fontSize = 14.sp,
+                                            fontWeight = FontWeight.Medium,
+                                            color = CharcoalPrimary,
+                                            maxLines = 1,
+                                            overflow = TextOverflow.Ellipsis
+                                        )
+                                    }
+                                    if (suggestion.subtitle.isNotBlank() && suggestion.subtitle != suggestion.fullAddress) {
+                                        Text(
+                                            text = suggestion.subtitle,
+                                            fontSize = 12.sp,
+                                            color = OliveGreySecondary,
+                                            modifier = Modifier.padding(start = 24.dp, top = 2.dp),
+                                            maxLines = 1,
+                                            overflow = TextOverflow.Ellipsis
+                                        )
+                                    }
+                                }
+                                if (index < addressSuggestions.lastIndex) {
+                                    HorizontalDivider(
+                                        color = DividerMuted.copy(alpha = 0.5f),
+                                        thickness = 0.5.dp,
+                                        modifier = Modifier.padding(horizontal = 12.dp)
+                                    )
+                                }
+                            }
+                        }
+                    }
+                }
 
                 Spacer(modifier = Modifier.height(8.dp))
 
@@ -1231,8 +1344,8 @@ fun ClientFormDialog(
                                     clientComment = clientComment.trim(),
                                     secondaryContactName = if (hasSecondaryContact) secondaryContactName.trim() else "",
                                     secondaryContactPhone = formattedSecondaryPhone,
-                                    latitude = if (addressChanged) null else client.latitude,
-                                    longitude = if (addressChanged) null else client.longitude
+                                    latitude = selectedLat ?: (if (addressChanged) null else client?.latitude),
+                                    longitude = selectedLon ?: (if (addressChanged) null else client?.longitude)
                                 )
                                 onSave(updated, validPets)
                             }

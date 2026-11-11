@@ -68,6 +68,9 @@ class MainActivity : ComponentActivity() {
         }
         permissionLauncher.launch(permissionsToRequest.toTypedArray())
 
+        // Pre-initialize Yandex geocoder bridge and helper
+        com.kinolog.walker.util.GeocoderHelper.init(this, viewModel.yandexApiKey.value)
+
         setContent {
             val themeMode by viewModel.themeMode.collectAsState()
             KinologWalkerTheme(themeMode = themeMode) {

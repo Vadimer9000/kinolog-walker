@@ -50,10 +50,12 @@ class KinologRepository(
         var resolvedClient = client
         val existing = if (client.id != 0L) clientDao.getClientByIdSync(client.id) else null
 
-        if (resolvedClient.addressStreet.isNotBlank()) {
-            val coords = GeocoderHelper.geocodeAddress(
+        if (resolvedClient.latitude != null && resolvedClient.longitude != null) {
+            // Exact coordinates explicitly provided (e.g. from selected address suggestion)
+        } else if (resolvedClient.addressStreet.isNotBlank()) {
+            val coords = GeocoderHelper.getCoordinates(
                 context = context,
-                rawAddress = resolvedClient.addressStreet.trim(),
+                address = resolvedClient.addressStreet.trim(),
                 yandexApiKey = prefs.yandexApiKey
             )
             if (coords != null) {
