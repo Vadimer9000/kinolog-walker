@@ -12,6 +12,7 @@ import androidx.compose.runtime.remember
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.viewinterop.AndroidView
+import com.kinolog.walker.ui.theme.LocalIsDarkTheme
 import org.json.JSONArray
 import org.json.JSONObject
 
@@ -33,6 +34,7 @@ fun YandexMapView(
     modifier: Modifier = Modifier
 ) {
     val context = LocalContext.current
+    val isDark = LocalIsDarkTheme.current
     val webView = remember {
         WebView(context).apply {
             layoutParams = ViewGroup.LayoutParams(
@@ -65,8 +67,8 @@ fun YandexMapView(
         jsonArray.toString()
     }
 
-    LaunchedEffect(apiKey, pointsJson, routingMode) {
-        val htmlContent = generateMapHtml(apiKey, pointsJson, routingMode)
+    LaunchedEffect(apiKey, pointsJson, routingMode, isDark) {
+        val htmlContent = generateMapHtml(apiKey, pointsJson, routingMode, isDark)
         webView.loadDataWithBaseURL("https://api-maps.yandex.ru", htmlContent, "text/html", "UTF-8", null)
     }
 
@@ -76,9 +78,15 @@ fun YandexMapView(
     )
 }
 
-private fun generateMapHtml(apiKey: String, pointsJson: String, routingMode: String): String {
+private fun generateMapHtml(apiKey: String, pointsJson: String, routingMode: String, isDark: Boolean): String {
     val keyParam = if (apiKey.isNotBlank()) "apikey=$apiKey&" else ""
     val routerType = if (routingMode == "mt") "masstransit" else "pedestrian"
+    val bgColor = if (isDark) "#161D19" else "#F8F6F1"
+    val darkFilter = if (isDark) """
+        #map [class*="ground-pane"] {
+            filter: invert(90%) hue-rotate(180deg) brightness(85%) contrast(90%);
+        }
+    """.trimIndent() else ""
 
     return """
         <!DOCTYPE html>
@@ -94,9 +102,10 @@ private fun generateMapHtml(apiKey: String, pointsJson: String, routingMode: Str
                     height: 100%;
                     padding: 0;
                     margin: 0;
-                    background-color: #F8F6F1;
+                    background-color: $bgColor;
                     font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
                 }
+                $darkFilter
                 .custom-pin {
                     background: #5E9E7E;
                     color: #FFFFFF;

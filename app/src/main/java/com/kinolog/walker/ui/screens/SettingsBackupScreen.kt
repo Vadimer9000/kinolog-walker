@@ -4,6 +4,7 @@ import android.net.Uri
 import android.widget.Toast
 import androidx.activity.compose.rememberLauncherForActivityResult
 import androidx.activity.result.contract.ActivityResultContracts
+import androidx.compose.foundation.background
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
@@ -18,12 +19,15 @@ import androidx.compose.foundation.layout.statusBarsPadding
 import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.shape.CircleShape
+import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.rounded.ArrowBack
+import androidx.compose.material.icons.rounded.Assessment
 import androidx.compose.material.icons.rounded.FileDownload
 import androidx.compose.material.icons.rounded.FileUpload
 import androidx.compose.material.icons.rounded.Key
+import androidx.compose.material.icons.rounded.Palette
 import androidx.compose.material.icons.rounded.Save
 import androidx.compose.material.icons.rounded.Send
 import androidx.compose.material.icons.rounded.Shield
@@ -36,17 +40,21 @@ import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.getValue
+import androidx.compose.runtime.mutableIntStateOf
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.text.font.FontWeight
+import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import com.kinolog.walker.ui.MainViewModel
+import com.kinolog.walker.ui.components.AnimatedSegmentedControl
 import com.kinolog.walker.ui.components.GlassBox
 import com.kinolog.walker.ui.components.NavigationTab
 import com.kinolog.walker.ui.theme.CharcoalPrimary
@@ -55,6 +63,8 @@ import com.kinolog.walker.ui.theme.OliveGreySecondary
 import com.kinolog.walker.ui.theme.SageGreenPrimary
 import com.kinolog.walker.ui.theme.SandBeige
 import com.kinolog.walker.ui.theme.SoftMint
+import com.kinolog.walker.util.ThemeMode
+import java.time.LocalDate
 
 @Composable
 fun SettingsBackupScreen(
@@ -66,7 +76,8 @@ fun SettingsBackupScreen(
     var apiKeyInput by remember(currentApiKey) { mutableStateOf(currentApiKey) }
 
     val clients by viewModel.clients.collectAsState()
-    val allWalks by viewModel.walksForSelectedDate.collectAsState()
+    val allWalks by viewModel.allWalks.collectAsState()
+    val themeMode by viewModel.themeMode.collectAsState()
 
     // Import file launcher
     val openDocumentLauncher = rememberLauncherForActivityResult(
@@ -107,12 +118,296 @@ fun SettingsBackupScreen(
                         color = CharcoalPrimary
                     )
                     Text(
-                        text = "Управление ключами карт и сохранение базы данных",
+                        text = "Управление темой, аналитикой, ключами карт и базой данных",
                         fontSize = 12.sp,
                         color = OliveGreySecondary
                     )
                 }
             }
+
+            // Section: Theme Mode (Soft Dark Theme)
+            GlassBox(
+                modifier = Modifier.fillMaxWidth(),
+                elevation = 4.dp
+            ) {
+                Column(
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .padding(16.dp)
+                ) {
+                    Row(verticalAlignment = Alignment.CenterVertically) {
+                        Icon(Icons.Rounded.Palette, contentDescription = null, tint = SageGreenPrimary)
+                        Spacer(modifier = Modifier.width(8.dp))
+                        Text(
+                            text = "Тема оформления",
+                            fontWeight = FontWeight.SemiBold,
+                            fontSize = 16.sp,
+                            color = CharcoalPrimary
+                        )
+                    }
+
+                    Spacer(modifier = Modifier.height(4.dp))
+
+                    Text(
+                        text = "Мягкая палитра: автоматическая системная, светлая или ночная тёмная тема.",
+                        fontSize = 12.sp,
+                        color = OliveGreySecondary
+                    )
+
+                    Spacer(modifier = Modifier.height(12.dp))
+
+                    AnimatedSegmentedControl(
+                        items = listOf(ThemeMode.SYSTEM, ThemeMode.LIGHT, ThemeMode.DARK),
+                        selectedIndex = when (themeMode) {
+                            ThemeMode.SYSTEM -> 0
+                            ThemeMode.LIGHT -> 1
+                            ThemeMode.DARK -> 2
+                        },
+                        onItemSelected = { idx ->
+                            val newMode = when (idx) {
+                                0 -> ThemeMode.SYSTEM
+                                1 -> ThemeMode.LIGHT
+                                else -> ThemeMode.DARK
+                            }
+                            viewModel.setThemeMode(newMode)
+                        },
+                        itemLabel = {
+                            when (it) {
+                                ThemeMode.SYSTEM -> "Как в системе"
+                                ThemeMode.LIGHT -> "Светлая"
+                                ThemeMode.DARK -> "Тёмная"
+                            }
+                        },
+                        modifier = Modifier.fillMaxWidth(),
+                        height = 40.dp
+                    )
+                }
+            }
+
+            Spacer(modifier = Modifier.height(16.dp))
+
+            // Section: Analytics & Period Reporting
+            GlassBox(
+                modifier = Modifier.fillMaxWidth(),
+                elevation = 4.dp
+            ) {
+                Column(
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .padding(16.dp)
+                ) {
+                    Row(verticalAlignment = Alignment.CenterVertically) {
+                        Icon(Icons.Rounded.Assessment, contentDescription = null, tint = SageGreenPrimary)
+                        Spacer(modifier = Modifier.width(8.dp))
+                        Text(
+                            text = "Отчетность за период",
+                            fontWeight = FontWeight.SemiBold,
+                            fontSize = 16.sp,
+                            color = CharcoalPrimary
+                        )
+                    }
+
+                    Spacer(modifier = Modifier.height(4.dp))
+
+                    Text(
+                        text = "Сводка выгулов, заработанных средств и распределение по клиентам.",
+                        fontSize = 12.sp,
+                        color = OliveGreySecondary
+                    )
+
+                    Spacer(modifier = Modifier.height(12.dp))
+
+                    var selectedPeriodIndex by remember { mutableIntStateOf(1) } // Default: Неделя
+                    val periods = listOf("Сегодня", "Неделя", "Месяц", "Все время")
+
+                    AnimatedSegmentedControl(
+                        items = periods,
+                        selectedIndex = selectedPeriodIndex,
+                        onItemSelected = { selectedPeriodIndex = it },
+                        itemLabel = { it },
+                        modifier = Modifier.fillMaxWidth(),
+                        height = 38.dp
+                    )
+
+                    Spacer(modifier = Modifier.height(14.dp))
+
+                    val today = remember { LocalDate.now() }
+                    val todayEpoch = remember(today) { today.toEpochDay() }
+                    val weekStartEpoch = remember(today) { today.minusDays(today.dayOfWeek.value.toLong() - 1).toEpochDay() }
+                    val weekEndEpoch = remember(today) { today.plusDays(7L - today.dayOfWeek.value.toLong()).toEpochDay() }
+                    val monthStartEpoch = remember(today) { today.withDayOfMonth(1).toEpochDay() }
+                    val monthEndEpoch = remember(today) { today.withDayOfMonth(today.lengthOfMonth()).toEpochDay() }
+
+                    val periodWalks = remember(allWalks, selectedPeriodIndex) {
+                        when (selectedPeriodIndex) {
+                            0 -> allWalks.filter { it.dateEpochDay == todayEpoch }
+                            1 -> allWalks.filter { it.dateEpochDay in weekStartEpoch..weekEndEpoch }
+                            2 -> allWalks.filter { it.dateEpochDay in monthStartEpoch..monthEndEpoch }
+                            else -> allWalks
+                        }
+                    }
+
+                    val completedWalks = remember(periodWalks) { periodWalks.filter { it.isCompleted } }
+                    val totalEarned = remember(completedWalks) { completedWalks.sumOf { it.price } }
+                    val plannedEarned = remember(periodWalks) { periodWalks.sumOf { it.price } }
+                    val clientsMap = remember(clients) { clients.associateBy { it.id } }
+
+                    // KPI Cards
+                    Row(
+                        modifier = Modifier.fillMaxWidth(),
+                        horizontalArrangement = Arrangement.spacedBy(10.dp)
+                    ) {
+                        // Earnings KPI
+                        Box(
+                            modifier = Modifier
+                                .weight(1f)
+                                .clip(RoundedCornerShape(14.dp))
+                                .background(SoftMint.copy(alpha = 0.5f))
+                                .padding(12.dp)
+                        ) {
+                            Column {
+                                Text(
+                                    text = "Заработано",
+                                    fontSize = 11.sp,
+                                    color = OliveGreySecondary,
+                                    fontWeight = FontWeight.Medium
+                                )
+                                Spacer(modifier = Modifier.height(2.dp))
+                                Text(
+                                    text = "$totalEarned ₽",
+                                    fontSize = 18.sp,
+                                    fontWeight = FontWeight.Bold,
+                                    color = Color(0xFF2E7D32)
+                                )
+                                if (plannedEarned > totalEarned) {
+                                    Text(
+                                        text = "из $plannedEarned ₽ план",
+                                        fontSize = 10.sp,
+                                        color = OliveGreySecondary
+                                    )
+                                }
+                            }
+                        }
+
+                        // Walks Count KPI
+                        Box(
+                            modifier = Modifier
+                                .weight(1f)
+                                .clip(RoundedCornerShape(14.dp))
+                                .background(SandBeige.copy(alpha = 0.6f))
+                                .padding(12.dp)
+                        ) {
+                            Column {
+                                Text(
+                                    text = "Выгулов",
+                                    fontSize = 11.sp,
+                                    color = OliveGreySecondary,
+                                    fontWeight = FontWeight.Medium
+                                )
+                                Spacer(modifier = Modifier.height(2.dp))
+                                Text(
+                                    text = "${completedWalks.size} / ${periodWalks.size}",
+                                    fontSize = 18.sp,
+                                    fontWeight = FontWeight.Bold,
+                                    color = CharcoalPrimary
+                                )
+                                Text(
+                                    text = "выполнено / всего",
+                                    fontSize = 10.sp,
+                                    color = OliveGreySecondary
+                                )
+                            }
+                        }
+                    }
+
+                    Spacer(modifier = Modifier.height(14.dp))
+
+                    // Client Breakdown
+                    Text(
+                        text = "Клиенты за период:",
+                        fontSize = 13.sp,
+                        fontWeight = FontWeight.SemiBold,
+                        color = CharcoalPrimary
+                    )
+
+                    Spacer(modifier = Modifier.height(6.dp))
+
+                    if (periodWalks.isEmpty()) {
+                        Text(
+                            text = "Нет записей о выгулах за этот период.",
+                            fontSize = 12.sp,
+                            color = OliveGreySecondary,
+                            modifier = Modifier.padding(vertical = 8.dp)
+                        )
+                    } else {
+                        val clientGroups = remember(periodWalks) {
+                            periodWalks.groupBy { it.clientId }
+                                .toList()
+                                .sortedByDescending { (_, walks) -> walks.filter { it.isCompleted }.sumOf { it.price } }
+                        }
+
+                        Column(
+                            verticalArrangement = Arrangement.spacedBy(6.dp),
+                            modifier = Modifier.fillMaxWidth()
+                        ) {
+                            clientGroups.forEach { (clientId, walksForClient) ->
+                                val client = clientsMap[clientId]
+                                val clientCompleted = walksForClient.count { it.isCompleted }
+                                val clientEarned = walksForClient.filter { it.isCompleted }.sumOf { it.price }
+                                val clientPlanned = walksForClient.sumOf { it.price }
+
+                                Box(
+                                    modifier = Modifier
+                                        .fillMaxWidth()
+                                        .clip(RoundedCornerShape(10.dp))
+                                        .background(SandBeige.copy(alpha = 0.35f))
+                                        .padding(horizontal = 10.dp, vertical = 8.dp)
+                                ) {
+                                    Row(
+                                        modifier = Modifier.fillMaxWidth(),
+                                        horizontalArrangement = Arrangement.SpaceBetween,
+                                        verticalAlignment = Alignment.CenterVertically
+                                    ) {
+                                        Column(modifier = Modifier.weight(1f)) {
+                                            Text(
+                                                text = client?.fullName ?: "Клиент #$clientId",
+                                                fontWeight = FontWeight.SemiBold,
+                                                fontSize = 13.sp,
+                                                color = CharcoalPrimary,
+                                                maxLines = 1,
+                                                overflow = TextOverflow.Ellipsis
+                                            )
+                                            Text(
+                                                text = "Выгулов: $clientCompleted из ${walksForClient.size}",
+                                                fontSize = 11.sp,
+                                                color = OliveGreySecondary
+                                            )
+                                        }
+
+                                        Column(horizontalAlignment = Alignment.End) {
+                                            Text(
+                                                text = "$clientEarned ₽",
+                                                fontWeight = FontWeight.Bold,
+                                                fontSize = 13.sp,
+                                                color = Color(0xFF2E7D32)
+                                            )
+                                            if (clientPlanned > clientEarned) {
+                                                Text(
+                                                    text = "план $clientPlanned ₽",
+                                                    fontSize = 10.sp,
+                                                    color = OliveGreySecondary
+                                                )
+                                            }
+                                        }
+                                    }
+                                }
+                            }
+                        }
+                    }
+                }
+            }
+
+            Spacer(modifier = Modifier.height(16.dp))
 
             // Section 1: Yandex Maps JS API Key
             GlassBox(

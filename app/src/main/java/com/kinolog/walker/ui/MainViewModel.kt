@@ -21,6 +21,7 @@ import com.kinolog.walker.ui.components.MapMarkerPoint
 import com.kinolog.walker.ui.components.NavigationTab
 import com.kinolog.walker.util.IntentHelper
 import com.kinolog.walker.util.PreferencesManager
+import com.kinolog.walker.util.ThemeMode
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.SharingStarted
 import kotlinx.coroutines.flow.StateFlow
@@ -58,6 +59,15 @@ class MainViewModel(application: Application) : AndroidViewModel(application) {
     private val _yandexApiKey = MutableStateFlow(prefs.yandexApiKey)
     val yandexApiKey: StateFlow<String> = _yandexApiKey.asStateFlow()
 
+    // Theme mode flow
+    private val _themeMode = MutableStateFlow(prefs.themeMode)
+    val themeMode: StateFlow<ThemeMode> = _themeMode.asStateFlow()
+
+    fun setThemeMode(mode: ThemeMode) {
+        prefs.themeMode = mode
+        _themeMode.value = mode
+    }
+
     // Client search query
     private val _searchQuery = MutableStateFlow("")
     val searchQuery: StateFlow<String> = _searchQuery.asStateFlow()
@@ -79,6 +89,10 @@ class MainViewModel(application: Application) : AndroidViewModel(application) {
     // Walks for selected date
     val walksForSelectedDate: StateFlow<List<WalkEventEntity>> = _selectedDate
         .flatMapLatest { date -> repository.getWalksForDate(date.toEpochDay()) }
+        .stateIn(viewModelScope, SharingStarted.WhileSubscribed(5000), emptyList())
+
+    // All walks flow for reporting / analytics
+    val allWalks: StateFlow<List<WalkEventEntity>> = repository.allWalks
         .stateIn(viewModelScope, SharingStarted.WhileSubscribed(5000), emptyList())
 
     // Map Markers for selected date (only non-completed walks are shown on map)

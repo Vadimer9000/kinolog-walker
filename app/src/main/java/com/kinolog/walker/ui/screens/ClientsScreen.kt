@@ -359,7 +359,7 @@ fun ClientsScreen(
             }
         }
 
-        // Floating Action Button to Add Client
+        // Floating Action Button to Add Client (lowered right above the Clients tab)
         FloatingActionButton(
             onClick = {
                 clientToEdit = null
@@ -370,7 +370,7 @@ fun ClientsScreen(
             shape = CircleShape,
             modifier = Modifier
                 .align(Alignment.BottomEnd)
-                .padding(end = 20.dp, bottom = 96.dp)
+                .padding(end = 24.dp, bottom = 16.dp)
         ) {
             Icon(Icons.Rounded.Add, contentDescription = "Добавить клиента")
         }

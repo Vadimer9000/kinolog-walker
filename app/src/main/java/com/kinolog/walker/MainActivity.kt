@@ -69,7 +69,8 @@ class MainActivity : ComponentActivity() {
         permissionLauncher.launch(permissionsToRequest.toTypedArray())
 
         setContent {
-            KinologWalkerTheme {
+            val themeMode by viewModel.themeMode.collectAsState()
+            KinologWalkerTheme(themeMode = themeMode) {
                 MainAppScreen(viewModel = viewModel)
             }
         }

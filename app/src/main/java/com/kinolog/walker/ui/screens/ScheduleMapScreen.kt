@@ -20,6 +20,7 @@ import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.imePadding
 import androidx.compose.foundation.layout.padding
+import androidx.compose.foundation.layout.requiredHeightIn
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.statusBarsPadding
 import androidx.compose.foundation.layout.width
@@ -98,6 +99,7 @@ import com.kinolog.walker.model.PetItem
 import com.kinolog.walker.model.WalkCategory
 import com.kinolog.walker.model.WalkEventEntity
 import com.kinolog.walker.ui.MainViewModel
+import com.kinolog.walker.ui.components.AnimatedSegmentedControl
 import com.kinolog.walker.ui.components.GlassBox
 import com.kinolog.walker.ui.components.NavigationTab
 import com.kinolog.walker.ui.components.PetTag
@@ -148,7 +150,8 @@ fun ScheduleMapScreen(
     }
 
     BoxWithConstraints(modifier = modifier.fillMaxSize()) {
-        val peekHeight = (maxHeight * 0.40f).coerceIn(240.dp, 360.dp)
+        val screenMaxHeight = maxHeight
+        val peekHeight = 88.dp
         val scaffoldState = rememberBottomSheetScaffoldState(
             bottomSheetState = rememberStandardBottomSheetState(
                 initialValue = SheetValue.PartiallyExpanded,
@@ -171,7 +174,13 @@ fun ScheduleMapScreen(
             },
             containerColor = Color.Transparent,
             sheetContent = {
-                // Header of BottomSheet
+                Column(
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .height(screenMaxHeight)
+                        .background(CanvasAlabaster)
+                ) {
+                    // Header of BottomSheet
                 val totalPlannedEarnings = walks.sumOf { it.price }
                 val totalEarned = walks.filter { it.isCompleted }.sumOf { it.price }
 
@@ -270,6 +279,7 @@ fun ScheduleMapScreen(
                     Box(
                         modifier = Modifier
                             .fillMaxWidth()
+                            .weight(1f)
                             .padding(horizontal = 24.dp, vertical = 32.dp),
                         contentAlignment = Alignment.Center
                     ) {
@@ -282,7 +292,9 @@ fun ScheduleMapScreen(
                     }
                 } else {
                     LazyColumn(
-                        modifier = Modifier.fillMaxWidth(),
+                        modifier = Modifier
+                            .fillMaxWidth()
+                            .weight(1f),
                         contentPadding = PaddingValues(start = 16.dp, end = 16.dp, top = 8.dp, bottom = 120.dp),
                         verticalArrangement = Arrangement.spacedBy(if (isCompactView) 6.dp else 10.dp)
                     ) {
@@ -346,22 +358,6 @@ fun ScheduleMapScreen(
                                                         textDecoration = if (isDone) TextDecoration.LineThrough else TextDecoration.None
                                                     )
 
-                                                    if (walk.price > 0) {
-                                                        Box(
-                                                            modifier = Modifier
-                                                                .clip(CircleShape)
-                                                                .background(Color(0xFFE8F5E9))
-                                                                .padding(horizontal = 5.dp, vertical = 1.dp)
-                                                        ) {
-                                                            Text(
-                                                                text = "${walk.price} ₽",
-                                                                color = Color(0xFF2E7D32),
-                                                                fontSize = 10.sp,
-                                                                fontWeight = FontWeight.Bold
-                                                            )
-                                                        }
-                                                    }
-
                                                     if (client != null) {
                                                         Text(
                                                             text = client.fullName,
@@ -382,6 +378,23 @@ fun ScheduleMapScreen(
                                                                 maxLines = 1,
                                                                 overflow = TextOverflow.Ellipsis
                                                             )
+                                                        }
+
+                                                        // Price Badge placed directly to the right of pet name
+                                                        if (walk.price > 0) {
+                                                            Box(
+                                                                modifier = Modifier
+                                                                    .clip(CircleShape)
+                                                                    .background(Color(0xFFE8F5E9))
+                                                                    .padding(horizontal = 5.dp, vertical = 1.dp)
+                                                            ) {
+                                                                Text(
+                                                                    text = "${walk.price} ₽",
+                                                                    color = Color(0xFF2E7D32),
+                                                                    fontSize = 10.sp,
+                                                                    fontWeight = FontWeight.Bold
+                                                                )
+                                                            }
                                                         }
                                                     }
                                                 }
@@ -573,23 +586,6 @@ fun ScheduleMapScreen(
                                                         maxLines = 1
                                                     )
                                                 }
-
-                                                // Price Badge
-                                                if (walk.price > 0) {
-                                                    Box(
-                                                        modifier = Modifier
-                                                            .clip(CircleShape)
-                                                            .background(Color(0xFFE8F5E9))
-                                                            .padding(horizontal = 6.dp, vertical = 2.dp)
-                                                    ) {
-                                                        Text(
-                                                            text = "${walk.price} ₽",
-                                                            color = Color(0xFF2E7D32),
-                                                            fontSize = 11.sp,
-                                                            fontWeight = FontWeight.Bold
-                                                        )
-                                                    }
-                                                }
                                             }
 
                                             IconButton(
@@ -607,7 +603,7 @@ fun ScheduleMapScreen(
 
                                         Spacer(modifier = Modifier.height(4.dp))
 
-                                        // Line 2: Client name + pet chips in one line/flow
+                                        // Line 2: Client name + pet chips + price badge
                                         if (client != null) {
                                             Row(
                                                 modifier = Modifier.fillMaxWidth(),
@@ -632,6 +628,44 @@ fun ScheduleMapScreen(
                                                         pets.forEach { pet ->
                                                             PetTag(pet = pet)
                                                         }
+
+                                                        // Price Badge right next to pet name
+                                                        if (walk.price > 0) {
+                                                            Box(
+                                                                modifier = Modifier
+                                                                    .clip(CircleShape)
+                                                                    .background(
+                                                                        if (isDone) Color.LightGray.copy(alpha = 0.3f)
+                                                                        else Color(0xFFE8F5E9)
+                                                                    )
+                                                                    .padding(horizontal = 6.dp, vertical = 2.dp)
+                                                            ) {
+                                                                Text(
+                                                                    text = "${walk.price} ₽",
+                                                                    color = if (isDone) OliveGreySecondary else Color(0xFF2E7D32),
+                                                                    fontSize = 11.sp,
+                                                                    fontWeight = FontWeight.Bold
+                                                                )
+                                                            }
+                                                        }
+                                                    }
+                                                } else if (walk.price > 0) {
+                                                    // Price badge fallback next to client name when no pets
+                                                    Box(
+                                                        modifier = Modifier
+                                                            .clip(CircleShape)
+                                                            .background(
+                                                                if (isDone) Color.LightGray.copy(alpha = 0.3f)
+                                                                else Color(0xFFE8F5E9)
+                                                            )
+                                                            .padding(horizontal = 6.dp, vertical = 2.dp)
+                                                    ) {
+                                                        Text(
+                                                            text = "${walk.price} ₽",
+                                                            color = if (isDone) OliveGreySecondary else Color(0xFF2E7D32),
+                                                            fontSize = 11.sp,
+                                                            fontWeight = FontWeight.Bold
+                                                        )
                                                     }
                                                 }
                                             }
@@ -789,6 +823,7 @@ fun ScheduleMapScreen(
                             }
                         }
                     }
+                }
                 }
             }
         ) { innerPadding ->
@@ -1404,31 +1439,13 @@ fun WalkFormDialog(
                         verticalAlignment = Alignment.CenterVertically
                     ) {
                         Text("Регулярный график:", fontSize = 14.sp, fontWeight = FontWeight.SemiBold)
-                        Row(
-                            modifier = Modifier
-                                .clip(CircleShape)
-                                .background(SandBeige)
-                                .padding(2.dp)
-                        ) {
-                            Box(
-                                modifier = Modifier
-                                    .clip(CircleShape)
-                                    .background(if (!isRecurring) SageGreenPrimary else Color.Transparent)
-                                    .clickable { isRecurring = false }
-                                    .padding(horizontal = 12.dp, vertical = 6.dp)
-                            ) {
-                                Text("Разовый", color = if (!isRecurring) Color.White else CharcoalPrimary, fontSize = 11.sp)
-                            }
-                            Box(
-                                modifier = Modifier
-                                    .clip(CircleShape)
-                                    .background(if (isRecurring) SageGreenPrimary else Color.Transparent)
-                                    .clickable { isRecurring = true }
-                                    .padding(horizontal = 12.dp, vertical = 6.dp)
-                            ) {
-                                Text("Серия", color = if (isRecurring) Color.White else CharcoalPrimary, fontSize = 11.sp)
-                            }
-                        }
+                        AnimatedSegmentedControl(
+                            items = listOf("Разовый", "Серия"),
+                            selectedIndex = if (!isRecurring) 0 else 1,
+                            onItemSelected = { isRecurring = it == 1 },
+                            modifier = Modifier.width(170.dp),
+                            height = 36.dp
+                        )
                     }
 
                     AnimatedVisibility(visible = isRecurring) {
