@@ -5,6 +5,10 @@ import android.app.TimePickerDialog
 import androidx.compose.animation.AnimatedVisibility
 import androidx.compose.animation.core.animateDpAsState
 import androidx.compose.animation.core.spring
+import androidx.compose.animation.expandVertically
+import androidx.compose.animation.fadeIn
+import androidx.compose.animation.fadeOut
+import androidx.compose.animation.shrinkVertically
 import androidx.compose.foundation.background
 import androidx.compose.foundation.border
 import androidx.compose.foundation.clickable
@@ -18,6 +22,7 @@ import androidx.compose.foundation.layout.FlowRow
 import androidx.compose.foundation.layout.PaddingValues
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
+import androidx.compose.foundation.layout.aspectRatio
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
@@ -46,6 +51,8 @@ import androidx.compose.material.icons.rounded.ChevronRight
 import androidx.compose.material.icons.rounded.Delete
 import androidx.compose.material.icons.rounded.Directions
 import androidx.compose.material.icons.rounded.Edit
+import androidx.compose.material.icons.rounded.KeyboardArrowDown
+import androidx.compose.material.icons.rounded.KeyboardArrowUp
 import androidx.compose.material.icons.rounded.LocationOn
 import androidx.compose.material.icons.rounded.Payments
 import androidx.compose.material.icons.rounded.RadioButtonUnchecked
@@ -120,6 +127,7 @@ import com.kinolog.walker.ui.theme.MintLight
 import com.kinolog.walker.ui.theme.OliveGreySecondary
 import com.kinolog.walker.ui.theme.PriceBadgeBg
 import com.kinolog.walker.ui.theme.PriceBadgeText
+import com.kinolog.walker.ui.theme.SageGreenDark
 import com.kinolog.walker.ui.theme.SageGreenPrimary
 import com.kinolog.walker.ui.theme.SandBeige
 import com.kinolog.walker.ui.theme.SoftMint
@@ -128,6 +136,7 @@ import com.kinolog.walker.util.PreferencesManager
 import kotlinx.serialization.json.Json
 import java.time.DayOfWeek
 import java.time.LocalDate
+import java.time.YearMonth
 import java.time.format.DateTimeFormatter
 import java.util.Locale
 
@@ -141,11 +150,11 @@ enum class SheetPosition {
 private fun ScheduleTopControls(
     selectedDate: LocalDate,
     dateFormatter: DateTimeFormatter,
+    isCalendarExpanded: Boolean,
+    onToggleCalendar: () -> Unit,
     onPrevDay: () -> Unit,
     onNextDay: () -> Unit,
-    onSelectDate: (LocalDate) -> Unit,
     onSettingsClick: () -> Unit,
-    context: android.content.Context,
     modifier: Modifier = Modifier
 ) {
     Row(
@@ -174,26 +183,28 @@ private fun ScheduleTopControls(
                     verticalAlignment = Alignment.CenterVertically,
                     modifier = Modifier
                         .clip(CircleShape)
-                        .clickable {
-                            DatePickerDialog(
-                                context,
-                                { _, y, m, d ->
-                                    onSelectDate(LocalDate.of(y, m + 1, d))
-                                },
-                                selectedDate.year,
-                                selectedDate.monthValue - 1,
-                                selectedDate.dayOfMonth
-                            ).show()
-                        }
-                        .padding(horizontal = 10.dp, vertical = 6.dp)
+                        .clickable { onToggleCalendar() }
+                        .padding(horizontal = 8.dp, vertical = 6.dp)
                 ) {
-                    Icon(Icons.Rounded.CalendarMonth, contentDescription = null, tint = SageGreenPrimary, modifier = Modifier.size(16.dp))
+                    Icon(
+                        Icons.Rounded.CalendarMonth,
+                        contentDescription = null,
+                        tint = SageGreenPrimary,
+                        modifier = Modifier.size(16.dp)
+                    )
                     Spacer(modifier = Modifier.width(6.dp))
                     Text(
                         text = selectedDate.format(dateFormatter).replaceFirstChar { it.uppercase() },
                         fontWeight = FontWeight.SemiBold,
                         fontSize = 13.sp,
                         color = CharcoalPrimary
+                    )
+                    Spacer(modifier = Modifier.width(4.dp))
+                    Icon(
+                        imageVector = if (isCalendarExpanded) Icons.Rounded.KeyboardArrowUp else Icons.Rounded.KeyboardArrowDown,
+                        contentDescription = if (isCalendarExpanded) "Свернуть календарь" else "Развернуть календарь",
+                        tint = SageGreenPrimary,
+                        modifier = Modifier.size(16.dp)
                     )
                 }
 
@@ -224,6 +235,215 @@ private fun ScheduleTopControls(
     }
 }
 
+@Composable
+private fun MonthCalendarDropdown(
+    selectedDate: LocalDate,
+    walksCountByEpochDay: Map<Long, Int>,
+    onDateSelected: (LocalDate) -> Unit,
+    modifier: Modifier = Modifier
+) {
+    var displayedMonth by remember(selectedDate) {
+        mutableStateOf(YearMonth.from(selectedDate))
+    }
+
+    val monthFormatter = remember {
+        DateTimeFormatter.ofPattern("LLLL yyyy", Locale("ru"))
+    }
+
+    val today = remember { LocalDate.now() }
+
+    GlassBox(
+        modifier = modifier.fillMaxWidth(),
+        shape = RoundedCornerShape(20.dp),
+        elevation = 8.dp
+    ) {
+        Column(
+            modifier = Modifier
+                .fillMaxWidth()
+                .padding(horizontal = 12.dp, vertical = 12.dp)
+        ) {
+            // Month Header with navigation & Today button
+            Row(
+                modifier = Modifier.fillMaxWidth(),
+                horizontalArrangement = Arrangement.SpaceBetween,
+                verticalAlignment = Alignment.CenterVertically
+            ) {
+                IconButton(
+                    onClick = { displayedMonth = displayedMonth.minusMonths(1) },
+                    modifier = Modifier.size(36.dp)
+                ) {
+                    Icon(
+                        Icons.Rounded.ChevronLeft,
+                        contentDescription = "Предыдущий месяц",
+                        tint = SageGreenPrimary,
+                        modifier = Modifier.size(22.dp)
+                    )
+                }
+
+                Text(
+                    text = displayedMonth.format(monthFormatter).replaceFirstChar { it.uppercase() },
+                    fontWeight = FontWeight.Bold,
+                    fontSize = 15.sp,
+                    color = CharcoalPrimary
+                )
+
+                Row(verticalAlignment = Alignment.CenterVertically) {
+                    // "Сегодня" quick jump pill
+                    Box(
+                        modifier = Modifier
+                            .clip(CircleShape)
+                            .background(MintLight)
+                            .clickable {
+                                val now = LocalDate.now()
+                                displayedMonth = YearMonth.from(now)
+                                onDateSelected(now)
+                            }
+                            .padding(horizontal = 10.dp, vertical = 5.dp),
+                        contentAlignment = Alignment.Center
+                    ) {
+                        Text(
+                            text = "Сегодня",
+                            fontSize = 11.sp,
+                            fontWeight = FontWeight.SemiBold,
+                            color = SageGreenDark
+                        )
+                    }
+
+                    Spacer(modifier = Modifier.width(4.dp))
+
+                    IconButton(
+                        onClick = { displayedMonth = displayedMonth.plusMonths(1) },
+                        modifier = Modifier.size(36.dp)
+                    ) {
+                        Icon(
+                            Icons.Rounded.ChevronRight,
+                            contentDescription = "Следующий месяц",
+                            tint = SageGreenPrimary,
+                            modifier = Modifier.size(22.dp)
+                        )
+                    }
+                }
+            }
+
+            Spacer(modifier = Modifier.height(10.dp))
+
+            // Weekday headers
+            val weekDays = listOf("Пн", "Вт", "Ср", "Чт", "Пт", "Сб", "Вс")
+            Row(
+                modifier = Modifier.fillMaxWidth(),
+                horizontalArrangement = Arrangement.SpaceBetween
+            ) {
+                weekDays.forEach { dayName ->
+                    Box(
+                        modifier = Modifier.weight(1f),
+                        contentAlignment = Alignment.Center
+                    ) {
+                        Text(
+                            text = dayName,
+                            fontSize = 11.sp,
+                            fontWeight = FontWeight.SemiBold,
+                            color = OliveGreySecondary
+                        )
+                    }
+                }
+            }
+
+            Spacer(modifier = Modifier.height(6.dp))
+
+            // Days Grid
+            val daysInMonth = displayedMonth.lengthOfMonth()
+            val firstDayOfWeek = displayedMonth.atDay(1).dayOfWeek.value // 1 = Monday .. 7 = Sunday
+            val totalSlots = (firstDayOfWeek - 1) + daysInMonth
+            val totalWeeks = (totalSlots + 6) / 7
+
+            for (week in 0 until totalWeeks) {
+                Row(
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .padding(vertical = 2.dp),
+                    horizontalArrangement = Arrangement.SpaceBetween
+                ) {
+                    for (col in 0..6) {
+                        val dayIndex = week * 7 + col
+                        val dayNum = dayIndex - (firstDayOfWeek - 1) + 1
+
+                        if (dayNum in 1..daysInMonth) {
+                            val date = displayedMonth.atDay(dayNum)
+                            val isSelected = (date == selectedDate)
+                            val isToday = (date == today)
+                            val walksCount = walksCountByEpochDay[date.toEpochDay()] ?: 0
+
+                            val cellBg = when {
+                                isSelected -> SageGreenPrimary
+                                isToday -> SoftMint.copy(alpha = 0.5f)
+                                else -> Color.Transparent
+                            }
+
+                            Box(
+                                modifier = Modifier
+                                    .weight(1f)
+                                    .height(44.dp)
+                                    .padding(horizontal = 1.dp)
+                                    .clip(RoundedCornerShape(10.dp))
+                                    .then(
+                                        if (isToday && !isSelected) {
+                                            Modifier.border(1.dp, SageGreenPrimary.copy(alpha = 0.6f), RoundedCornerShape(10.dp))
+                                        } else Modifier
+                                    )
+                                    .background(cellBg)
+                                    .clickable { onDateSelected(date) },
+                                contentAlignment = Alignment.Center
+                            ) {
+                                Column(
+                                    horizontalAlignment = Alignment.CenterHorizontally,
+                                    verticalArrangement = Arrangement.Center
+                                ) {
+                                    Text(
+                                        text = "",
+                                        fontSize = 12.sp,
+                                        fontWeight = if (isSelected || isToday) FontWeight.Bold else FontWeight.Medium,
+                                        color = if (isSelected) Color.White else CharcoalPrimary
+                                    )
+
+                                    if (walksCount > 0) {
+                                        Box(
+                                            modifier = Modifier
+                                                .padding(top = 1.dp)
+                                                .background(
+                                                    color = if (isSelected) Color.White.copy(alpha = 0.92f) else PriceBadgeBg,
+                                                    shape = RoundedCornerShape(4.dp)
+                                                )
+                                                .padding(horizontal = 4.dp, vertical = 0.5.dp),
+                                            contentAlignment = Alignment.Center
+                                        ) {
+                                            Text(
+                                                text = "",
+                                                fontSize = 9.sp,
+                                                fontWeight = FontWeight.Bold,
+                                                color = if (isSelected) SageGreenDark else PriceBadgeText,
+                                                lineHeight = 10.sp
+                                            )
+                                        }
+                                    } else {
+                                        Spacer(modifier = Modifier.height(11.dp))
+                                    }
+                                }
+                            }
+                        } else {
+                            Box(
+                                modifier = Modifier
+                                    .weight(1f)
+                                    .height(44.dp)
+                                    .padding(horizontal = 1.dp)
+                            )
+                        }
+                    }
+                }
+            }
+        }
+    }
+}
+
 @OptIn(ExperimentalLayoutApi::class, ExperimentalMaterial3Api::class)
 @Composable
 fun ScheduleMapScreen(
@@ -239,6 +459,11 @@ fun ScheduleMapScreen(
     val mapMarkers by viewModel.mapMarkerPoints.collectAsState()
     val clients by viewModel.clients.collectAsState()
     val isMapEnabled by viewModel.isMapEnabled.collectAsState()
+    val allWalks by viewModel.allWalks.collectAsState()
+    val walksCountByEpochDay = remember(allWalks) {
+        allWalks.groupBy { it.dateEpochDay }.mapValues { it.value.size }
+    }
+    var isCalendarExpanded by remember { mutableStateOf(false) }
 
     var showWalkFormDialog by remember { mutableStateOf(false) }
     var walkToEdit by remember { mutableStateOf<WalkEventEntity?>(null) }
@@ -916,12 +1141,28 @@ fun ScheduleMapScreen(
                 ScheduleTopControls(
                     selectedDate = selectedDate,
                     dateFormatter = dateFormatter,
+                    isCalendarExpanded = isCalendarExpanded,
+                    onToggleCalendar = { isCalendarExpanded = !isCalendarExpanded },
                     onPrevDay = { viewModel.setSelectedDate(selectedDate.minusDays(1)) },
                     onNextDay = { viewModel.setSelectedDate(selectedDate.plusDays(1)) },
-                    onSelectDate = { viewModel.setSelectedDate(it) },
-                    onSettingsClick = { viewModel.setTab(NavigationTab.SETTINGS) },
-                    context = context
+                    onSettingsClick = { viewModel.setTab(NavigationTab.SETTINGS) }
                 )
+
+                AnimatedVisibility(
+                    visible = isCalendarExpanded,
+                    enter = expandVertically() + fadeIn(),
+                    exit = shrinkVertically() + fadeOut()
+                ) {
+                    MonthCalendarDropdown(
+                        selectedDate = selectedDate,
+                        walksCountByEpochDay = walksCountByEpochDay,
+                        onDateSelected = { date ->
+                            viewModel.setSelectedDate(date)
+                            isCalendarExpanded = false
+                        },
+                        modifier = Modifier.padding(top = 8.dp)
+                    )
+                }
 
                 Spacer(modifier = Modifier.height(8.dp))
 
@@ -977,12 +1218,28 @@ fun ScheduleMapScreen(
                 ScheduleTopControls(
                     selectedDate = selectedDate,
                     dateFormatter = dateFormatter,
+                    isCalendarExpanded = isCalendarExpanded,
+                    onToggleCalendar = { isCalendarExpanded = !isCalendarExpanded },
                     onPrevDay = { viewModel.setSelectedDate(selectedDate.minusDays(1)) },
                     onNextDay = { viewModel.setSelectedDate(selectedDate.plusDays(1)) },
-                    onSelectDate = { viewModel.setSelectedDate(it) },
-                    onSettingsClick = { viewModel.setTab(NavigationTab.SETTINGS) },
-                    context = context
+                    onSettingsClick = { viewModel.setTab(NavigationTab.SETTINGS) }
                 )
+
+                AnimatedVisibility(
+                    visible = isCalendarExpanded,
+                    enter = expandVertically() + fadeIn(),
+                    exit = shrinkVertically() + fadeOut()
+                ) {
+                    MonthCalendarDropdown(
+                        selectedDate = selectedDate,
+                        walksCountByEpochDay = walksCountByEpochDay,
+                        onDateSelected = { date ->
+                            viewModel.setSelectedDate(date)
+                            isCalendarExpanded = false
+                        },
+                        modifier = Modifier.padding(top = 8.dp)
+                    )
+                }
 
                 Spacer(modifier = Modifier.height(8.dp))
 
