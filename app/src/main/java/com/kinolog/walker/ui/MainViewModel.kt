@@ -369,7 +369,6 @@ class MainViewModel(application: Application) : AndroidViewModel(application) {
         IntentHelper.openYandexMapsRoute(
             context = context,
             points = points,
-            currentLocation = _currentLocation.value,
             routingMode = _routingMode.value
         )
     }
@@ -381,15 +380,10 @@ class MainViewModel(application: Application) : AndroidViewModel(application) {
             return
         }
 
-        if (_currentLocation.value == null) {
-            fetchCurrentLocation()
-        }
-
         if (client.latitude != null && client.longitude != null) {
             IntentHelper.openYandexMapsRoute(
                 context = context,
                 points = listOf(Pair(client.latitude, client.longitude)),
-                currentLocation = _currentLocation.value,
                 routingMode = _routingMode.value
             )
         } else if (client.addressStreet.isNotBlank()) {
@@ -405,14 +399,12 @@ class MainViewModel(application: Application) : AndroidViewModel(application) {
                     IntentHelper.openYandexMapsRoute(
                         context = context,
                         points = listOf(coords),
-                        currentLocation = _currentLocation.value,
                         routingMode = _routingMode.value
                     )
                 } else {
                     IntentHelper.openYandexMapsRouteByAddress(
                         context = context,
                         destinationAddress = client.addressStreet.trim(),
-                        currentLocation = _currentLocation.value,
                         routingMode = _routingMode.value
                     )
                 }

@@ -88,7 +88,7 @@ object IntentHelper {
     fun openYandexMapsRoute(
         context: Context,
         points: List<Pair<Double, Double>>,
-        currentLocation: Pair<Double, Double>?,
+        currentLocation: Pair<Double, Double>? = null,
         routingMode: String // "pd" (pedestrian) or "mt" (mass transit)
     ) {
         if (points.isEmpty()) {
@@ -96,21 +96,10 @@ object IntentHelper {
             return
         }
 
-        // Prepare points string
-        // If current location is available: "lat0,lon0~lat1,lon1~..."
-        // If unavailable: "~lat1,lon1~lat2,lon2" (leading tilde tells Yandex Maps to use "My location")
-        val rtextBuilder = StringBuilder()
-        if (currentLocation != null) {
-            rtextBuilder.append("${currentLocation.first},${currentLocation.second}~")
-        } else {
-            rtextBuilder.append("~")
-        }
-
-        val pointsStr = points.joinToString("~") { "${it.first},${it.second}" }
-        rtextBuilder.append(pointsStr)
-
-        val rtextParam = rtextBuilder.toString()
         val rttParam = if (routingMode == "mt") "mt" else "pd"
+        val pointsStr = points.joinToString("~") { "${it.first},${it.second}" }
+        // Origin starts with "~" without explicit start coordinates so Yandex Maps automatically uses live "My location"
+        val rtextParam = "~$pointsStr"
 
         val appUri = Uri.parse("yandexmaps://maps.yandex.ru/?rtext=$rtextParam&rtt=$rttParam")
         val webUri = Uri.parse("https://yandex.ru/maps/?rtext=$rtextParam&rtt=$rttParam")
@@ -121,18 +110,26 @@ object IntentHelper {
         try {
             if (isPackageInstalled(context, "ru.yandex.yandexmaps")) {
                 context.startActivity(mapIntent)
+            } else if (points.size == 1 && isPackageInstalled(context, "ru.yandex.yandexnavi")) {
+                // Fallback to Yandex Navigator for single destination from live location
+                val naviUri = Uri.parse("yandexnavi://build_route_on_map?lat_to=${points[0].first}&lon_to=${points[0].second}")
+                context.startActivity(Intent(Intent.ACTION_VIEW, naviUri).setPackage("ru.yandex.yandexnavi"))
             } else {
                 context.startActivity(Intent(Intent.ACTION_VIEW, webUri))
             }
         } catch (e: Exception) {
-            context.startActivity(Intent(Intent.ACTION_VIEW, webUri))
+            try {
+                context.startActivity(Intent(Intent.ACTION_VIEW, webUri))
+            } catch (_: Exception) {
+                Toast.makeText(context, "Не удалось открыть карту", Toast.LENGTH_SHORT).show()
+            }
         }
     }
 
     fun openYandexMapsRouteByAddress(
         context: Context,
         destinationAddress: String,
-        currentLocation: Pair<Double, Double>?,
+        currentLocation: Pair<Double, Double>? = null,
         routingMode: String
     ) {
         val cleanAddr = GeocoderHelper.cleanAddressForGeocoding(destinationAddress)
@@ -141,11 +138,8 @@ object IntentHelper {
             return
         }
 
-        val rtext = if (currentLocation != null) {
-            "${currentLocation.first},${currentLocation.second}~$cleanAddr"
-        } else {
-            "~$cleanAddr"
-        }
+        // Origin starts with "~" so Yandex Maps automatically uses live "My location"
+        val rtext = "~$cleanAddr"
         val encodedRtext = Uri.encode(rtext, ":,~")
         val rttParam = if (routingMode == "mt") "mt" else "pd"
 
