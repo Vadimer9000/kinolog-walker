@@ -352,26 +352,23 @@ class MainViewModel(application: Application) : AndroidViewModel(application) {
         val walks = walksForSelectedDate.value.filter { !it.isCompleted }
         val sortedWalks = walks.sortedBy { it.startTimeMinutes }
         val map = clientsMap.value
-        val targets = mutableListOf<String>()
+        val points = mutableListOf<Pair<Double, Double>>()
 
         for (w in sortedWalks) {
             val c = map[w.clientId] ?: continue
-            val cleanAddr = GeocoderHelper.cleanAddressForGeocoding(c.addressStreet)
-            if (cleanAddr.isNotBlank()) {
-                targets.add(cleanAddr)
-            } else if (c.latitude != null && c.longitude != null) {
-                targets.add("${c.latitude},${c.longitude}")
+            if (c.latitude != null && c.longitude != null) {
+                points.add(Pair(c.latitude, c.longitude))
             }
         }
 
-        if (targets.isEmpty()) {
-            Toast.makeText(context, "Нет точек с адресами или координатами на выбранный день", Toast.LENGTH_SHORT).show()
+        if (points.isEmpty()) {
+            Toast.makeText(context, "Нет точек с координатами на выбранный день", Toast.LENGTH_SHORT).show()
             return
         }
 
-        IntentHelper.openYandexMapsTargets(
+        IntentHelper.openYandexMapsRoute(
             context = context,
-            targets = targets,
+            points = points,
             routingMode = _routingMode.value
         )
     }
@@ -383,21 +380,41 @@ class MainViewModel(application: Application) : AndroidViewModel(application) {
             return
         }
 
-        val coords = if (client.latitude != null && client.longitude != null) {
-            Pair(client.latitude, client.longitude)
-        } else null
-
-        if (client.addressStreet.isNotBlank()) {
-            IntentHelper.openYandexMapsRouteByAddress(
-                context = context,
-                destinationAddress = client.addressStreet.trim(),
-                destinationCoords = coords,
-                routingMode = _routingMode.value
-            )
-        } else if (coords != null) {
+        if (client.latitude != null && client.longitude != null && prefs.geocodingVersion >= 2) {
             IntentHelper.openYandexMapsRoute(
                 context = context,
-                points = listOf(coords),
+                points = listOf(Pair(client.latitude, client.longitude)),
+                routingMode = _routingMode.value
+            )
+        } else if (client.addressStreet.isNotBlank()) {
+            viewModelScope.launch {
+                val coords = GeocoderHelper.geocodeAddress(
+                    context = context,
+                    rawAddress = client.addressStreet.trim(),
+                    yandexApiKey = prefs.yandexApiKey
+                )
+                if (coords != null) {
+                    val updated = client.copy(latitude = coords.first, longitude = coords.second)
+                    repository.saveClient(updated)
+                    IntentHelper.openYandexMapsRoute(
+                        context = context,
+                        points = listOf(coords),
+                        routingMode = _routingMode.value
+                    )
+                } else if (client.latitude != null && client.longitude != null) {
+                    IntentHelper.openYandexMapsRoute(
+                        context = context,
+                        points = listOf(Pair(client.latitude, client.longitude)),
+                        routingMode = _routingMode.value
+                    )
+                } else {
+                    Toast.makeText(context, "Не удалось определить координаты адреса", Toast.LENGTH_SHORT).show()
+                }
+            }
+        } else if (client.latitude != null && client.longitude != null) {
+            IntentHelper.openYandexMapsRoute(
+                context = context,
+                points = listOf(Pair(client.latitude, client.longitude)),
                 routingMode = _routingMode.value
             )
         } else {
