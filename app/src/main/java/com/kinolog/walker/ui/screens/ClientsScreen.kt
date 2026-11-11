@@ -888,20 +888,23 @@ fun ClientFormDialog(
                                 val validPets = petList.filter { it.name.isNotBlank() }.ifEmpty {
                                     listOf(PetItem(name = "Питомец", type = PetType.DOG))
                                 }
+                                val addressChanged = client == null ||
+                                    client.addressStreet.trim() != addressStreet.trim() ||
+                                    client.entrance.trim() != entrance.trim()
                                 val updated = ClientEntity(
                                     id = client?.id ?: 0L,
-                                    fullName = fullName,
+                                    fullName = fullName.trim(),
                                     phone = formattedPhone,
                                     messengerType = messengerType,
-                                    messengerIdentifier = messengerIdentifier,
+                                    messengerIdentifier = messengerIdentifier.trim(),
                                     petsJson = "",
-                                    addressStreet = addressStreet,
-                                    entrance = entrance,
-                                    floor = floor,
-                                    apartment = apartment,
-                                    clientComment = clientComment,
-                                    latitude = client?.latitude,
-                                    longitude = client?.longitude
+                                    addressStreet = addressStreet.trim(),
+                                    entrance = entrance.trim(),
+                                    floor = floor.trim(),
+                                    apartment = apartment.trim(),
+                                    clientComment = clientComment.trim(),
+                                    latitude = if (addressChanged) null else client.latitude,
+                                    longitude = if (addressChanged) null else client.longitude
                                 )
                                 onSave(updated, validPets)
                             }

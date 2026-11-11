@@ -351,17 +351,34 @@ class MainViewModel(application: Application) : AndroidViewModel(application) {
 
     fun routeSingleWalk(context: Context, walk: WalkEventEntity) {
         val client = clientsMap.value[walk.clientId]
-        if (client?.latitude == null || client.longitude == null) {
-            Toast.makeText(context, "У клиента не определены координаты", Toast.LENGTH_SHORT).show()
+        if (client == null) {
+            Toast.makeText(context, "Клиент не найден", Toast.LENGTH_SHORT).show()
             return
         }
 
-        IntentHelper.openYandexMapsRoute(
-            context = context,
-            points = listOf(Pair(client.latitude, client.longitude)),
-            currentLocation = _currentLocation.value,
-            routingMode = _routingMode.value
-        )
+        if (client.latitude != null && client.longitude != null) {
+            IntentHelper.openYandexMapsRoute(
+                context = context,
+                points = listOf(Pair(client.latitude, client.longitude)),
+                currentLocation = _currentLocation.value,
+                routingMode = _routingMode.value
+            )
+        } else if (client.addressStreet.isNotBlank()) {
+            val destination = buildString {
+                append(client.addressStreet.trim())
+                if (client.entrance.isNotBlank()) {
+                    append(", подъезд ${client.entrance.trim()}")
+                }
+            }
+            IntentHelper.openYandexMapsRouteByAddress(
+                context = context,
+                destinationAddress = destination,
+                currentLocation = _currentLocation.value,
+                routingMode = _routingMode.value
+            )
+        } else {
+            Toast.makeText(context, "У клиента не указан адрес", Toast.LENGTH_SHORT).show()
+        }
     }
 
     fun exportDatabaseToTelegram(context: Context) {

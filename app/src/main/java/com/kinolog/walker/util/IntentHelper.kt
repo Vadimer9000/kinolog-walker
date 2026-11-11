@@ -129,6 +129,43 @@ object IntentHelper {
         }
     }
 
+    fun openYandexMapsRouteByAddress(
+        context: Context,
+        destinationAddress: String,
+        currentLocation: Pair<Double, Double>?,
+        routingMode: String
+    ) {
+        val cleanAddr = destinationAddress.trim()
+        if (cleanAddr.isEmpty()) {
+            Toast.makeText(context, "Адрес не указан", Toast.LENGTH_SHORT).show()
+            return
+        }
+
+        val rtext = if (currentLocation != null) {
+            "${currentLocation.first},${currentLocation.second}~$cleanAddr"
+        } else {
+            "~$cleanAddr"
+        }
+        val encodedRtext = Uri.encode(rtext, ":,~")
+        val rttParam = if (routingMode == "mt") "mt" else "pd"
+
+        val appUri = Uri.parse("yandexmaps://maps.yandex.ru/?rtext=$encodedRtext&rtt=$rttParam")
+        val webUri = Uri.parse("https://yandex.ru/maps/?rtext=$encodedRtext&rtt=$rttParam")
+
+        val mapIntent = Intent(Intent.ACTION_VIEW, appUri)
+        mapIntent.setPackage("ru.yandex.yandexmaps")
+
+        try {
+            if (isPackageInstalled(context, "ru.yandex.yandexmaps")) {
+                context.startActivity(mapIntent)
+            } else {
+                context.startActivity(Intent(Intent.ACTION_VIEW, webUri))
+            }
+        } catch (e: Exception) {
+            context.startActivity(Intent(Intent.ACTION_VIEW, webUri))
+        }
+    }
+
     fun openGoogleCalendar(
         context: Context,
         client: ClientEntity,
