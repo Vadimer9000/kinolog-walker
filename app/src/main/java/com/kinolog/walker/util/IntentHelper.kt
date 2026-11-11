@@ -9,7 +9,6 @@ import android.widget.Toast
 import com.kinolog.walker.model.ClientEntity
 import com.kinolog.walker.model.MessengerType
 import com.kinolog.walker.model.WalkEventEntity
-import java.net.URLEncoder
 import java.time.LocalDate
 import java.time.LocalDateTime
 import java.time.LocalTime
@@ -89,12 +88,11 @@ object IntentHelper {
     fun openYandexMapsRoute(
         context: Context,
         points: List<Pair<Double, Double>>,
-        destinationAddress: String? = null,
         currentLocation: Pair<Double, Double>?,
         routingMode: String // "pd" (pedestrian) or "mt" (mass transit)
     ) {
-        if (points.isEmpty() && destinationAddress.isNullOrBlank()) {
-            Toast.makeText(context, "Нет данных для построения маршрута", Toast.LENGTH_SHORT).show()
+        if (points.isEmpty()) {
+            Toast.makeText(context, "Нет точек с координатами для построения маршрута", Toast.LENGTH_SHORT).show()
             return
         }
 
@@ -108,13 +106,8 @@ object IntentHelper {
             rtextBuilder.append("~")
         }
 
-        if (!destinationAddress.isNullOrBlank() && points.size <= 1) {
-            val encodedDest = URLEncoder.encode(destinationAddress, "UTF-8")
-            rtextBuilder.append(encodedDest)
-        } else {
-            val pointsStr = points.joinToString("~") { "${it.first},${it.second}" }
-            rtextBuilder.append(pointsStr)
-        }
+        val pointsStr = points.joinToString("~") { "${it.first},${it.second}" }
+        rtextBuilder.append(pointsStr)
 
         val rtextParam = rtextBuilder.toString()
         val rttParam = if (routingMode == "mt") "mt" else "pd"

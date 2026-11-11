@@ -269,6 +269,27 @@ class MainViewModel(application: Application) : AndroidViewModel(application) {
         }
     }
 
+    fun updateWalkSeries(
+        walk: WalkEventEntity,
+        updateEntireSeries: Boolean,
+        onDone: () -> Unit = {}
+    ) {
+        viewModelScope.launch {
+            if (updateEntireSeries && !walk.seriesId.isNullOrBlank()) {
+                repository.updateWalkSeries(
+                    seriesId = walk.seriesId,
+                    startTimeMinutes = walk.startTimeMinutes,
+                    durationMinutes = walk.durationMinutes,
+                    price = walk.price
+                )
+                repository.updateWalk(walk)
+            } else {
+                repository.updateWalk(walk)
+            }
+            onDone()
+        }
+    }
+
     fun deleteWalk(walk: WalkEventEntity, deleteEntireSeries: Boolean) {
         viewModelScope.launch {
             if (deleteEntireSeries && !walk.seriesId.isNullOrBlank()) {
@@ -300,7 +321,6 @@ class MainViewModel(application: Application) : AndroidViewModel(application) {
         IntentHelper.openYandexMapsRoute(
             context = context,
             points = points,
-            destinationAddress = null,
             currentLocation = _currentLocation.value,
             routingMode = _routingMode.value
         )
@@ -308,28 +328,14 @@ class MainViewModel(application: Application) : AndroidViewModel(application) {
 
     fun routeSingleWalk(context: Context, walk: WalkEventEntity) {
         val client = clientsMap.value[walk.clientId]
-        val points = if (client?.latitude != null && client.longitude != null) {
-            listOf(Pair(client.latitude, client.longitude))
-        } else emptyList()
-
-        val fullAddress = if (client != null) {
-            buildString {
-                append(client.addressStreet)
-                if (client.entrance.isNotBlank()) {
-                    append(", подъезд ${client.entrance}")
-                }
-            }
-        } else null
-
-        if (points.isEmpty() && fullAddress.isNullOrBlank()) {
-            Toast.makeText(context, "У клиента не определен адрес", Toast.LENGTH_SHORT).show()
+        if (client?.latitude == null || client.longitude == null) {
+            Toast.makeText(context, "У клиента не определены координаты", Toast.LENGTH_SHORT).show()
             return
         }
 
         IntentHelper.openYandexMapsRoute(
             context = context,
-            points = points,
-            destinationAddress = fullAddress,
+            points = listOf(Pair(client.latitude, client.longitude)),
             currentLocation = _currentLocation.value,
             routingMode = _routingMode.value
         )

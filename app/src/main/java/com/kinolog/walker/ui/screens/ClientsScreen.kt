@@ -27,6 +27,7 @@ import androidx.compose.foundation.lazy.items
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
+import androidx.compose.foundation.text.KeyboardOptions
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.rounded.Add
@@ -65,6 +66,7 @@ import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.text.font.FontWeight
+import androidx.compose.ui.text.input.KeyboardType
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
@@ -427,6 +429,25 @@ fun ClientsScreen(
     }
 }
 
+fun formatRussianPhone(raw: String): String {
+    val digits = raw.filter { it.isDigit() }
+    if (digits.isEmpty()) return ""
+    val nationalDigits = when {
+        (digits.startsWith("7") || digits.startsWith("8")) && digits.length > 1 -> digits.substring(1)
+        digits.startsWith("7") || digits.startsWith("8") -> ""
+        else -> digits
+    }.take(10)
+
+    val sb = StringBuilder("+7 (")
+    for (i in nationalDigits.indices) {
+        if (i == 3) sb.append(") ")
+        if (i == 6) sb.append("-")
+        if (i == 8) sb.append("-")
+        sb.append(nationalDigits[i])
+    }
+    return sb.toString()
+}
+
 @Composable
 fun ClientFormDialog(
     client: ClientEntity?,
@@ -437,7 +458,9 @@ fun ClientFormDialog(
     val json = remember { Json { ignoreUnknownKeys = true } }
 
     var fullName by remember { mutableStateOf(client?.fullName ?: "") }
-    var phone by remember { mutableStateOf(client?.phone ?: "") }
+    var phone by remember {
+        mutableStateOf(if (client != null && client.phone.isNotBlank()) formatRussianPhone(client.phone) else "")
+    }
     var messengerType by remember { mutableStateOf(client?.messengerType ?: MessengerType.TELEGRAM) }
     var messengerIdentifier by remember { mutableStateOf(client?.messengerIdentifier ?: "") }
 
@@ -487,7 +510,7 @@ fun ClientFormDialog(
                         if (numIdx >= 0) {
                             cursor.getString(numIdx)?.let { rawNum ->
                                 if (rawNum.isNotBlank()) {
-                                    phone = rawNum.replace(" ", "").replace("-", "")
+                                    phone = formatRussianPhone(rawNum)
                                 }
                             }
                         }
@@ -566,11 +589,13 @@ fun ClientFormDialog(
 
                 Spacer(modifier = Modifier.height(10.dp))
 
-                // Phone
+                // Phone with Russian Mask
                 OutlinedTextField(
                     value = phone,
-                    onValueChange = { phone = it },
-                    label = { Text("Номер телефона (+7...)") },
+                    onValueChange = { phone = formatRussianPhone(it) },
+                    label = { Text("Номер телефона") },
+                    placeholder = { Text("+7 (___) ___-__-__") },
+                    keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Phone),
                     singleLine = true,
                     modifier = Modifier.fillMaxWidth()
                 )

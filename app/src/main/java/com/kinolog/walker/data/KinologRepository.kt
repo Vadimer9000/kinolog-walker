@@ -117,6 +117,22 @@ class KinologRepository(
         }
     }
 
+    suspend fun updateWalkSeries(
+        seriesId: String,
+        startTimeMinutes: Int,
+        durationMinutes: Int,
+        price: Int
+    ) = withContext(Dispatchers.IO) {
+        walkEventDao.updateAllWalksInSeries(seriesId, startTimeMinutes, durationMinutes, price)
+        val seriesWalks = walkEventDao.getWalksBySeries(seriesId)
+        for (w in seriesWalks) {
+            val client = clientDao.getClientByIdSync(w.clientId)
+            if (client != null && !w.isCompleted) {
+                WalkNotificationWorker.scheduleReminder(context, client, w)
+            }
+        }
+    }
+
     suspend fun deleteWalk(walkId: Long) = withContext(Dispatchers.IO) {
         WalkNotificationWorker.cancelReminder(context, walkId)
         walkEventDao.deleteWalkById(walkId)

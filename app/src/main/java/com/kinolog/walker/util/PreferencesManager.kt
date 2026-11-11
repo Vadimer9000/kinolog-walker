@@ -10,6 +10,7 @@ class PreferencesManager(context: Context) {
     companion object {
         private const val KEY_YANDEX_API_KEY = "yandex_maps_api_key"
         private const val KEY_ROUTING_MODE = "routing_mode" // "pd" (pedestrian) or "mt" (masstransit)
+        private const val KEY_IS_COMPACT_VIEW = "is_compact_view"
     }
 
     var yandexApiKey: String
@@ -19,4 +20,8 @@ class PreferencesManager(context: Context) {
     var routingMode: String
         get() = prefs.getString(KEY_ROUTING_MODE, "pd") ?: "pd"
         set(value) = prefs.edit().putString(KEY_ROUTING_MODE, value).apply()
+
+    var isCompactView: Boolean
+        get() = prefs.getBoolean(KEY_IS_COMPACT_VIEW, false)
+        set(value) = prefs.edit().putBoolean(KEY_IS_COMPACT_VIEW, value).apply()
 }
