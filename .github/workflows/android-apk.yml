@@ -2,7 +2,9 @@ name: Build KinologWalker APK
 
 on:
   push:
-    branches: [ "main", "master", "kinolog-walker" ]
+    branches: [ "main", "master" ]
+  pull_request:
+    branches: [ "main", "master" ]
   workflow_dispatch:
 
 jobs:
