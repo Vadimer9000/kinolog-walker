@@ -352,23 +352,26 @@ class MainViewModel(application: Application) : AndroidViewModel(application) {
         val walks = walksForSelectedDate.value.filter { !it.isCompleted }
         val sortedWalks = walks.sortedBy { it.startTimeMinutes }
         val map = clientsMap.value
-        val points = mutableListOf<Pair<Double, Double>>()
+        val targets = mutableListOf<String>()
 
         for (w in sortedWalks) {
-            val c = map[w.clientId]
-            if (c != null && c.latitude != null && c.longitude != null) {
-                points.add(Pair(c.latitude, c.longitude))
+            val c = map[w.clientId] ?: continue
+            val cleanAddr = GeocoderHelper.cleanAddressForGeocoding(c.addressStreet)
+            if (cleanAddr.isNotBlank()) {
+                targets.add(cleanAddr)
+            } else if (c.latitude != null && c.longitude != null) {
+                targets.add("${c.latitude},${c.longitude}")
             }
         }
 
-        if (points.isEmpty()) {
-            Toast.makeText(context, "Нет точек с координатами на выбранный день", Toast.LENGTH_SHORT).show()
+        if (targets.isEmpty()) {
+            Toast.makeText(context, "Нет точек с адресами или координатами на выбранный день", Toast.LENGTH_SHORT).show()
             return
         }
 
-        IntentHelper.openYandexMapsRoute(
+        IntentHelper.openYandexMapsTargets(
             context = context,
-            points = points,
+            targets = targets,
             routingMode = _routingMode.value
         )
     }
@@ -380,35 +383,23 @@ class MainViewModel(application: Application) : AndroidViewModel(application) {
             return
         }
 
-        if (client.latitude != null && client.longitude != null) {
-            IntentHelper.openYandexMapsRoute(
+        val coords = if (client.latitude != null && client.longitude != null) {
+            Pair(client.latitude, client.longitude)
+        } else null
+
+        if (client.addressStreet.isNotBlank()) {
+            IntentHelper.openYandexMapsRouteByAddress(
                 context = context,
-                points = listOf(Pair(client.latitude, client.longitude)),
+                destinationAddress = client.addressStreet.trim(),
+                destinationCoords = coords,
                 routingMode = _routingMode.value
             )
-        } else if (client.addressStreet.isNotBlank()) {
-            viewModelScope.launch {
-                val coords = GeocoderHelper.geocodeAddress(
-                    context = context,
-                    rawAddress = client.addressStreet.trim(),
-                    yandexApiKey = prefs.yandexApiKey
-                )
-                if (coords != null) {
-                    val updated = client.copy(latitude = coords.first, longitude = coords.second)
-                    repository.saveClient(updated)
-                    IntentHelper.openYandexMapsRoute(
-                        context = context,
-                        points = listOf(coords),
-                        routingMode = _routingMode.value
-                    )
-                } else {
-                    IntentHelper.openYandexMapsRouteByAddress(
-                        context = context,
-                        destinationAddress = client.addressStreet.trim(),
-                        routingMode = _routingMode.value
-                    )
-                }
-            }
+        } else if (coords != null) {
+            IntentHelper.openYandexMapsRoute(
+                context = context,
+                points = listOf(coords),
+                routingMode = _routingMode.value
+            )
         } else {
             Toast.makeText(context, "У клиента не указан адрес", Toast.LENGTH_SHORT).show()
         }
