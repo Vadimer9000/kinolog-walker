@@ -68,6 +68,15 @@ class MainViewModel(application: Application) : AndroidViewModel(application) {
         _themeMode.value = mode
     }
 
+    // Embedded map enabled flow (if disabled, app displays pure fast Plan mode)
+    private val _isMapEnabled = MutableStateFlow(prefs.isMapEnabled)
+    val isMapEnabled: StateFlow<Boolean> = _isMapEnabled.asStateFlow()
+
+    fun setMapEnabled(enabled: Boolean) {
+        prefs.isMapEnabled = enabled
+        _isMapEnabled.value = enabled
+    }
+
     // Client search query
     private val _searchQuery = MutableStateFlow("")
     val searchQuery: StateFlow<String> = _searchQuery.asStateFlow()

@@ -75,3 +75,11 @@ val SandBeigeLight: Color @Composable get() = if (LocalIsDarkTheme.current) Dark
 val CharcoalPrimary: Color @Composable get() = if (LocalIsDarkTheme.current) DarkCharcoalPrimary else LightCharcoalPrimary
 val OliveGreySecondary: Color @Composable get() = if (LocalIsDarkTheme.current) DarkOliveGreySecondary else LightOliveGreySecondary
 val DividerMuted: Color @Composable get() = if (LocalIsDarkTheme.current) DarkDividerMuted else LightDividerMuted
+
+// Danger / Delete button colors
+val DangerRedBg: Color @Composable get() = if (LocalIsDarkTheme.current) Color(0xFF381E22) else Color(0xFFFFEBEE)
+val DangerRedText: Color @Composable get() = if (LocalIsDarkTheme.current) Color(0xFFEF9A9A) else Color(0xFFD9534F)
+
+// Price Badge colors
+val PriceBadgeBg: Color @Composable get() = if (LocalIsDarkTheme.current) Color(0xFF1E3827) else Color(0xFFE8F5E9)
+val PriceBadgeText: Color @Composable get() = if (LocalIsDarkTheme.current) Color(0xFF81C784) else Color(0xFF2E7D32)

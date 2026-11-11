@@ -81,6 +81,8 @@ import com.kinolog.walker.ui.components.GlassBox
 import com.kinolog.walker.ui.components.PetTag
 import com.kinolog.walker.ui.theme.CanvasAlabaster
 import com.kinolog.walker.ui.theme.CharcoalPrimary
+import com.kinolog.walker.ui.theme.DangerRedBg
+import com.kinolog.walker.ui.theme.DangerRedText
 import com.kinolog.walker.ui.theme.DeepForest
 import com.kinolog.walker.ui.theme.MintLight
 import com.kinolog.walker.ui.theme.OliveGreySecondary
@@ -244,8 +246,8 @@ fun ClientsScreen(
                                         FilledTonalIconButton(
                                             onClick = { clientToDelete = client },
                                             colors = IconButtonDefaults.filledTonalIconButtonColors(
-                                                containerColor = Color(0xFFFFEBEE),
-                                                contentColor = Color(0xFFD9534F)
+                                                containerColor = DangerRedBg,
+                                                contentColor = DangerRedText
                                             ),
                                             shape = RoundedCornerShape(10.dp),
                                             modifier = Modifier.size(34.dp)

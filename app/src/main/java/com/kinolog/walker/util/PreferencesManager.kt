@@ -18,7 +18,12 @@ class PreferencesManager(context: Context) {
         private const val KEY_ROUTING_MODE = "routing_mode" // "pd" (pedestrian) or "mt" (masstransit)
         private const val KEY_IS_COMPACT_VIEW = "is_compact_view"
         private const val KEY_THEME_MODE = "theme_mode"
+        private const val KEY_IS_MAP_ENABLED = "is_map_enabled"
     }
+
+    var isMapEnabled: Boolean
+        get() = prefs.getBoolean(KEY_IS_MAP_ENABLED, false)
+        set(value) = prefs.edit().putBoolean(KEY_IS_MAP_ENABLED, value).apply()
 
     var yandexApiKey: String
         get() = prefs.getString(KEY_YANDEX_API_KEY, "") ?: ""

@@ -21,6 +21,7 @@ import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.rounded.CalendarToday
 import androidx.compose.material.icons.rounded.Map
 import androidx.compose.material.icons.rounded.Pets
 import androidx.compose.material.icons.rounded.Settings
@@ -55,6 +56,7 @@ enum class NavigationTab(val title: String, val icon: ImageVector) {
 fun AppBottomBar(
     currentTab: NavigationTab,
     onTabSelected: (NavigationTab) -> Unit,
+    isMapEnabled: Boolean = false,
     modifier: Modifier = Modifier
 ) {
     val bottomTabs = remember { listOf(NavigationTab.SCHEDULE, NavigationTab.CLIENTS) }
@@ -138,16 +140,24 @@ fun AppBottomBar(
                                 horizontalAlignment = Alignment.CenterHorizontally,
                                 verticalArrangement = Arrangement.Center
                             ) {
+                                val tabTitle = if (tab == NavigationTab.SCHEDULE) {
+                                    if (isMapEnabled) "Карта и План" else "План"
+                                } else tab.title
+
+                                val tabIcon = if (tab == NavigationTab.SCHEDULE) {
+                                    if (isMapEnabled) Icons.Rounded.Map else Icons.Rounded.CalendarToday
+                                } else tab.icon
+
                                 Icon(
-                                    imageVector = tab.icon,
-                                    contentDescription = tab.title,
+                                    imageVector = tabIcon,
+                                    contentDescription = tabTitle,
                                     tint = if (isSelected) SageGreenPrimary else contentColor,
                                     modifier = Modifier
                                         .size(20.dp)
                                         .scale(iconScale)
                                 )
                                 Text(
-                                    text = tab.title,
+                                    text = tabTitle,
                                     color = contentColor,
                                     fontSize = 11.sp,
                                     fontWeight = if (isSelected) FontWeight.SemiBold else FontWeight.Normal,

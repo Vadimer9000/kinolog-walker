@@ -27,6 +27,7 @@ import androidx.compose.material.icons.rounded.Assessment
 import androidx.compose.material.icons.rounded.FileDownload
 import androidx.compose.material.icons.rounded.FileUpload
 import androidx.compose.material.icons.rounded.Key
+import androidx.compose.material.icons.rounded.Map
 import androidx.compose.material.icons.rounded.Palette
 import androidx.compose.material.icons.rounded.Save
 import androidx.compose.material.icons.rounded.Send
@@ -78,6 +79,7 @@ fun SettingsBackupScreen(
     val clients by viewModel.clients.collectAsState()
     val allWalks by viewModel.allWalks.collectAsState()
     val themeMode by viewModel.themeMode.collectAsState()
+    val isMapEnabled by viewModel.isMapEnabled.collectAsState()
 
     // Import file launcher
     val openDocumentLauncher = rememberLauncherForActivityResult(
@@ -178,6 +180,52 @@ fun SettingsBackupScreen(
                                 ThemeMode.DARK -> "Тёмная"
                             }
                         },
+                        modifier = Modifier.fillMaxWidth(),
+                        height = 40.dp
+                    )
+                }
+            }
+
+            Spacer(modifier = Modifier.height(16.dp))
+
+            // Section: Display Mode (Pure Plan vs Embedded Map)
+            GlassBox(
+                modifier = Modifier.fillMaxWidth(),
+                elevation = 4.dp
+            ) {
+                Column(
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .padding(16.dp)
+                ) {
+                    Row(verticalAlignment = Alignment.CenterVertically) {
+                        Icon(Icons.Rounded.Map, contentDescription = null, tint = SageGreenPrimary)
+                        Spacer(modifier = Modifier.width(8.dp))
+                        Text(
+                            text = "Режим отображения",
+                            fontWeight = FontWeight.SemiBold,
+                            fontSize = 16.sp,
+                            color = CharcoalPrimary
+                        )
+                    }
+
+                    Spacer(modifier = Modifier.height(4.dp))
+
+                    Text(
+                        text = "В режиме «Только план» приложение работает быстрее без встроенной карты. Маршруты строятся прямо в приложении Яндекс.Карт.",
+                        fontSize = 12.sp,
+                        color = OliveGreySecondary
+                    )
+
+                    Spacer(modifier = Modifier.height(12.dp))
+
+                    AnimatedSegmentedControl(
+                        items = listOf("Только план", "Карта и план"),
+                        selectedIndex = if (!isMapEnabled) 0 else 1,
+                        onItemSelected = { idx ->
+                            viewModel.setMapEnabled(idx == 1)
+                        },
+                        itemLabel = { it },
                         modifier = Modifier.fillMaxWidth(),
                         height = 40.dp
                     )

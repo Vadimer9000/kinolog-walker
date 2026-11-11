@@ -80,6 +80,7 @@ class MainActivity : ComponentActivity() {
 @Composable
 fun MainAppScreen(viewModel: MainViewModel) {
     val currentTab by viewModel.currentTab.collectAsState()
+    val isMapEnabled by viewModel.isMapEnabled.collectAsState()
     val context = LocalContext.current
     val activity = context as? Activity
 
@@ -105,7 +106,8 @@ fun MainAppScreen(viewModel: MainViewModel) {
             bottomBar = {
                 AppBottomBar(
                     currentTab = currentTab,
-                    onTabSelected = { viewModel.setTab(it) }
+                    onTabSelected = { viewModel.setTab(it) },
+                    isMapEnabled = isMapEnabled
                 )
             }
         ) { innerPadding ->
