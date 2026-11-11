@@ -56,6 +56,8 @@ data class ClientEntity(
     val floor: String = "",
     val apartment: String = "",
     val clientComment: String = "",
+    val secondaryContactName: String = "",
+    val secondaryContactPhone: String = "",
     val latitude: Double? = null,
     val longitude: Double? = null
 )

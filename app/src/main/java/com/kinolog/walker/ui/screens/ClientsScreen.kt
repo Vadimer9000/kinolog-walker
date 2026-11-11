@@ -4,6 +4,7 @@ import android.provider.ContactsContract
 import androidx.activity.compose.rememberLauncherForActivityResult
 import androidx.activity.result.contract.ActivityResultContracts
 import androidx.compose.animation.AnimatedVisibility
+import androidx.compose.foundation.BorderStroke
 import androidx.compose.foundation.background
 import androidx.compose.foundation.border
 import androidx.compose.foundation.clickable
@@ -37,9 +38,12 @@ import androidx.compose.material.icons.rounded.Add
 import androidx.compose.material.icons.rounded.Call
 import androidx.compose.material.icons.rounded.Chat
 import androidx.compose.material.icons.rounded.Clear
+import androidx.compose.material.icons.rounded.Close
 import androidx.compose.material.icons.rounded.Delete
 import androidx.compose.material.icons.rounded.Edit
 import androidx.compose.material.icons.rounded.LocationOn
+import androidx.compose.material.icons.rounded.PersonAdd
+import androidx.compose.material.icons.rounded.PersonOutline
 import androidx.compose.material.icons.rounded.PersonSearch
 import androidx.compose.material.icons.rounded.Search
 import androidx.compose.material3.AlertDialog
@@ -52,6 +56,7 @@ import androidx.compose.material3.FloatingActionButton
 import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
 import androidx.compose.material3.IconButtonDefaults
+import androidx.compose.material3.OutlinedButton
 import androidx.compose.material3.OutlinedTextField
 import androidx.compose.material3.OutlinedTextFieldDefaults
 import androidx.compose.material3.Text
@@ -59,6 +64,7 @@ import androidx.compose.material3.TextButton
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.getValue
+import androidx.compose.runtime.mutableFloatStateOf
 import androidx.compose.runtime.mutableStateListOf
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
@@ -66,9 +72,14 @@ import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
+import androidx.compose.ui.draw.drawBehind
 import androidx.compose.ui.focus.onFocusChanged
+import androidx.compose.ui.geometry.Rect
 import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.graphics.Path
 import androidx.compose.ui.graphics.SolidColor
+import androidx.compose.ui.graphics.drawscope.Stroke
+import androidx.compose.ui.layout.onGloballyPositioned
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.text.AnnotatedString
 import androidx.compose.ui.text.TextStyle
@@ -90,6 +101,7 @@ import com.kinolog.walker.ui.MainViewModel
 import com.kinolog.walker.ui.components.GlassBox
 import com.kinolog.walker.ui.components.PetTag
 import com.kinolog.walker.ui.theme.CanvasAlabaster
+import com.kinolog.walker.ui.theme.CanvasBeige
 import com.kinolog.walker.ui.theme.CharcoalPrimary
 import com.kinolog.walker.ui.theme.DangerRedBg
 import com.kinolog.walker.ui.theme.DangerRedText
@@ -365,6 +377,52 @@ fun ClientsScreen(
                                         Text(client.messengerType.title, fontSize = 12.sp, fontWeight = FontWeight.SemiBold, maxLines = 1)
                                     }
                                 }
+
+                                if (client.secondaryContactPhone.isNotBlank()) {
+                                    Spacer(modifier = Modifier.height(8.dp))
+                                    Row(
+                                        modifier = Modifier
+                                            .fillMaxWidth()
+                                            .clip(RoundedCornerShape(10.dp))
+                                            .background(SandBeige.copy(alpha = 0.4f))
+                                            .padding(horizontal = 10.dp, vertical = 6.dp),
+                                        verticalAlignment = Alignment.CenterVertically,
+                                        horizontalArrangement = Arrangement.SpaceBetween
+                                    ) {
+                                        Row(
+                                            verticalAlignment = Alignment.CenterVertically,
+                                            modifier = Modifier.weight(1f)
+                                        ) {
+                                            Icon(
+                                                imageVector = Icons.Rounded.PersonOutline,
+                                                contentDescription = null,
+                                                tint = OliveGreySecondary,
+                                                modifier = Modifier.size(15.dp)
+                                            )
+                                            Spacer(modifier = Modifier.width(6.dp))
+                                            Text(
+                                                text = "${client.secondaryContactName.ifBlank { "Второй хозяин" }}: ${client.secondaryContactPhone}",
+                                                fontSize = 12.sp,
+                                                color = CharcoalPrimary,
+                                                fontWeight = FontWeight.Medium,
+                                                maxLines = 1,
+                                                overflow = TextOverflow.Ellipsis
+                                            )
+                                        }
+                                        Spacer(modifier = Modifier.width(6.dp))
+                                        FilledTonalIconButton(
+                                            onClick = { IntentHelper.dialPhone(context, client.secondaryContactPhone) },
+                                            colors = IconButtonDefaults.filledTonalIconButtonColors(
+                                                containerColor = SoftMint,
+                                                contentColor = DeepForest
+                                            ),
+                                            shape = RoundedCornerShape(8.dp),
+                                            modifier = Modifier.size(28.dp)
+                                        ) {
+                                            Icon(Icons.Rounded.Call, contentDescription = "Позвонить", modifier = Modifier.size(14.dp))
+                                        }
+                                    }
+                                }
                             }
                         }
                     }
@@ -433,6 +491,8 @@ fun ClientsScreen(
                     floor = updatedClient.floor,
                     apartment = updatedClient.apartment,
                     clientComment = updatedClient.clientComment,
+                    secondaryContactName = updatedClient.secondaryContactName,
+                    secondaryContactPhone = updatedClient.secondaryContactPhone,
                     latitude = updatedClient.latitude,
                     longitude = updatedClient.longitude,
                     onDone = { showEditDialog = false }
@@ -525,30 +585,107 @@ private fun ContourInputField(
     keyboardType: KeyboardType = KeyboardType.Text
 ) {
     var isFocused by remember { mutableStateOf(false) }
+    var labelWidthPx by remember { mutableFloatStateOf(0f) }
     val borderColor = if (isFocused) SageGreenPrimary else DividerMuted
     val labelColor = if (isFocused) SageGreenPrimary else OliveGreySecondary
 
     Box(
         modifier = modifier
-            .padding(top = 7.dp)
-            .height(50.dp)
-            .border(
-                width = if (isFocused) 1.5.dp else 1.dp,
-                color = borderColor,
-                shape = RoundedCornerShape(12.dp)
-            )
+            .padding(top = 8.dp)
+            .height(56.dp)
+            .drawBehind {
+                val strokeWidth = if (isFocused) 2.dp.toPx() else 1.dp.toPx()
+                val r = 12.dp.toPx()
+                val w = size.width
+                val h = size.height
+                val halfStroke = strokeWidth / 2f
+
+                // Notch interval on the top border (gap for the label)
+                val notchStart = 10.dp.toPx()
+                val notchEnd = (notchStart + labelWidthPx + 6.dp.toPx()).coerceAtMost(w - r)
+
+                val path = Path().apply {
+                    // Start right at the end of notch on top edge
+                    moveTo(notchEnd, halfStroke)
+                    // Top edge right of notch
+                    lineTo(w - r, halfStroke)
+                    // Top-Right corner
+                    arcTo(
+                        rect = Rect(
+                            left = w - 2 * r + halfStroke,
+                            top = halfStroke,
+                            right = w - halfStroke,
+                            bottom = 2 * r - halfStroke
+                        ),
+                        startAngleDegrees = 270f,
+                        sweepAngleDegrees = 90f,
+                        forceMoveTo = false
+                    )
+                    // Right edge
+                    lineTo(w - halfStroke, h - r)
+                    // Bottom-Right corner
+                    arcTo(
+                        rect = Rect(
+                            left = w - 2 * r + halfStroke,
+                            top = h - 2 * r + halfStroke,
+                            right = w - halfStroke,
+                            bottom = h - halfStroke
+                        ),
+                        startAngleDegrees = 0f,
+                        sweepAngleDegrees = 90f,
+                        forceMoveTo = false
+                    )
+                    // Bottom edge
+                    lineTo(r, h - halfStroke)
+                    // Bottom-Left corner
+                    arcTo(
+                        rect = Rect(
+                            left = halfStroke,
+                            top = h - 2 * r + halfStroke,
+                            right = 2 * r - halfStroke,
+                            bottom = h - halfStroke
+                        ),
+                        startAngleDegrees = 90f,
+                        sweepAngleDegrees = 90f,
+                        forceMoveTo = false
+                    )
+                    // Left edge
+                    lineTo(halfStroke, r)
+                    // Top-Left corner
+                    arcTo(
+                        rect = Rect(
+                            left = halfStroke,
+                            top = halfStroke,
+                            right = 2 * r - halfStroke,
+                            bottom = 2 * r - halfStroke
+                        ),
+                        startAngleDegrees = 180f,
+                        sweepAngleDegrees = 90f,
+                        forceMoveTo = false
+                    )
+                    // Top edge left of notch
+                    lineTo(notchStart.coerceAtLeast(r), halfStroke)
+                }
+
+                drawPath(
+                    path = path,
+                    color = borderColor,
+                    style = Stroke(width = strokeWidth)
+                )
+            }
     ) {
         Text(
             text = label,
-            fontSize = 11.sp,
+            fontSize = 12.sp,
             fontWeight = FontWeight.Medium,
             color = labelColor,
             maxLines = 1,
             softWrap = false,
             modifier = Modifier
-                .offset(x = 10.dp, y = (-7).dp)
-                .background(CanvasAlabaster)
-                .padding(horizontal = 4.dp)
+                .offset(x = 13.dp, y = (-8).dp)
+                .onGloballyPositioned { coords ->
+                    labelWidthPx = coords.size.width.toFloat()
+                }
         )
 
         BasicTextField(
@@ -557,15 +694,15 @@ private fun ContourInputField(
             singleLine = true,
             textStyle = TextStyle(
                 color = CharcoalPrimary,
-                fontSize = 14.sp,
-                fontWeight = FontWeight.Medium
+                fontSize = 15.sp,
+                fontWeight = FontWeight.Normal
             ),
             keyboardOptions = KeyboardOptions(keyboardType = keyboardType),
             cursorBrush = SolidColor(SageGreenPrimary),
             modifier = Modifier
                 .fillMaxSize()
                 .onFocusChanged { isFocused = it.isFocused }
-                .padding(horizontal = 12.dp, vertical = 12.dp),
+                .padding(horizontal = 14.dp, vertical = 14.dp),
             decorationBox = { innerTextField ->
                 Box(
                     modifier = Modifier.fillMaxSize(),
@@ -593,6 +730,16 @@ fun ClientFormDialog(
     }
     var messengerType by remember { mutableStateOf(client?.messengerType ?: MessengerType.TELEGRAM) }
     var messengerIdentifier by remember { mutableStateOf(client?.messengerIdentifier ?: "") }
+
+    var hasSecondaryContact by remember {
+        mutableStateOf(
+            !client?.secondaryContactName.isNullOrBlank() || !client?.secondaryContactPhone.isNullOrBlank()
+        )
+    }
+    var secondaryContactName by remember { mutableStateOf(client?.secondaryContactName ?: "") }
+    var secondaryContactPhoneDigits by remember {
+        mutableStateOf(extractRussianPhoneDigits(client?.secondaryContactPhone ?: ""))
+    }
 
     var addressStreet by remember {
         mutableStateOf(client?.addressStreet ?: "Санкт-Петербург, ")
@@ -795,6 +942,116 @@ fun ClientFormDialog(
                     modifier = Modifier.fillMaxWidth()
                 )
 
+                Spacer(modifier = Modifier.height(12.dp))
+
+                // Additional Contact (Second owner/contact)
+                if (!hasSecondaryContact) {
+                    OutlinedButton(
+                        onClick = { hasSecondaryContact = true },
+                        modifier = Modifier.fillMaxWidth(),
+                        shape = RoundedCornerShape(12.dp),
+                        border = BorderStroke(1.dp, SageGreenPrimary.copy(alpha = 0.6f)),
+                        colors = ButtonDefaults.outlinedButtonColors(contentColor = SageGreenPrimary)
+                    ) {
+                        Icon(Icons.Rounded.PersonAdd, contentDescription = null, modifier = Modifier.size(17.dp))
+                        Spacer(modifier = Modifier.width(8.dp))
+                        Text("+ Доп. номер и имя (второй хозяин)", fontSize = 13.sp, fontWeight = FontWeight.Medium)
+                    }
+                } else {
+                    Card(
+                        modifier = Modifier.fillMaxWidth(),
+                        shape = RoundedCornerShape(14.dp),
+                        colors = CardDefaults.cardColors(containerColor = CanvasBeige.copy(alpha = 0.5f)),
+                        border = BorderStroke(1.dp, DividerMuted)
+                    ) {
+                        Column(modifier = Modifier.padding(12.dp)) {
+                            Row(
+                                modifier = Modifier.fillMaxWidth(),
+                                horizontalArrangement = Arrangement.SpaceBetween,
+                                verticalAlignment = Alignment.CenterVertically
+                            ) {
+                                Row(verticalAlignment = Alignment.CenterVertically) {
+                                    Icon(
+                                        imageVector = Icons.Rounded.PersonOutline,
+                                        contentDescription = null,
+                                        tint = SageGreenPrimary,
+                                        modifier = Modifier.size(16.dp)
+                                    )
+                                    Spacer(modifier = Modifier.width(6.dp))
+                                    Text(
+                                        text = "Второй контакт (хозяин):",
+                                        fontSize = 13.sp,
+                                        fontWeight = FontWeight.SemiBold,
+                                        color = CharcoalPrimary
+                                    )
+                                }
+                                IconButton(
+                                    onClick = {
+                                        hasSecondaryContact = false
+                                        secondaryContactName = ""
+                                        secondaryContactPhoneDigits = ""
+                                    },
+                                    modifier = Modifier.size(24.dp)
+                                ) {
+                                    Icon(
+                                        Icons.Rounded.Close,
+                                        contentDescription = "Удалить доп. контакт",
+                                        tint = OliveGreySecondary,
+                                        modifier = Modifier.size(16.dp)
+                                    )
+                                }
+                            }
+
+                            Spacer(modifier = Modifier.height(8.dp))
+
+                            OutlinedTextField(
+                                value = secondaryContactName,
+                                onValueChange = { secondaryContactName = it },
+                                label = { Text("Имя второго контакта") },
+                                placeholder = { Text("Например: Муж, Жена, Догситтер") },
+                                singleLine = true,
+                                modifier = Modifier.fillMaxWidth()
+                            )
+
+                            Spacer(modifier = Modifier.height(8.dp))
+
+                            OutlinedTextField(
+                                value = secondaryContactPhoneDigits,
+                                onValueChange = { input ->
+                                    val clean = input.filter { it.isDigit() }
+                                    val normalized = if (secondaryContactPhoneDigits.isEmpty() && (clean.startsWith("79") || clean.startsWith("89"))) {
+                                        clean.substring(1)
+                                    } else if (secondaryContactPhoneDigits.isEmpty() && (clean == "7" || clean == "8")) {
+                                        ""
+                                    } else if (clean.length > 10) {
+                                        if ((clean.startsWith("7") || clean.startsWith("8")) && clean.length == 11) {
+                                            clean.substring(1)
+                                        } else {
+                                            clean.take(10)
+                                        }
+                                    } else {
+                                        clean
+                                    }
+                                    secondaryContactPhoneDigits = normalized.take(10)
+                                },
+                                label = { Text("Второй номер телефона") },
+                                placeholder = { Text("(___) ___-__-__") },
+                                prefix = {
+                                    Text(
+                                        text = "+7 ",
+                                        fontWeight = FontWeight.SemiBold,
+                                        color = CharcoalPrimary
+                                    )
+                                },
+                                visualTransformation = RussianPhoneVisualTransformation(),
+                                keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Phone),
+                                singleLine = true,
+                                modifier = Modifier.fillMaxWidth()
+                            )
+                        }
+                    }
+                }
+
                 Spacer(modifier = Modifier.height(16.dp))
 
                 // Pet List Dynamic Builder
@@ -957,6 +1214,9 @@ fun ClientFormDialog(
                                 val addressChanged = client == null ||
                                     client.addressStreet.trim() != addressStreet.trim() ||
                                     client.entrance.trim() != entrance.trim()
+                                val formattedSecondaryPhone = if (hasSecondaryContact && secondaryContactPhoneDigits.isNotBlank()) {
+                                    formatRussianPhoneFromDigits(secondaryContactPhoneDigits)
+                                } else ""
                                 val updated = ClientEntity(
                                     id = client?.id ?: 0L,
                                     fullName = fullName.trim(),
@@ -969,6 +1229,8 @@ fun ClientFormDialog(
                                     floor = floor.trim(),
                                     apartment = apartment.trim(),
                                     clientComment = clientComment.trim(),
+                                    secondaryContactName = if (hasSecondaryContact) secondaryContactName.trim() else "",
+                                    secondaryContactPhone = formattedSecondaryPhone,
                                     latitude = if (addressChanged) null else client.latitude,
                                     longitude = if (addressChanged) null else client.longitude
                                 )

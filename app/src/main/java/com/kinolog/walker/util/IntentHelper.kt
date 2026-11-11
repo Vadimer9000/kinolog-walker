@@ -135,7 +135,7 @@ object IntentHelper {
         currentLocation: Pair<Double, Double>?,
         routingMode: String
     ) {
-        val cleanAddr = destinationAddress.trim()
+        val cleanAddr = GeocoderHelper.cleanAddressForGeocoding(destinationAddress)
         if (cleanAddr.isEmpty()) {
             Toast.makeText(context, "Адрес не указан", Toast.LENGTH_SHORT).show()
             return
@@ -162,7 +162,11 @@ object IntentHelper {
                 context.startActivity(Intent(Intent.ACTION_VIEW, webUri))
             }
         } catch (e: Exception) {
-            context.startActivity(Intent(Intent.ACTION_VIEW, webUri))
+            try {
+                context.startActivity(Intent(Intent.ACTION_VIEW, webUri))
+            } catch (_: Exception) {
+                Toast.makeText(context, "Не удалось открыть карту", Toast.LENGTH_SHORT).show()
+            }
         }
     }
 

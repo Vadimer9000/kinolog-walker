@@ -21,7 +21,7 @@ object GeocoderHelper {
         rawAddress: String,
         yandexApiKey: String = ""
     ): Pair<Double, Double>? = withContext(Dispatchers.IO) {
-        val cleanAddress = rawAddress.trim()
+        val cleanAddress = cleanAddressForGeocoding(rawAddress)
         if (cleanAddress.isEmpty()) return@withContext null
 
         // 1. Try Android System Geocoder
@@ -44,7 +44,68 @@ object GeocoderHelper {
             }
         }
 
+        // 3. Try OpenStreetMap Nominatim Geocoder (free, no API key required)
+        try {
+            val nominatimResult = geocodeWithNominatim(cleanAddress)
+            if (nominatimResult != null) {
+                return@withContext nominatimResult
+            }
+        } catch (_: Exception) {
+        }
+
+        // 4. Fallback: try raw address if clean differed
+        if (rawAddress.trim() != cleanAddress) {
+            try {
+                val rawNominatim = geocodeWithNominatim(rawAddress.trim())
+                if (rawNominatim != null) {
+                    return@withContext rawNominatim
+                }
+            } catch (_: Exception) {
+            }
+        }
+
         null
+    }
+
+    fun cleanAddressForGeocoding(raw: String): String {
+        return raw
+            .replace(Regex(",?\\s*подъезд.*", RegexOption.IGNORE_CASE), "")
+            .replace(Regex(",?\\s*парадная.*", RegexOption.IGNORE_CASE), "")
+            .replace(Regex(",?\\s*этаж.*", RegexOption.IGNORE_CASE), "")
+            .replace(Regex(",?\\s*кв\\..*", RegexOption.IGNORE_CASE), "")
+            .replace(Regex(",?\\s*квартира.*", RegexOption.IGNORE_CASE), "")
+            .replace(Regex(",?\\s*домофон.*", RegexOption.IGNORE_CASE), "")
+            .trim()
+            .trimEnd(',')
+    }
+
+    private fun geocodeWithNominatim(address: String): Pair<Double, Double>? {
+        return try {
+            val encodedAddress = URLEncoder.encode(address, "UTF-8")
+            val endpoint = "https://nominatim.openstreetmap.org/search?q=$encodedAddress&format=json&limit=1"
+            val url = URL(endpoint)
+            val conn = url.openConnection() as HttpURLConnection
+            conn.connectTimeout = 5000
+            conn.readTimeout = 5000
+            conn.setRequestProperty("User-Agent", "KinologWalkerApp/1.0 (contact@kinolog.local)")
+            conn.requestMethod = "GET"
+
+            if (conn.responseCode == HttpURLConnection.HTTP_OK) {
+                val body = conn.inputStream.bufferedReader().use { it.readText() }
+                val jsonArray = org.json.JSONArray(body)
+                if (jsonArray.length() > 0) {
+                    val obj = jsonArray.getJSONObject(0)
+                    val lat = obj.getString("lat").toDoubleOrNull()
+                    val lon = obj.getString("lon").toDoubleOrNull()
+                    if (lat != null && lon != null) {
+                        return Pair(lat, lon)
+                    }
+                }
+            }
+            null
+        } catch (_: Exception) {
+            null
+        }
     }
 
     @Suppress("DEPRECATION")

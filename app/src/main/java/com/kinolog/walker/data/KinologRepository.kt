@@ -50,20 +50,13 @@ class KinologRepository(
         var resolvedClient = client
         val existing = if (client.id != 0L) clientDao.getClientByIdSync(client.id) else null
         val addressChanged = existing == null ||
-                existing.addressStreet.trim() != client.addressStreet.trim() ||
-                existing.entrance.trim() != client.entrance.trim()
+                existing.addressStreet.trim() != client.addressStreet.trim()
 
         if (addressChanged || resolvedClient.latitude == null || resolvedClient.longitude == null) {
             if (resolvedClient.addressStreet.isNotBlank()) {
-                val geocodeTarget = buildString {
-                    append(resolvedClient.addressStreet.trim())
-                    if (resolvedClient.entrance.isNotBlank()) {
-                        append(", подъезд ${resolvedClient.entrance.trim()}")
-                    }
-                }
                 val coords = GeocoderHelper.geocodeAddress(
                     context = context,
-                    rawAddress = geocodeTarget,
+                    rawAddress = resolvedClient.addressStreet.trim(),
                     yandexApiKey = prefs.yandexApiKey
                 )
                 if (coords != null) {
@@ -71,26 +64,11 @@ class KinologRepository(
                         latitude = coords.first,
                         longitude = coords.second
                     )
-                } else {
-                    val fallbackCoords = if (resolvedClient.entrance.isNotBlank()) {
-                        GeocoderHelper.geocodeAddress(
-                            context = context,
-                            rawAddress = resolvedClient.addressStreet.trim(),
-                            yandexApiKey = prefs.yandexApiKey
-                        )
-                    } else null
-
-                    if (fallbackCoords != null) {
-                        resolvedClient = resolvedClient.copy(
-                            latitude = fallbackCoords.first,
-                            longitude = fallbackCoords.second
-                        )
-                    } else if (addressChanged) {
-                        resolvedClient = resolvedClient.copy(
-                            latitude = null,
-                            longitude = null
-                        )
-                    }
+                } else if (!addressChanged && existing?.latitude != null) {
+                    resolvedClient = resolvedClient.copy(
+                        latitude = existing.latitude,
+                        longitude = existing.longitude
+                    )
                 }
             } else {
                 resolvedClient = resolvedClient.copy(
@@ -104,6 +82,30 @@ class KinologRepository(
         } else {
             clientDao.updateClient(resolvedClient)
             resolvedClient.id
+        }
+    }
+
+    suspend fun autoGeocodeMissingClients() = withContext(Dispatchers.IO) {
+        try {
+            val all = clientDao.getAllClientsList()
+            for (client in all) {
+                if ((client.latitude == null || client.longitude == null) && client.addressStreet.isNotBlank()) {
+                    val coords = GeocoderHelper.geocodeAddress(
+                        context = context,
+                        rawAddress = client.addressStreet.trim(),
+                        yandexApiKey = prefs.yandexApiKey
+                    )
+                    if (coords != null) {
+                        clientDao.updateClient(
+                            client.copy(
+                                latitude = coords.first,
+                                longitude = coords.second
+                            )
+                        )
+                    }
+                }
+            }
+        } catch (_: Exception) {
         }
     }
 

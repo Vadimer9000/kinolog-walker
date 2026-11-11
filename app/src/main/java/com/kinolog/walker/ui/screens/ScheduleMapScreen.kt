@@ -468,6 +468,7 @@ fun ScheduleMapScreen(
     var showWalkFormDialog by remember { mutableStateOf(false) }
     var walkToEdit by remember { mutableStateOf<WalkEventEntity?>(null) }
     var walkToDelete by remember { mutableStateOf<WalkEventEntity?>(null) }
+    var clientForCallChooser by remember { mutableStateOf<ClientEntity?>(null) }
 
     val prefs = remember { PreferencesManager(context) }
     var isCompactView by remember { mutableStateOf(prefs.isCompactView) }
@@ -778,7 +779,13 @@ fun ScheduleMapScreen(
     
                                                             // Call
                                                             FilledTonalIconButton(
-                                                                onClick = { IntentHelper.dialPhone(context, client.phone) },
+                                                                onClick = {
+                                                                    if (client.secondaryContactPhone.isNotBlank()) {
+                                                                        clientForCallChooser = client
+                                                                    } else {
+                                                                        IntentHelper.dialPhone(context, client.phone)
+                                                                    }
+                                                                },
                                                                 colors = IconButtonDefaults.filledTonalIconButtonColors(
                                                                     containerColor = SandBeige,
                                                                     contentColor = CharcoalPrimary
@@ -1043,7 +1050,13 @@ fun ScheduleMapScreen(
     
                                                     // Call
                                                     FilledTonalIconButton(
-                                                        onClick = { IntentHelper.dialPhone(context, client.phone) },
+                                                        onClick = {
+                                                            if (client.secondaryContactPhone.isNotBlank()) {
+                                                                clientForCallChooser = client
+                                                            } else {
+                                                                IntentHelper.dialPhone(context, client.phone)
+                                                            }
+                                                        },
                                                         colors = IconButtonDefaults.filledTonalIconButtonColors(
                                                             containerColor = SandBeige,
                                                             contentColor = CharcoalPrimary
@@ -1465,6 +1478,96 @@ fun ScheduleMapScreen(
                     }
                 }
             }
+        )
+    }
+
+    // Choose Contact to Call Dialog
+    if (clientForCallChooser != null) {
+        val targetClient = clientForCallChooser!!
+        AlertDialog(
+            onDismissRequest = { clientForCallChooser = null },
+            title = {
+                Text(
+                    text = "Кому позвонить?",
+                    fontSize = 18.sp,
+                    fontWeight = FontWeight.Bold,
+                    color = CharcoalPrimary
+                )
+            },
+            text = {
+                Column(
+                    modifier = Modifier.fillMaxWidth(),
+                    verticalArrangement = Arrangement.spacedBy(10.dp)
+                ) {
+                    // Primary Contact
+                    Button(
+                        onClick = {
+                            val phone = targetClient.phone
+                            clientForCallChooser = null
+                            IntentHelper.dialPhone(context, phone)
+                        },
+                        modifier = Modifier.fillMaxWidth(),
+                        shape = RoundedCornerShape(12.dp),
+                        colors = ButtonDefaults.buttonColors(
+                            containerColor = SoftMint,
+                            contentColor = DeepForest
+                        )
+                    ) {
+                        Icon(Icons.Rounded.Call, contentDescription = null, modifier = Modifier.size(16.dp))
+                        Spacer(modifier = Modifier.width(8.dp))
+                        Column(modifier = Modifier.weight(1f)) {
+                            Text(
+                                text = targetClient.fullName.ifBlank { "Основной контакт" },
+                                fontSize = 14.sp,
+                                fontWeight = FontWeight.Bold
+                            )
+                            Text(
+                                text = targetClient.phone,
+                                fontSize = 12.sp,
+                                fontWeight = FontWeight.Normal
+                            )
+                        }
+                    }
+
+                    // Secondary Contact
+                    Button(
+                        onClick = {
+                            val phone = targetClient.secondaryContactPhone
+                            clientForCallChooser = null
+                            IntentHelper.dialPhone(context, phone)
+                        },
+                        modifier = Modifier.fillMaxWidth(),
+                        shape = RoundedCornerShape(12.dp),
+                        colors = ButtonDefaults.buttonColors(
+                            containerColor = SandBeige,
+                            contentColor = CharcoalPrimary
+                        )
+                    ) {
+                        Icon(Icons.Rounded.Call, contentDescription = null, modifier = Modifier.size(16.dp))
+                        Spacer(modifier = Modifier.width(8.dp))
+                        Column(modifier = Modifier.weight(1f)) {
+                            Text(
+                                text = targetClient.secondaryContactName.ifBlank { "Второй хозяин" },
+                                fontSize = 14.sp,
+                                fontWeight = FontWeight.Bold
+                            )
+                            Text(
+                                text = targetClient.secondaryContactPhone,
+                                fontSize = 12.sp,
+                                fontWeight = FontWeight.Normal
+                            )
+                        }
+                    }
+                }
+            },
+            confirmButton = {},
+            dismissButton = {
+                TextButton(onClick = { clientForCallChooser = null }) {
+                    Text("Отмена", color = OliveGreySecondary)
+                }
+            },
+            containerColor = CanvasAlabaster,
+            shape = RoundedCornerShape(20.dp)
         )
     }
 }

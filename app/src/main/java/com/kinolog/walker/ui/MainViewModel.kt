@@ -21,6 +21,9 @@ import com.kinolog.walker.ui.components.MapMarkerPoint
 import com.kinolog.walker.ui.components.NavigationTab
 import com.kinolog.walker.util.IntentHelper
 import com.kinolog.walker.util.PreferencesManager
+import android.location.LocationManager
+import com.google.android.gms.location.Priority
+import com.kinolog.walker.util.GeocoderHelper
 import com.kinolog.walker.util.ThemeMode
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.SharingStarted
@@ -144,6 +147,9 @@ class MainViewModel(application: Application) : AndroidViewModel(application) {
 
     init {
         fetchCurrentLocation()
+        viewModelScope.launch {
+            repository.autoGeocodeMissingClients()
+        }
     }
 
     fun setTab(tab: NavigationTab) {
@@ -176,7 +182,22 @@ class MainViewModel(application: Application) : AndroidViewModel(application) {
                     _currentLocation.value = Pair(loc.latitude, loc.longitude)
                 }
             }
+            fusedLocationClient.getCurrentLocation(Priority.PRIORITY_HIGH_ACCURACY, null)
+                .addOnSuccessListener { loc: Location? ->
+                    if (loc != null) {
+                        _currentLocation.value = Pair(loc.latitude, loc.longitude)
+                    }
+                }
         } catch (_: Exception) {
+            try {
+                val lm = getApplication<Application>().getSystemService(Context.LOCATION_SERVICE) as? LocationManager
+                val loc = lm?.getLastKnownLocation(LocationManager.GPS_PROVIDER)
+                    ?: lm?.getLastKnownLocation(LocationManager.NETWORK_PROVIDER)
+                if (loc != null) {
+                    _currentLocation.value = Pair(loc.latitude, loc.longitude)
+                }
+            } catch (_: Exception) {
+            }
         }
     }
 
@@ -198,6 +219,8 @@ class MainViewModel(application: Application) : AndroidViewModel(application) {
         floor: String,
         apartment: String,
         clientComment: String,
+        secondaryContactName: String = "",
+        secondaryContactPhone: String = "",
         latitude: Double? = null,
         longitude: Double? = null,
         onDone: () -> Unit = {}
@@ -216,6 +239,8 @@ class MainViewModel(application: Application) : AndroidViewModel(application) {
                 floor = floor.trim(),
                 apartment = apartment.trim(),
                 clientComment = clientComment.trim(),
+                secondaryContactName = secondaryContactName.trim(),
+                secondaryContactPhone = secondaryContactPhone.trim(),
                 latitude = latitude,
                 longitude = longitude
             )
@@ -356,6 +381,10 @@ class MainViewModel(application: Application) : AndroidViewModel(application) {
             return
         }
 
+        if (_currentLocation.value == null) {
+            fetchCurrentLocation()
+        }
+
         if (client.latitude != null && client.longitude != null) {
             IntentHelper.openYandexMapsRoute(
                 context = context,
@@ -364,18 +393,30 @@ class MainViewModel(application: Application) : AndroidViewModel(application) {
                 routingMode = _routingMode.value
             )
         } else if (client.addressStreet.isNotBlank()) {
-            val destination = buildString {
-                append(client.addressStreet.trim())
-                if (client.entrance.isNotBlank()) {
-                    append(", подъезд ${client.entrance.trim()}")
+            viewModelScope.launch {
+                val coords = GeocoderHelper.geocodeAddress(
+                    context = context,
+                    rawAddress = client.addressStreet.trim(),
+                    yandexApiKey = prefs.yandexApiKey
+                )
+                if (coords != null) {
+                    val updated = client.copy(latitude = coords.first, longitude = coords.second)
+                    repository.saveClient(updated)
+                    IntentHelper.openYandexMapsRoute(
+                        context = context,
+                        points = listOf(coords),
+                        currentLocation = _currentLocation.value,
+                        routingMode = _routingMode.value
+                    )
+                } else {
+                    IntentHelper.openYandexMapsRouteByAddress(
+                        context = context,
+                        destinationAddress = client.addressStreet.trim(),
+                        currentLocation = _currentLocation.value,
+                        routingMode = _routingMode.value
+                    )
                 }
             }
-            IntentHelper.openYandexMapsRouteByAddress(
-                context = context,
-                destinationAddress = destination,
-                currentLocation = _currentLocation.value,
-                routingMode = _routingMode.value
-            )
         } else {
             Toast.makeText(context, "У клиента не указан адрес", Toast.LENGTH_SHORT).show()
         }
