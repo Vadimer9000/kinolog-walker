@@ -52,28 +52,30 @@ class KinologRepository(
         val addressChanged = existing == null ||
                 existing.addressStreet.trim() != client.addressStreet.trim()
 
-        if (resolvedClient.addressStreet.isNotBlank()) {
-            val coords = GeocoderHelper.geocodeAddress(
-                context = context,
-                rawAddress = resolvedClient.addressStreet.trim(),
-                yandexApiKey = prefs.yandexApiKey
-            )
-            if (coords != null) {
-                resolvedClient = resolvedClient.copy(
-                    latitude = coords.first,
-                    longitude = coords.second
+        if (addressChanged || resolvedClient.latitude == null || resolvedClient.longitude == null) {
+            if (resolvedClient.addressStreet.isNotBlank()) {
+                val coords = GeocoderHelper.geocodeAddress(
+                    context = context,
+                    rawAddress = resolvedClient.addressStreet.trim(),
+                    yandexApiKey = prefs.yandexApiKey
                 )
-            } else if (!addressChanged && existing?.latitude != null) {
+                if (coords != null) {
+                    resolvedClient = resolvedClient.copy(
+                        latitude = coords.first,
+                        longitude = coords.second
+                    )
+                } else if (!addressChanged && existing?.latitude != null) {
+                    resolvedClient = resolvedClient.copy(
+                        latitude = existing.latitude,
+                        longitude = existing.longitude
+                    )
+                }
+            } else {
                 resolvedClient = resolvedClient.copy(
-                    latitude = existing.latitude,
-                    longitude = existing.longitude
+                    latitude = null,
+                    longitude = null
                 )
             }
-        } else {
-            resolvedClient = resolvedClient.copy(
-                latitude = null,
-                longitude = null
-            )
         }
         if (resolvedClient.id == 0L) {
             clientDao.insertClient(resolvedClient)
@@ -86,10 +88,8 @@ class KinologRepository(
     suspend fun autoGeocodeMissingClients() = withContext(Dispatchers.IO) {
         try {
             val all = clientDao.getAllClientsList()
-            val forceRefresh = prefs.geocodingVersion < 2
             for (client in all) {
-                val needsGeocode = (client.latitude == null || client.longitude == null || forceRefresh) && client.addressStreet.isNotBlank()
-                if (needsGeocode) {
+                if ((client.latitude == null || client.longitude == null) && client.addressStreet.isNotBlank()) {
                     val coords = GeocoderHelper.geocodeAddress(
                         context = context,
                         rawAddress = client.addressStreet.trim(),
@@ -103,13 +103,7 @@ class KinologRepository(
                             )
                         )
                     }
-                    if (forceRefresh) {
-                        kotlinx.coroutines.delay(1000)
-                    }
                 }
-            }
-            if (forceRefresh) {
-                prefs.geocodingVersion = 2
             }
         } catch (_: Exception) {
         }

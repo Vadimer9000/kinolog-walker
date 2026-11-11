@@ -24,7 +24,16 @@ object GeocoderHelper {
         val cleanAddress = cleanAddressForGeocoding(rawAddress)
         if (cleanAddress.isEmpty()) return@withContext null
 
-        // 1. Try Yandex HTTP Geocoder if API key is provided
+        // 1. Try Android System Geocoder
+        try {
+            val systemResult = geocodeWithSystem(context, cleanAddress)
+            if (systemResult != null) {
+                return@withContext systemResult
+            }
+        } catch (_: Exception) {
+        }
+
+        // 2. Try Yandex HTTP Geocoder fallback if API key is provided
         if (yandexApiKey.isNotBlank()) {
             try {
                 val yandexResult = geocodeWithYandex(cleanAddress, yandexApiKey)
@@ -35,7 +44,7 @@ object GeocoderHelper {
             }
         }
 
-        // 2. Try OpenStreetMap Nominatim Geocoder (free, highly accurate building footprints in Russia)
+        // 3. Try OpenStreetMap Nominatim Geocoder (free, no API key required)
         try {
             val nominatimResult = geocodeWithNominatim(cleanAddress)
             if (nominatimResult != null) {
@@ -44,7 +53,7 @@ object GeocoderHelper {
         } catch (_: Exception) {
         }
 
-        // 3. Fallback: try raw address with Nominatim if clean differed
+        // 4. Fallback: try raw address if clean differed
         if (rawAddress.trim() != cleanAddress) {
             try {
                 val rawNominatim = geocodeWithNominatim(rawAddress.trim())
@@ -53,15 +62,6 @@ object GeocoderHelper {
                 }
             } catch (_: Exception) {
             }
-        }
-
-        // 4. Try Android System Geocoder (Google Geocoder fallback)
-        try {
-            val systemResult = geocodeWithSystem(context, cleanAddress)
-            if (systemResult != null) {
-                return@withContext systemResult
-            }
-        } catch (_: Exception) {
         }
 
         null

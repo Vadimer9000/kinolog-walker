@@ -355,8 +355,8 @@ class MainViewModel(application: Application) : AndroidViewModel(application) {
         val points = mutableListOf<Pair<Double, Double>>()
 
         for (w in sortedWalks) {
-            val c = map[w.clientId] ?: continue
-            if (c.latitude != null && c.longitude != null) {
+            val c = map[w.clientId]
+            if (c != null && c.latitude != null && c.longitude != null) {
                 points.add(Pair(c.latitude, c.longitude))
             }
         }
@@ -380,7 +380,7 @@ class MainViewModel(application: Application) : AndroidViewModel(application) {
             return
         }
 
-        if (client.latitude != null && client.longitude != null && prefs.geocodingVersion >= 2) {
+        if (client.latitude != null && client.longitude != null) {
             IntentHelper.openYandexMapsRoute(
                 context = context,
                 points = listOf(Pair(client.latitude, client.longitude)),
@@ -401,22 +401,14 @@ class MainViewModel(application: Application) : AndroidViewModel(application) {
                         points = listOf(coords),
                         routingMode = _routingMode.value
                     )
-                } else if (client.latitude != null && client.longitude != null) {
-                    IntentHelper.openYandexMapsRoute(
+                } else {
+                    IntentHelper.openYandexMapsRouteByAddress(
                         context = context,
-                        points = listOf(Pair(client.latitude, client.longitude)),
+                        destinationAddress = client.addressStreet.trim(),
                         routingMode = _routingMode.value
                     )
-                } else {
-                    Toast.makeText(context, "Не удалось определить координаты адреса", Toast.LENGTH_SHORT).show()
                 }
             }
-        } else if (client.latitude != null && client.longitude != null) {
-            IntentHelper.openYandexMapsRoute(
-                context = context,
-                points = listOf(Pair(client.latitude, client.longitude)),
-                routingMode = _routingMode.value
-            )
         } else {
             Toast.makeText(context, "У клиента не указан адрес", Toast.LENGTH_SHORT).show()
         }
