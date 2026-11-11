@@ -54,11 +54,19 @@ jobs:
           TELEGRAM_CHAT_ID: ${{ secrets.TELEGRAM_CHAT_ID }}
         run: |
           if [ -n "$TELEGRAM_BOT_TOKEN" ] && [ -n "$TELEGRAM_CHAT_ID" ]; then
-            COMMIT_MSG=$(git log -1 --pretty=%B | head -n 1)
+            COMMIT_MSG=$(git log -1 --pretty=%B | head -n 1 | sed 's/[_*`\[\]]/ /g')
             CAPTION="🐕 *Готова сборка KinologWalker!*%0A%0A💬 _${COMMIT_MSG}_%0A⏰ $(date +'%d.%m.%Y %H:%M:%S UTC')"
-            curl -s -F chat_id="${TELEGRAM_CHAT_ID}" \
+            RESP=$(curl -s -F chat_id="${TELEGRAM_CHAT_ID}" \
                  -F "document=@${{ steps.locate_apk.outputs.apk_path }};type=application/vnd.android.package-archive" \
                  -F caption="${CAPTION}" \
                  -F parse_mode="Markdown" \
-                 "https://api.telegram.org/bot${TELEGRAM_BOT_TOKEN}/sendDocument"
+                 "https://api.telegram.org/bot${TELEGRAM_BOT_TOKEN}/sendDocument")
+            echo "Telegram response: $RESP"
+            if echo "$RESP" | grep -q '"ok":false'; then
+              echo "Retrying without markdown formatting..."
+              curl -s -F chat_id="${TELEGRAM_CHAT_ID}" \
+                   -F "document=@${{ steps.locate_apk.outputs.apk_path }};type=application/vnd.android.package-archive" \
+                   -F caption="🐕 Готова сборка KinologWalker! $(date +'%d.%m.%Y %H:%M:%S UTC')" \
+                   "https://api.telegram.org/bot${TELEGRAM_BOT_TOKEN}/sendDocument"
+            fi
           fi
