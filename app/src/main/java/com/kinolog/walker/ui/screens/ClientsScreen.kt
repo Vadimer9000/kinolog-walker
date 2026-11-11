@@ -406,8 +406,22 @@ fun ClientsScreen(
             client = clientToEdit,
             onDismiss = { showEditDialog = false },
             onSave = { updatedClient, pets ->
-                viewModel.saveClient(updatedClient, pets)
-                showEditDialog = false
+                viewModel.saveClient(
+                    id = updatedClient.id,
+                    fullName = updatedClient.fullName,
+                    phone = updatedClient.phone,
+                    messengerType = updatedClient.messengerType,
+                    messengerIdentifier = updatedClient.messengerIdentifier,
+                    pets = pets,
+                    addressStreet = updatedClient.addressStreet,
+                    entrance = updatedClient.entrance,
+                    floor = updatedClient.floor,
+                    apartment = updatedClient.apartment,
+                    clientComment = updatedClient.clientComment,
+                    latitude = updatedClient.latitude,
+                    longitude = updatedClient.longitude,
+                    onDone = { showEditDialog = false }
+                )
             }
         )
     }
