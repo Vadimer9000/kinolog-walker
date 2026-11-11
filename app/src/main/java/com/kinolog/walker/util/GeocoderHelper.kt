@@ -24,16 +24,7 @@ object GeocoderHelper {
         val cleanAddress = cleanAddressForGeocoding(rawAddress)
         if (cleanAddress.isEmpty()) return@withContext null
 
-        // 1. Try Android System Geocoder
-        try {
-            val systemResult = geocodeWithSystem(context, cleanAddress)
-            if (systemResult != null) {
-                return@withContext systemResult
-            }
-        } catch (_: Exception) {
-        }
-
-        // 2. Try Yandex HTTP Geocoder fallback if API key is provided
+        // 1. Try Yandex HTTP Geocoder if API key is provided
         if (yandexApiKey.isNotBlank()) {
             try {
                 val yandexResult = geocodeWithYandex(cleanAddress, yandexApiKey)
@@ -44,7 +35,7 @@ object GeocoderHelper {
             }
         }
 
-        // 3. Try OpenStreetMap Nominatim Geocoder (free, no API key required)
+        // 2. Try OpenStreetMap Nominatim Geocoder with exact house number matching
         try {
             val nominatimResult = geocodeWithNominatim(cleanAddress)
             if (nominatimResult != null) {
@@ -53,7 +44,7 @@ object GeocoderHelper {
         } catch (_: Exception) {
         }
 
-        // 4. Fallback: try raw address if clean differed
+        // 3. Fallback: try raw address with Nominatim if clean differed
         if (rawAddress.trim() != cleanAddress) {
             try {
                 val rawNominatim = geocodeWithNominatim(rawAddress.trim())
@@ -62,6 +53,15 @@ object GeocoderHelper {
                 }
             } catch (_: Exception) {
             }
+        }
+
+        // 4. Fallback: Android System Geocoder (Google Geocoder fallback)
+        try {
+            val systemResult = geocodeWithSystem(context, cleanAddress)
+            if (systemResult != null) {
+                return@withContext systemResult
+            }
+        } catch (_: Exception) {
         }
 
         null
@@ -75,30 +75,104 @@ object GeocoderHelper {
             .replace(Regex(",?\\s*кв\\..*", RegexOption.IGNORE_CASE), "")
             .replace(Regex(",?\\s*квартира.*", RegexOption.IGNORE_CASE), "")
             .replace(Regex(",?\\s*домофон.*", RegexOption.IGNORE_CASE), "")
+            .replace(Regex("(?:^|[,\\s])(?:дом|д\\.?)\\s*(\\d+)", RegexOption.IGNORE_CASE), ", $1")
+            .replace(Regex(",\\s*,", RegexOption.IGNORE_CASE), ",")
             .trim()
             .trimEnd(',')
+            .trim()
+    }
+
+    fun extractExpectedHouse(s: String): String {
+        val clean = cleanAddressForGeocoding(s)
+        val m = Regex("(?:^|[,\\s])(?:дом|д\\.?)\\s*(\\d+[\\s\\-/]?(?:(?:к|корп|корпус|лит|литера|/|стр|строение)\\.?\\s*[0-9А-Яа-яA-Za-z]+)?)", RegexOption.IGNORE_CASE).find(clean)
+            ?: Regex("(?:^|[,\\s])(\\d+[\\s\\-/]?(?:(?:к|корп|корпус|лит|литера|/|стр|строение)\\.?\\s*[0-9А-Яа-яA-Za-z]+)?)\\s*$", RegexOption.IGNORE_CASE).find(clean)
+        return m?.groupValues?.get(1)?.trim() ?: ""
+    }
+
+    fun normalizeHouseNumber(house: String): String {
+        return house.lowercase()
+            .replace(Regex("[\\s.\\-/]+"), "")
+            .replace("корпус", "к")
+            .replace("корп", "к")
+            .replace("строение", "с")
+            .replace("стр", "с")
+            .replace("литера", "лит")
     }
 
     private fun geocodeWithNominatim(address: String): Pair<Double, Double>? {
+        val clean = cleanAddressForGeocoding(address)
+        val expectedHouse = extractExpectedHouse(address)
+        val normExpected = normalizeHouseNumber(expectedHouse)
+
+        val candidateQueries = mutableListOf<String>()
+        candidateQueries.add(clean)
+
+        val parts = clean.split(',').map { it.trim() }.filter { it.isNotEmpty() }
+        if (parts.size >= 2 && expectedHouse.isNotBlank()) {
+            val withoutHouse = parts.filter { !it.contains(expectedHouse) }.joinToString(", ")
+            if (withoutHouse.isNotBlank()) {
+                candidateQueries.add("$expectedHouse, $withoutHouse")
+            }
+        }
+
+        for (query in candidateQueries.distinct()) {
+            val result = queryNominatimEndpoint(query, normExpected)
+            if (result != null) return result
+        }
+        return null
+    }
+
+    private fun queryNominatimEndpoint(query: String, normExpectedHouse: String): Pair<Double, Double>? {
         return try {
-            val encodedAddress = URLEncoder.encode(address, "UTF-8")
-            val endpoint = "https://nominatim.openstreetmap.org/search?q=$encodedAddress&format=json&limit=1"
+            val encodedAddress = URLEncoder.encode(query, "UTF-8")
+            val endpoint = "https://nominatim.openstreetmap.org/search?q=$encodedAddress&format=json&addressdetails=1&limit=10"
             val url = URL(endpoint)
             val conn = url.openConnection() as HttpURLConnection
-            conn.connectTimeout = 5000
-            conn.readTimeout = 5000
+            conn.connectTimeout = 6000
+            conn.readTimeout = 6000
             conn.setRequestProperty("User-Agent", "KinologWalkerApp/1.0 (contact@kinolog.local)")
             conn.requestMethod = "GET"
 
             if (conn.responseCode == HttpURLConnection.HTTP_OK) {
                 val body = conn.inputStream.bufferedReader().use { it.readText() }
                 val jsonArray = org.json.JSONArray(body)
-                if (jsonArray.length() > 0) {
-                    val obj = jsonArray.getJSONObject(0)
-                    val lat = obj.getString("lat").toDoubleOrNull()
-                    val lon = obj.getString("lon").toDoubleOrNull()
-                    if (lat != null && lon != null) {
-                        return Pair(lat, lon)
+
+                // Pass 1: exact match on address.house_number
+                if (normExpectedHouse.isNotEmpty()) {
+                    for (i in 0 until jsonArray.length()) {
+                        val obj = jsonArray.getJSONObject(i)
+                        val addr = obj.optJSONObject("address")
+                        val houseNumber = addr?.optString("house_number", "") ?: ""
+                        if (houseNumber.isNotEmpty() && normalizeHouseNumber(houseNumber) == normExpectedHouse) {
+                            val lat = obj.optString("lat").toDoubleOrNull()
+                            val lon = obj.optString("lon").toDoubleOrNull()
+                            if (lat != null && lon != null) {
+                                return Pair(lat, lon)
+                            }
+                        }
+                    }
+                }
+
+                // Pass 2: if no expected house, match building
+                if (normExpectedHouse.isEmpty()) {
+                    for (i in 0 until jsonArray.length()) {
+                        val obj = jsonArray.getJSONObject(i)
+                        val clazz = obj.optString("class")
+                        if (clazz == "building" || clazz == "place") {
+                            val lat = obj.optString("lat").toDoubleOrNull()
+                            val lon = obj.optString("lon").toDoubleOrNull()
+                            if (lat != null && lon != null) {
+                                return Pair(lat, lon)
+                            }
+                        }
+                    }
+                    if (jsonArray.length() > 0) {
+                        val obj = jsonArray.getJSONObject(0)
+                        val lat = obj.optString("lat").toDoubleOrNull()
+                        val lon = obj.optString("lon").toDoubleOrNull()
+                        if (lat != null && lon != null) {
+                            return Pair(lat, lon)
+                        }
                     }
                 }
             }

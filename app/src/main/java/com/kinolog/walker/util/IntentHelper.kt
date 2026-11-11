@@ -126,44 +126,6 @@ object IntentHelper {
         }
     }
 
-    fun openYandexMapsRouteByAddress(
-        context: Context,
-        destinationAddress: String,
-        currentLocation: Pair<Double, Double>? = null,
-        routingMode: String
-    ) {
-        val cleanAddr = GeocoderHelper.cleanAddressForGeocoding(destinationAddress)
-        if (cleanAddr.isEmpty()) {
-            Toast.makeText(context, "Адрес не указан", Toast.LENGTH_SHORT).show()
-            return
-        }
-
-        // Origin starts with "~" so Yandex Maps automatically uses live "My location"
-        val rtext = "~$cleanAddr"
-        val encodedRtext = Uri.encode(rtext, ":,~")
-        val rttParam = if (routingMode == "mt") "mt" else "pd"
-
-        val appUri = Uri.parse("yandexmaps://maps.yandex.ru/?rtext=$encodedRtext&rtt=$rttParam")
-        val webUri = Uri.parse("https://yandex.ru/maps/?rtext=$encodedRtext&rtt=$rttParam")
-
-        val mapIntent = Intent(Intent.ACTION_VIEW, appUri)
-        mapIntent.setPackage("ru.yandex.yandexmaps")
-
-        try {
-            if (isPackageInstalled(context, "ru.yandex.yandexmaps")) {
-                context.startActivity(mapIntent)
-            } else {
-                context.startActivity(Intent(Intent.ACTION_VIEW, webUri))
-            }
-        } catch (e: Exception) {
-            try {
-                context.startActivity(Intent(Intent.ACTION_VIEW, webUri))
-            } catch (_: Exception) {
-                Toast.makeText(context, "Не удалось открыть карту", Toast.LENGTH_SHORT).show()
-            }
-        }
-    }
-
     fun openGoogleCalendar(
         context: Context,
         client: ClientEntity,
