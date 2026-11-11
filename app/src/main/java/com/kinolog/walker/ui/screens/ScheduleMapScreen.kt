@@ -4,6 +4,7 @@ import android.app.DatePickerDialog
 import android.app.TimePickerDialog
 import androidx.compose.animation.AnimatedVisibility
 import androidx.compose.foundation.background
+import androidx.compose.foundation.border
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
@@ -27,10 +28,12 @@ import androidx.compose.foundation.lazy.items
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
+import androidx.compose.foundation.text.KeyboardOptions
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.rounded.Add
 import androidx.compose.material.icons.rounded.CalendarMonth
+import androidx.compose.material.icons.rounded.CalendarToday
 import androidx.compose.material.icons.rounded.Call
 import androidx.compose.material.icons.rounded.Chat
 import androidx.compose.material.icons.rounded.CheckCircle
@@ -38,10 +41,12 @@ import androidx.compose.material.icons.rounded.ChevronLeft
 import androidx.compose.material.icons.rounded.ChevronRight
 import androidx.compose.material.icons.rounded.Delete
 import androidx.compose.material.icons.rounded.Directions
+import androidx.compose.material.icons.rounded.Edit
 import androidx.compose.material.icons.rounded.LocationOn
+import androidx.compose.material.icons.rounded.Payments
 import androidx.compose.material.icons.rounded.RadioButtonUnchecked
 import androidx.compose.material.icons.rounded.Route
-import androidx.compose.material3.AlertDialog
+import androidx.compose.material.icons.rounded.Schedule
 import androidx.compose.material3.BottomSheetDefaults
 import androidx.compose.material3.BottomSheetScaffold
 import androidx.compose.material3.Button
@@ -72,10 +77,13 @@ import androidx.compose.runtime.remember
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.draw.alpha
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.text.font.FontWeight
+import androidx.compose.ui.text.input.KeyboardType
+import androidx.compose.ui.text.style.TextDecoration
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
@@ -120,7 +128,8 @@ fun ScheduleMapScreen(
     val mapMarkers by viewModel.mapMarkerPoints.collectAsState()
     val clients by viewModel.clients.collectAsState()
 
-    var showAddWalkDialog by remember { mutableStateOf(false) }
+    var showWalkFormDialog by remember { mutableStateOf(false) }
+    var walkToEdit by remember { mutableStateOf<WalkEventEntity?>(null) }
     var walkToDelete by remember { mutableStateOf<WalkEventEntity?>(null) }
 
     val json = remember { Json { ignoreUnknownKeys = true } }
@@ -154,6 +163,9 @@ fun ScheduleMapScreen(
             containerColor = Color.Transparent,
             sheetContent = {
                 // Header of BottomSheet
+                val totalPlannedEarnings = walks.sumOf { it.price }
+                val totalEarned = walks.filter { it.isCompleted }.sumOf { it.price }
+
                 Row(
                     modifier = Modifier
                         .fillMaxWidth()
@@ -168,12 +180,22 @@ fun ScheduleMapScreen(
                             fontWeight = FontWeight.Bold,
                             color = CharcoalPrimary
                         )
-                        if (walks.isNotEmpty()) {
-                            Text(
-                                text = "Выполнено: ${walks.count { it.isCompleted }}/${walks.size}",
-                                fontSize = 11.sp,
-                                color = OliveGreySecondary
-                            )
+                        Row(horizontalArrangement = Arrangement.spacedBy(6.dp), verticalAlignment = Alignment.CenterVertically) {
+                            if (walks.isNotEmpty()) {
+                                Text(
+                                    text = "Выполнено: ${walks.count { it.isCompleted }}/${walks.size}",
+                                    fontSize = 11.sp,
+                                    color = OliveGreySecondary
+                                )
+                            }
+                            if (totalPlannedEarnings > 0) {
+                                Text(
+                                    text = "• $totalEarned / $totalPlannedEarnings ₽",
+                                    fontSize = 11.sp,
+                                    fontWeight = FontWeight.SemiBold,
+                                    color = Color(0xFF2E7D32)
+                                )
+                            }
                         }
                     }
 
@@ -181,7 +203,8 @@ fun ScheduleMapScreen(
                         horizontalArrangement = Arrangement.spacedBy(8.dp),
                         verticalAlignment = Alignment.CenterVertically
                     ) {
-                        if (walks.isNotEmpty()) {
+                        val pendingCount = walks.count { !it.isCompleted }
+                        if (pendingCount > 0) {
                             Button(
                                 onClick = { viewModel.routeDayWalks(context) },
                                 colors = ButtonDefaults.buttonColors(
@@ -195,7 +218,7 @@ fun ScheduleMapScreen(
                                 Icon(Icons.Rounded.Route, contentDescription = null, modifier = Modifier.size(16.dp))
                                 Spacer(modifier = Modifier.width(4.dp))
                                 Text(
-                                    text = "Маршрут (${walks.size})",
+                                    text = "Маршрут ($pendingCount)",
                                     fontSize = 12.sp,
                                     fontWeight = FontWeight.SemiBold,
                                     maxLines = 1,
@@ -206,7 +229,10 @@ fun ScheduleMapScreen(
 
                         // Add Walk Button
                         FilledTonalIconButton(
-                            onClick = { showAddWalkDialog = true },
+                            onClick = {
+                                walkToEdit = null
+                                showWalkFormDialog = true
+                            },
                             colors = IconButtonDefaults.filledTonalIconButtonColors(
                                 containerColor = SoftMint,
                                 contentColor = DeepForest
@@ -261,219 +287,267 @@ fun ScheduleMapScreen(
                                 startHours, startMins, endHours, endMins, walk.durationMinutes
                             )
 
-                            // Compact Walk Card (height <= 110-130dp)
-                            GlassBox(
-                                modifier = Modifier.fillMaxWidth(),
-                                elevation = 3.dp
+                            val isDone = walk.isCompleted
+
+                            // Compact Walk Card with Completed Visual Styling
+                            Box(
+                                modifier = Modifier
+                                    .fillMaxWidth()
+                                    .alpha(if (isDone) 0.65f else 1.0f)
                             ) {
-                                Column(
-                                    modifier = Modifier
-                                        .fillMaxWidth()
-                                        .padding(horizontal = 14.dp, vertical = 10.dp)
+                                GlassBox(
+                                    modifier = Modifier.fillMaxWidth(),
+                                    elevation = if (isDone) 1.dp else 3.dp
                                 ) {
-                                    // Line 1: Time badge, category chip, checkbox
-                                    Row(
-                                        modifier = Modifier.fillMaxWidth(),
-                                        horizontalArrangement = Arrangement.SpaceBetween,
-                                        verticalAlignment = Alignment.CenterVertically
+                                    Column(
+                                        modifier = Modifier
+                                            .fillMaxWidth()
+                                            .background(if (isDone) Color(0xFFEAEFEB).copy(alpha = 0.6f) else Color.Transparent)
+                                            .padding(horizontal = 14.dp, vertical = 10.dp)
                                     ) {
-                                        Row(
-                                            verticalAlignment = Alignment.CenterVertically,
-                                            horizontalArrangement = Arrangement.spacedBy(8.dp)
-                                        ) {
-                                            Text(
-                                                text = timeFormatted,
-                                                fontSize = 13.sp,
-                                                fontWeight = FontWeight.Bold,
-                                                color = CharcoalPrimary
-                                            )
-                                            Box(
-                                                modifier = Modifier
-                                                    .clip(CircleShape)
-                                                    .background(walk.category.composeColor.copy(alpha = 0.16f))
-                                                    .padding(horizontal = 8.dp, vertical = 2.dp)
-                                            ) {
-                                                Text(
-                                                    text = walk.category.title,
-                                                    color = walk.category.composeColor,
-                                                    fontSize = 11.sp,
-                                                    fontWeight = FontWeight.SemiBold,
-                                                    maxLines = 1
-                                                )
-                                            }
-                                        }
-
-                                        IconButton(
-                                            onClick = { viewModel.toggleWalkCompletion(walk) },
-                                            modifier = Modifier.size(28.dp)
-                                        ) {
-                                            Icon(
-                                                imageVector = if (walk.isCompleted) Icons.Rounded.CheckCircle else Icons.Rounded.RadioButtonUnchecked,
-                                                contentDescription = "Статус",
-                                                tint = if (walk.isCompleted) SageGreenPrimary else OliveGreySecondary,
-                                                modifier = Modifier.size(22.dp)
-                                            )
-                                        }
-                                    }
-
-                                    Spacer(modifier = Modifier.height(4.dp))
-
-                                    // Line 2: Client name + pet chips in one line/flow
-                                    if (client != null) {
+                                        // Line 1: Time badge, category chip, price, and checkbox
                                         Row(
                                             modifier = Modifier.fillMaxWidth(),
-                                            verticalAlignment = Alignment.CenterVertically,
-                                            horizontalArrangement = Arrangement.spacedBy(6.dp)
+                                            horizontalArrangement = Arrangement.SpaceBetween,
+                                            verticalAlignment = Alignment.CenterVertically
                                         ) {
-                                            Text(
-                                                text = client.fullName,
-                                                fontWeight = FontWeight.SemiBold,
-                                                fontSize = 14.sp,
-                                                color = CharcoalPrimary,
-                                                maxLines = 1,
-                                                overflow = TextOverflow.Ellipsis
-                                            )
+                                            Row(
+                                                verticalAlignment = Alignment.CenterVertically,
+                                                horizontalArrangement = Arrangement.spacedBy(6.dp)
+                                            ) {
+                                                Text(
+                                                    text = timeFormatted,
+                                                    fontSize = 13.sp,
+                                                    fontWeight = FontWeight.Bold,
+                                                    color = if (isDone) OliveGreySecondary else CharcoalPrimary,
+                                                    textDecoration = if (isDone) TextDecoration.LineThrough else TextDecoration.None
+                                                )
 
-                                            if (pets.isNotEmpty()) {
-                                                FlowRow(
-                                                    horizontalArrangement = Arrangement.spacedBy(4.dp),
-                                                    verticalArrangement = Arrangement.Center
+                                                Box(
+                                                    modifier = Modifier
+                                                        .clip(CircleShape)
+                                                        .background(
+                                                            if (isDone) Color.LightGray.copy(alpha = 0.3f)
+                                                            else walk.category.composeColor.copy(alpha = 0.16f)
+                                                        )
+                                                        .padding(horizontal = 8.dp, vertical = 2.dp)
                                                 ) {
-                                                    pets.forEach { pet ->
-                                                        PetTag(pet = pet)
+                                                    Text(
+                                                        text = if (isDone) "✓ Выполнен" else walk.category.title,
+                                                        color = if (isDone) Color(0xFF2E7D32) else walk.category.composeColor,
+                                                        fontSize = 11.sp,
+                                                        fontWeight = FontWeight.SemiBold,
+                                                        maxLines = 1
+                                                    )
+                                                }
+
+                                                // Price Badge
+                                                if (walk.price > 0) {
+                                                    Box(
+                                                        modifier = Modifier
+                                                            .clip(CircleShape)
+                                                            .background(Color(0xFFE8F5E9))
+                                                            .padding(horizontal = 6.dp, vertical = 2.dp)
+                                                    ) {
+                                                        Text(
+                                                            text = "${walk.price} ₽",
+                                                            color = Color(0xFF2E7D32),
+                                                            fontSize = 11.sp,
+                                                            fontWeight = FontWeight.Bold
+                                                        )
                                                     }
                                                 }
+                                            }
+
+                                            IconButton(
+                                                onClick = { viewModel.toggleWalkCompletion(walk) },
+                                                modifier = Modifier.size(28.dp)
+                                            ) {
+                                                Icon(
+                                                    imageVector = if (isDone) Icons.Rounded.CheckCircle else Icons.Rounded.RadioButtonUnchecked,
+                                                    contentDescription = "Статус",
+                                                    tint = if (isDone) Color(0xFF2E7D32) else OliveGreySecondary,
+                                                    modifier = Modifier.size(22.dp)
+                                                )
                                             }
                                         }
 
                                         Spacer(modifier = Modifier.height(4.dp))
 
-                                        // Line 3: Location pin & address (1-2 lines with ellipsis)
-                                        val fullAddr = buildString {
-                                            append(client.addressStreet)
-                                            if (client.entrance.isNotBlank()) append(", под. ${client.entrance}")
-                                            if (client.floor.isNotBlank()) append(", эт. ${client.floor}")
-                                            if (client.apartment.isNotBlank()) append(", кв. ${client.apartment}")
-                                        }
-                                        Row(
-                                            modifier = Modifier.fillMaxWidth(),
-                                            verticalAlignment = Alignment.CenterVertically
-                                        ) {
-                                            Icon(
-                                                imageVector = Icons.Rounded.LocationOn,
-                                                contentDescription = "Адрес",
-                                                tint = SageGreenPrimary,
-                                                modifier = Modifier.size(14.dp)
-                                            )
-                                            Spacer(modifier = Modifier.width(4.dp))
-                                            Text(
-                                                text = fullAddr,
-                                                fontSize = 12.sp,
-                                                color = CharcoalPrimary,
-                                                maxLines = 2,
-                                                overflow = TextOverflow.Ellipsis
-                                            )
-                                        }
-
-                                        if (walk.walkComment.isNotBlank()) {
-                                            Spacer(modifier = Modifier.height(2.dp))
-                                            Text(
-                                                text = "Заметка: ${walk.walkComment}",
-                                                fontSize = 11.sp,
-                                                color = OliveGreySecondary,
-                                                maxLines = 1,
-                                                overflow = TextOverflow.Ellipsis
-                                            )
-                                        }
-
-                                        Spacer(modifier = Modifier.height(8.dp))
-
-                                        // Line 4: Action buttons row (compact, 36.dp height, no wrapping)
-                                        Row(
-                                            modifier = Modifier.fillMaxWidth(),
-                                            horizontalArrangement = Arrangement.spacedBy(8.dp),
-                                            verticalAlignment = Alignment.CenterVertically
-                                        ) {
-                                            // Route to single walk
-                                            Button(
-                                                onClick = { viewModel.routeSingleWalk(context, walk) },
-                                                colors = ButtonDefaults.buttonColors(
-                                                    containerColor = SoftMint,
-                                                    contentColor = DeepForest
-                                                ),
-                                                shape = RoundedCornerShape(12.dp),
-                                                contentPadding = PaddingValues(horizontal = 12.dp, vertical = 0.dp),
-                                                modifier = Modifier.height(36.dp)
+                                        // Line 2: Client name + pet chips in one line/flow
+                                        if (client != null) {
+                                            Row(
+                                                modifier = Modifier.fillMaxWidth(),
+                                                verticalAlignment = Alignment.CenterVertically,
+                                                horizontalArrangement = Arrangement.spacedBy(6.dp)
                                             ) {
-                                                Icon(Icons.Rounded.Directions, contentDescription = null, modifier = Modifier.size(16.dp))
+                                                Text(
+                                                    text = client.fullName,
+                                                    fontWeight = FontWeight.SemiBold,
+                                                    fontSize = 14.sp,
+                                                    color = if (isDone) OliveGreySecondary else CharcoalPrimary,
+                                                    textDecoration = if (isDone) TextDecoration.LineThrough else TextDecoration.None,
+                                                    maxLines = 1,
+                                                    overflow = TextOverflow.Ellipsis
+                                                )
+
+                                                if (pets.isNotEmpty()) {
+                                                    FlowRow(
+                                                        horizontalArrangement = Arrangement.spacedBy(4.dp),
+                                                        verticalArrangement = Arrangement.Center
+                                                    ) {
+                                                        pets.forEach { pet ->
+                                                            PetTag(pet = pet)
+                                                        }
+                                                    }
+                                                }
+                                            }
+
+                                            Spacer(modifier = Modifier.height(4.dp))
+
+                                            // Line 3: Location pin & address
+                                            val fullAddr = buildString {
+                                                append(client.addressStreet)
+                                                if (client.entrance.isNotBlank()) append(", под. ${client.entrance}")
+                                                if (client.floor.isNotBlank()) append(", эт. ${client.floor}")
+                                                if (client.apartment.isNotBlank()) append(", кв. ${client.apartment}")
+                                            }
+                                            Row(
+                                                modifier = Modifier.fillMaxWidth(),
+                                                verticalAlignment = Alignment.CenterVertically
+                                            ) {
+                                                Icon(
+                                                    imageVector = Icons.Rounded.LocationOn,
+                                                    contentDescription = "Адрес",
+                                                    tint = if (isDone) OliveGreySecondary else SageGreenPrimary,
+                                                    modifier = Modifier.size(14.dp)
+                                                )
                                                 Spacer(modifier = Modifier.width(4.dp))
                                                 Text(
-                                                    text = "Маршрут",
+                                                    text = fullAddr,
                                                     fontSize = 12.sp,
-                                                    fontWeight = FontWeight.SemiBold,
-                                                    maxLines = 1,
-                                                    softWrap = false
+                                                    color = if (isDone) OliveGreySecondary else CharcoalPrimary,
+                                                    maxLines = 2,
+                                                    overflow = TextOverflow.Ellipsis
                                                 )
                                             }
 
-                                            // Call
-                                            FilledTonalIconButton(
-                                                onClick = { IntentHelper.dialPhone(context, client.phone) },
-                                                colors = IconButtonDefaults.filledTonalIconButtonColors(
-                                                    containerColor = SandBeige,
-                                                    contentColor = CharcoalPrimary
-                                                ),
-                                                shape = RoundedCornerShape(12.dp),
-                                                modifier = Modifier.size(36.dp)
-                                            ) {
-                                                Icon(Icons.Rounded.Call, contentDescription = "Звонок", modifier = Modifier.size(17.dp))
+                                            if (walk.walkComment.isNotBlank()) {
+                                                Spacer(modifier = Modifier.height(2.dp))
+                                                Text(
+                                                    text = "Заметка: ${walk.walkComment}",
+                                                    fontSize = 11.sp,
+                                                    color = OliveGreySecondary,
+                                                    maxLines = 1,
+                                                    overflow = TextOverflow.Ellipsis
+                                                )
                                             }
 
-                                            // Messenger
-                                            FilledTonalIconButton(
-                                                onClick = {
-                                                    IntentHelper.openMessenger(
-                                                        context,
-                                                        client.messengerType,
-                                                        client.messengerIdentifier.ifBlank { client.phone }
+                                            Spacer(modifier = Modifier.height(8.dp))
+
+                                            // Line 4: Action buttons row
+                                            Row(
+                                                modifier = Modifier.fillMaxWidth(),
+                                                horizontalArrangement = Arrangement.spacedBy(8.dp),
+                                                verticalAlignment = Alignment.CenterVertically
+                                            ) {
+                                                // Route to single walk
+                                                Button(
+                                                    onClick = { viewModel.routeSingleWalk(context, walk) },
+                                                    colors = ButtonDefaults.buttonColors(
+                                                        containerColor = SoftMint,
+                                                        contentColor = DeepForest
+                                                    ),
+                                                    shape = RoundedCornerShape(12.dp),
+                                                    contentPadding = PaddingValues(horizontal = 12.dp, vertical = 0.dp),
+                                                    modifier = Modifier.height(36.dp)
+                                                ) {
+                                                    Icon(Icons.Rounded.Directions, contentDescription = null, modifier = Modifier.size(16.dp))
+                                                    Spacer(modifier = Modifier.width(4.dp))
+                                                    Text(
+                                                        text = "Маршрут",
+                                                        fontSize = 12.sp,
+                                                        fontWeight = FontWeight.SemiBold,
+                                                        maxLines = 1,
+                                                        softWrap = false
                                                     )
-                                                },
-                                                colors = IconButtonDefaults.filledTonalIconButtonColors(
-                                                    containerColor = MintLight,
-                                                    contentColor = DeepForest
-                                                ),
-                                                shape = RoundedCornerShape(12.dp),
-                                                modifier = Modifier.size(36.dp)
-                                            ) {
-                                                Icon(Icons.Rounded.Chat, contentDescription = "Мессенджер", modifier = Modifier.size(17.dp))
-                                            }
+                                                }
 
-                                            // Calendar
-                                            FilledTonalIconButton(
-                                                onClick = { IntentHelper.openGoogleCalendar(context, client, walk) },
-                                                colors = IconButtonDefaults.filledTonalIconButtonColors(
-                                                    containerColor = SandBeige,
-                                                    contentColor = CharcoalPrimary
-                                                ),
-                                                shape = RoundedCornerShape(12.dp),
-                                                modifier = Modifier.size(36.dp)
-                                            ) {
-                                                Icon(Icons.Rounded.CalendarMonth, contentDescription = "Календарь", modifier = Modifier.size(17.dp))
-                                            }
+                                                // Call
+                                                FilledTonalIconButton(
+                                                    onClick = { IntentHelper.dialPhone(context, client.phone) },
+                                                    colors = IconButtonDefaults.filledTonalIconButtonColors(
+                                                        containerColor = SandBeige,
+                                                        contentColor = CharcoalPrimary
+                                                    ),
+                                                    shape = RoundedCornerShape(12.dp),
+                                                    modifier = Modifier.size(36.dp)
+                                                ) {
+                                                    Icon(Icons.Rounded.Call, contentDescription = "Звонок", modifier = Modifier.size(17.dp))
+                                                }
 
-                                            Spacer(modifier = Modifier.weight(1f))
+                                                // Messenger
+                                                FilledTonalIconButton(
+                                                    onClick = {
+                                                        IntentHelper.openMessenger(
+                                                            context,
+                                                            client.messengerType,
+                                                            client.messengerIdentifier.ifBlank { client.phone }
+                                                        )
+                                                    },
+                                                    colors = IconButtonDefaults.filledTonalIconButtonColors(
+                                                        containerColor = MintLight,
+                                                        contentColor = DeepForest
+                                                    ),
+                                                    shape = RoundedCornerShape(12.dp),
+                                                    modifier = Modifier.size(36.dp)
+                                                ) {
+                                                    Icon(Icons.Rounded.Chat, contentDescription = "Мессенджер", modifier = Modifier.size(17.dp))
+                                                }
 
-                                            // Delete
-                                            FilledTonalIconButton(
-                                                onClick = { walkToDelete = walk },
-                                                colors = IconButtonDefaults.filledTonalIconButtonColors(
-                                                    containerColor = Color(0xFFFFEBEE),
-                                                    contentColor = Color(0xFFD9534F)
-                                                ),
-                                                shape = RoundedCornerShape(12.dp),
-                                                modifier = Modifier.size(36.dp)
-                                            ) {
-                                                Icon(Icons.Rounded.Delete, contentDescription = "Удалить", modifier = Modifier.size(17.dp))
+                                                // Calendar
+                                                FilledTonalIconButton(
+                                                    onClick = { IntentHelper.openGoogleCalendar(context, client, walk) },
+                                                    colors = IconButtonDefaults.filledTonalIconButtonColors(
+                                                        containerColor = SandBeige,
+                                                        contentColor = CharcoalPrimary
+                                                    ),
+                                                    shape = RoundedCornerShape(12.dp),
+                                                    modifier = Modifier.size(36.dp)
+                                                ) {
+                                                    Icon(Icons.Rounded.CalendarMonth, contentDescription = "Календарь", modifier = Modifier.size(17.dp))
+                                                }
+
+                                                // Edit Button
+                                                FilledTonalIconButton(
+                                                    onClick = {
+                                                        walkToEdit = walk
+                                                        showWalkFormDialog = true
+                                                    },
+                                                    colors = IconButtonDefaults.filledTonalIconButtonColors(
+                                                        containerColor = SandBeige,
+                                                        contentColor = CharcoalPrimary
+                                                    ),
+                                                    shape = RoundedCornerShape(12.dp),
+                                                    modifier = Modifier.size(36.dp)
+                                                ) {
+                                                    Icon(Icons.Rounded.Edit, contentDescription = "Редактировать", modifier = Modifier.size(17.dp))
+                                                }
+
+                                                Spacer(modifier = Modifier.weight(1f))
+
+                                                // Delete
+                                                FilledTonalIconButton(
+                                                    onClick = { walkToDelete = walk },
+                                                    colors = IconButtonDefaults.filledTonalIconButtonColors(
+                                                        containerColor = Color(0xFFFFEBEE),
+                                                        contentColor = Color(0xFFD9534F)
+                                                    ),
+                                                    shape = RoundedCornerShape(12.dp),
+                                                    modifier = Modifier.size(36.dp)
+                                                ) {
+                                                    Icon(Icons.Rounded.Delete, contentDescription = "Удалить", modifier = Modifier.size(17.dp))
+                                                }
                                             }
                                         }
                                     }
@@ -562,88 +636,146 @@ fun ScheduleMapScreen(
         }
     }
 
-    // Delete Walk Dialog (handles recurring series)
+    // Delete Walk Dialog (Clean Layout with separate Cancel button)
     if (walkToDelete != null) {
         val walk = walkToDelete!!
         val isRecurring = !walk.seriesId.isNullOrBlank()
 
-        AlertDialog(
-            onDismissRequest = { walkToDelete = null },
-            title = { Text(if (isRecurring) "Удалить регулярный выгул?" else "Удалить выгул?") },
-            text = {
-                Text(
-                    if (isRecurring)
-                        "Этот выгул является частью повторяющейся серии. Удалить только этот выгул или всю будущую серию?"
-                    else
-                        "Вы действительно хотите удалить этот запланированный выгул?"
-                )
-            },
-            confirmButton = {
-                if (isRecurring) {
-                    Column(
-                        modifier = Modifier.fillMaxWidth(),
-                        verticalArrangement = Arrangement.spacedBy(6.dp)
-                    ) {
+        Dialog(onDismissRequest = { walkToDelete = null }) {
+            Card(
+                shape = RoundedCornerShape(24.dp),
+                colors = CardDefaults.cardColors(containerColor = CanvasAlabaster),
+                modifier = Modifier.fillMaxWidth(0.92f)
+            ) {
+                Column(
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .padding(20.dp)
+                ) {
+                    Text(
+                        text = if (isRecurring) "Удаление серии выгулов" else "Удалить выгул?",
+                        fontSize = 18.sp,
+                        fontWeight = FontWeight.Bold,
+                        color = CharcoalPrimary
+                    )
+                    Spacer(modifier = Modifier.height(10.dp))
+                    Text(
+                        text = if (isRecurring)
+                            "Этот выгул повторяется по расписанию. Выберите вариант удаления:"
+                        else
+                            "Вы уверены, что хотите удалить этот запланированный выгул?",
+                        fontSize = 13.sp,
+                        color = OliveGreySecondary
+                    )
+                    Spacer(modifier = Modifier.height(20.dp))
+
+                    if (isRecurring) {
                         Button(
                             onClick = {
                                 viewModel.deleteWalk(walk, deleteEntireSeries = false)
                                 walkToDelete = null
                             },
                             colors = ButtonDefaults.buttonColors(containerColor = SandBeige, contentColor = CharcoalPrimary),
-                            modifier = Modifier.fillMaxWidth()
+                            shape = RoundedCornerShape(12.dp),
+                            modifier = Modifier
+                                .fillMaxWidth()
+                                .height(44.dp)
                         ) {
-                            Text("Только этот выгул")
+                            Text("Только этот выгул", fontSize = 13.sp, fontWeight = FontWeight.SemiBold)
                         }
+
+                        Spacer(modifier = Modifier.height(8.dp))
+
                         Button(
                             onClick = {
                                 viewModel.deleteWalk(walk, deleteEntireSeries = true)
                                 walkToDelete = null
                             },
                             colors = ButtonDefaults.buttonColors(containerColor = Color(0xFFD9534F), contentColor = Color.White),
+                            shape = RoundedCornerShape(12.dp),
+                            modifier = Modifier
+                                .fillMaxWidth()
+                                .height(44.dp)
+                        ) {
+                            Text("Всю серию", fontSize = 13.sp, fontWeight = FontWeight.SemiBold)
+                        }
+
+                        Spacer(modifier = Modifier.height(12.dp))
+
+                        TextButton(
+                            onClick = { walkToDelete = null },
                             modifier = Modifier.fillMaxWidth()
                         ) {
-                            Text("Всю серию расписания")
+                            Text("Отмена", color = OliveGreySecondary, fontSize = 14.sp)
+                        }
+                    } else {
+                        Row(
+                            modifier = Modifier.fillMaxWidth(),
+                            horizontalArrangement = Arrangement.End,
+                            verticalAlignment = Alignment.CenterVertically
+                        ) {
+                            TextButton(onClick = { walkToDelete = null }) {
+                                Text("Отмена", color = OliveGreySecondary)
+                            }
+                            Spacer(modifier = Modifier.width(8.dp))
+                            Button(
+                                onClick = {
+                                    viewModel.deleteWalk(walk, deleteEntireSeries = false)
+                                    walkToDelete = null
+                                },
+                                colors = ButtonDefaults.buttonColors(containerColor = Color(0xFFD9534F), contentColor = Color.White),
+                                shape = RoundedCornerShape(12.dp)
+                            ) {
+                                Text("Удалить")
+                            }
                         }
                     }
-                } else {
-                    Button(
-                        onClick = {
-                            viewModel.deleteWalk(walk, deleteEntireSeries = false)
-                            walkToDelete = null
-                        },
-                        colors = ButtonDefaults.buttonColors(containerColor = Color(0xFFD9534F), contentColor = Color.White)
-                    ) {
-                        Text("Удалить")
-                    }
-                }
-            },
-            dismissButton = {
-                TextButton(onClick = { walkToDelete = null }) {
-                    Text("Отмена", color = CharcoalPrimary)
                 }
             }
-        )
+        }
     }
 
-    // Add Walk Dialog
-    if (showAddWalkDialog) {
-        AddWalkDialog(
+    // Add or Edit Walk Dialog
+    if (showWalkFormDialog) {
+        WalkFormDialog(
             clients = clients,
             initialDate = selectedDate,
-            onDismiss = { showAddWalkDialog = false },
-            onSave = { clientId, category, date, startTime, duration, comment, isRecurring, days, endDate ->
-                viewModel.saveWalk(
-                    clientId = clientId,
-                    category = category,
-                    date = date,
-                    startTimeMinutes = startTime,
-                    durationMinutes = duration,
-                    walkComment = comment,
-                    isRecurring = isRecurring,
-                    selectedDays = days,
-                    recurrenceEndDate = endDate
-                ) {
-                    showAddWalkDialog = false
+            walkToEdit = walkToEdit,
+            onDismiss = {
+                showWalkFormDialog = false
+                walkToEdit = null
+            },
+            onSave = { walkId, clientId, category, date, startTime, duration, price, comment, isRecurring, days, endDate ->
+                if (walkId != 0L && walkToEdit != null) {
+                    val updated = walkToEdit!!.copy(
+                        clientId = clientId,
+                        category = category,
+                        dateEpochDay = date.toEpochDay(),
+                        startTimeMinutes = startTime,
+                        durationMinutes = duration,
+                        price = price,
+                        walkComment = comment
+                    )
+                    viewModel.updateWalk(updated) {
+                        showWalkFormDialog = false
+                        walkToEdit = null
+                    }
+                } else {
+                    viewModel.saveWalk(
+                        clientId = clientId,
+                        category = category,
+                        date = date,
+                        startTimeMinutes = startTime,
+                        durationMinutes = duration,
+                        price = price,
+                        walkComment = comment,
+                        isRecurring = isRecurring,
+                        selectedDays = days,
+                        recurrenceEndDate = endDate
+                    ) {
+                        showWalkFormDialog = false
+                        walkToEdit = null
+                    }
                 }
             }
         )
@@ -652,16 +784,19 @@ fun ScheduleMapScreen(
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
-fun AddWalkDialog(
+fun WalkFormDialog(
     clients: List<ClientEntity>,
     initialDate: LocalDate,
+    walkToEdit: WalkEventEntity? = null,
     onDismiss: () -> Unit,
     onSave: (
+        walkId: Long,
         clientId: Long,
         category: WalkCategory,
         date: LocalDate,
         startTimeMinutes: Int,
         durationMinutes: Int,
+        price: Int,
         comment: String,
         isRecurring: Boolean,
         selectedDays: Set<DayOfWeek>,
@@ -671,19 +806,46 @@ fun AddWalkDialog(
     val context = LocalContext.current
     val json = remember { Json { ignoreUnknownKeys = true } }
 
-    var selectedClientId by remember { mutableStateOf(clients.firstOrNull()?.id ?: 0L) }
-    var selectedCategory by remember { mutableStateOf(WalkCategory.REGULAR_WALK) }
-    var walkDate by remember { mutableStateOf(initialDate) }
-    var startTimeMinutes by remember { mutableIntStateOf(19 * 60) } // Default 19:00
-    var durationMinutes by remember { mutableIntStateOf(45) }
-    var walkComment by remember { mutableStateOf("") }
+    var selectedClientId by remember {
+        mutableStateOf(walkToEdit?.clientId ?: clients.firstOrNull()?.id ?: 0L)
+    }
+    var selectedCategory by remember {
+        mutableStateOf(walkToEdit?.category ?: WalkCategory.REGULAR_WALK)
+    }
+    var walkDate by remember {
+        mutableStateOf(
+            if (walkToEdit != null) LocalDate.ofEpochDay(walkToEdit.dateEpochDay) else initialDate
+        )
+    }
+    var startTimeMinutes by remember {
+        mutableIntStateOf(walkToEdit?.startTimeMinutes ?: (19 * 60))
+    }
+    var durationMinutes by remember {
+        mutableIntStateOf(walkToEdit?.durationMinutes ?: 45)
+    }
+    var durationInput by remember {
+        mutableStateOf((walkToEdit?.durationMinutes ?: 45).toString())
+    }
+    var price by remember {
+        mutableIntStateOf(walkToEdit?.price ?: 0)
+    }
+    var priceInput by remember {
+        mutableStateOf(if ((walkToEdit?.price ?: 0) > 0) walkToEdit!!.price.toString() else "")
+    }
+    var walkComment by remember {
+        mutableStateOf(walkToEdit?.walkComment ?: "")
+    }
 
     // Recurrence Engine
-    var isRecurring by remember { mutableStateOf(false) }
+    var isRecurring by remember {
+        mutableStateOf(walkToEdit != null && !walkToEdit.seriesId.isNullOrBlank())
+    }
     var selectedDays by remember {
         mutableStateOf(setOf(DayOfWeek.MONDAY, DayOfWeek.WEDNESDAY, DayOfWeek.FRIDAY))
     }
-    var recurrenceEndDate by remember { mutableStateOf(initialDate.plusMonths(1)) }
+    var recurrenceEndDate by remember {
+        mutableStateOf(walkDate.plusMonths(1))
+    }
 
     var clientMenuExpanded by remember { mutableStateOf(false) }
 
@@ -707,7 +869,7 @@ fun AddWalkDialog(
                     .padding(20.dp)
             ) {
                 Text(
-                    text = "Запланировать выгул",
+                    text = if (walkToEdit != null) "Редактировать выгул" else "Запланировать выгул",
                     fontSize = 20.sp,
                     fontWeight = FontWeight.Bold,
                     color = CharcoalPrimary
@@ -778,7 +940,38 @@ fun AddWalkDialog(
                     }
                 }
 
-                Spacer(modifier = Modifier.height(14.dp))
+                Spacer(modifier = Modifier.height(12.dp))
+
+                // Walk Date Selector with overlay for 100% reliable tap
+                Text("Дата выгула:", fontSize = 13.sp, fontWeight = FontWeight.Medium)
+                Spacer(modifier = Modifier.height(4.dp))
+                val dateFormatted = walkDate.format(DateTimeFormatter.ofPattern("EEEE, d MMMM yyyy", Locale("ru")))
+                Box(modifier = Modifier.fillMaxWidth()) {
+                    OutlinedTextField(
+                        value = dateFormatted.replaceFirstChar { it.uppercase() },
+                        onValueChange = {},
+                        readOnly = true,
+                        trailingIcon = {
+                            Icon(Icons.Rounded.CalendarToday, contentDescription = "Выбрать дату", tint = SageGreenPrimary)
+                        },
+                        modifier = Modifier.fillMaxWidth()
+                    )
+                    Box(
+                        modifier = Modifier
+                            .matchParentSize()
+                            .clickable {
+                                DatePickerDialog(
+                                    context,
+                                    { _, y, m, d -> walkDate = LocalDate.of(y, m + 1, d) },
+                                    walkDate.year,
+                                    walkDate.monthValue - 1,
+                                    walkDate.dayOfMonth
+                                ).show()
+                            }
+                    )
+                }
+
+                Spacer(modifier = Modifier.height(12.dp))
 
                 // Walk Category Selector
                 Text("Категория выгула:", fontSize = 13.sp, fontWeight = FontWeight.Medium)
@@ -814,9 +1007,9 @@ fun AddWalkDialog(
                     }
                 }
 
-                Spacer(modifier = Modifier.height(14.dp))
+                Spacer(modifier = Modifier.height(12.dp))
 
-                // Time & Duration
+                // Time & Duration with clickable overlay & manual input
                 val hours = startTimeMinutes / 60
                 val mins = startTimeMinutes % 60
                 val timeString = String.format("%02d:%02d", hours, mins)
@@ -825,42 +1018,123 @@ fun AddWalkDialog(
                     modifier = Modifier.fillMaxWidth(),
                     horizontalArrangement = Arrangement.spacedBy(8.dp)
                 ) {
-                    // Start Time Button
-                    OutlinedTextField(
-                        value = timeString,
-                        onValueChange = {},
-                        readOnly = true,
-                        label = { Text("Время начала") },
-                        modifier = Modifier
-                            .weight(1f)
-                            .clickable {
-                                TimePickerDialog(
-                                    context,
-                                    { _, h, m -> startTimeMinutes = h * 60 + m },
-                                    hours,
-                                    mins,
-                                    true
-                                ).show()
-                            }
-                    )
+                    // Start Time with overlay
+                    Box(modifier = Modifier.weight(1f)) {
+                        OutlinedTextField(
+                            value = timeString,
+                            onValueChange = {},
+                            readOnly = true,
+                            label = { Text("Время начала") },
+                            trailingIcon = {
+                                Icon(Icons.Rounded.Schedule, contentDescription = "Выбрать время", tint = SageGreenPrimary)
+                            },
+                            modifier = Modifier.fillMaxWidth()
+                        )
+                        Box(
+                            modifier = Modifier
+                                .matchParentSize()
+                                .clickable {
+                                    TimePickerDialog(
+                                        context,
+                                        { _, h, m -> startTimeMinutes = h * 60 + m },
+                                        hours,
+                                        mins,
+                                        true
+                                    ).show()
+                                }
+                        )
+                    }
 
-                    // Duration Selector (30, 45, 60, 90, 120)
+                    // Duration Input Field (Editable + Quick Chips)
                     OutlinedTextField(
-                        value = "$durationMinutes мин",
-                        onValueChange = {},
-                        readOnly = true,
-                        label = { Text("Длительность") },
-                        modifier = Modifier
-                            .weight(1f)
-                            .clickable {
-                                val durations = listOf(30, 45, 60, 90, 120)
-                                val nextIdx = (durations.indexOf(durationMinutes) + 1) % durations.size
-                                durationMinutes = durations[nextIdx]
-                            }
+                        value = durationInput,
+                        onValueChange = { input ->
+                            val digits = input.filter { it.isDigit() }.take(3)
+                            durationInput = digits
+                            digits.toIntOrNull()?.let { durationMinutes = it }
+                        },
+                        label = { Text("Длит. (мин)") },
+                        keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Number),
+                        singleLine = true,
+                        modifier = Modifier.weight(1f)
                     )
                 }
 
-                Spacer(modifier = Modifier.height(10.dp))
+                // Quick duration chips
+                Spacer(modifier = Modifier.height(4.dp))
+                Row(
+                    modifier = Modifier.fillMaxWidth(),
+                    horizontalArrangement = Arrangement.spacedBy(6.dp)
+                ) {
+                    listOf(30, 45, 60, 90).forEach { minsPreset ->
+                        val isSel = durationMinutes == minsPreset
+                        Box(
+                            modifier = Modifier
+                                .clip(RoundedCornerShape(8.dp))
+                                .background(if (isSel) SageGreenPrimary else SandBeige)
+                                .clickable {
+                                    durationMinutes = minsPreset
+                                    durationInput = minsPreset.toString()
+                                }
+                                .padding(horizontal = 8.dp, vertical = 4.dp)
+                        ) {
+                            Text(
+                                text = "$minsPreset мин",
+                                fontSize = 11.sp,
+                                color = if (isSel) Color.White else CharcoalPrimary,
+                                fontWeight = if (isSel) FontWeight.Bold else FontWeight.Normal
+                            )
+                        }
+                    }
+                }
+
+                Spacer(modifier = Modifier.height(12.dp))
+
+                // Price Field with Quick Preset Chips
+                Text("Стоимость выгула:", fontSize = 13.sp, fontWeight = FontWeight.Medium)
+                Spacer(modifier = Modifier.height(4.dp))
+                OutlinedTextField(
+                    value = priceInput,
+                    onValueChange = { input ->
+                        val digits = input.filter { it.isDigit() }.take(6)
+                        priceInput = digits
+                        price = digits.toIntOrNull() ?: 0
+                    },
+                    label = { Text("Стоимость (руб.)") },
+                    leadingIcon = { Icon(Icons.Rounded.Payments, contentDescription = null, tint = SageGreenPrimary) },
+                    keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Number),
+                    singleLine = true,
+                    modifier = Modifier.fillMaxWidth()
+                )
+
+                Spacer(modifier = Modifier.height(4.dp))
+                Row(
+                    modifier = Modifier.fillMaxWidth(),
+                    horizontalArrangement = Arrangement.spacedBy(6.dp)
+                ) {
+                    listOf(500, 700, 1000, 1500).forEach { presetPrice ->
+                        val isSel = price == presetPrice
+                        Box(
+                            modifier = Modifier
+                                .clip(RoundedCornerShape(8.dp))
+                                .background(if (isSel) SageGreenPrimary else SandBeige)
+                                .clickable {
+                                    price = presetPrice
+                                    priceInput = presetPrice.toString()
+                                }
+                                .padding(horizontal = 10.dp, vertical = 4.dp)
+                        ) {
+                            Text(
+                                text = "$presetPrice ₽",
+                                fontSize = 11.sp,
+                                color = if (isSel) Color.White else CharcoalPrimary,
+                                fontWeight = if (isSel) FontWeight.Bold else FontWeight.Normal
+                            )
+                        }
+                    }
+                }
+
+                Spacer(modifier = Modifier.height(12.dp))
 
                 // Walk Comment
                 OutlinedTextField(
@@ -871,108 +1145,117 @@ fun AddWalkDialog(
                     modifier = Modifier.fillMaxWidth()
                 )
 
-                Spacer(modifier = Modifier.height(14.dp))
-
-                // Recurrence Engine
-                Row(
-                    modifier = Modifier.fillMaxWidth(),
-                    horizontalArrangement = Arrangement.SpaceBetween,
-                    verticalAlignment = Alignment.CenterVertically
-                ) {
-                    Text("Регулярный график:", fontSize = 14.sp, fontWeight = FontWeight.SemiBold)
+                // Recurrence Engine (only when creating a new walk)
+                if (walkToEdit == null) {
+                    Spacer(modifier = Modifier.height(14.dp))
                     Row(
-                        modifier = Modifier
-                            .clip(CircleShape)
-                            .background(SandBeige)
-                            .padding(2.dp)
+                        modifier = Modifier.fillMaxWidth(),
+                        horizontalArrangement = Arrangement.SpaceBetween,
+                        verticalAlignment = Alignment.CenterVertically
                     ) {
-                        Box(
-                            modifier = Modifier
-                                .clip(CircleShape)
-                                .background(if (!isRecurring) SageGreenPrimary else Color.Transparent)
-                                .clickable { isRecurring = false }
-                                .padding(horizontal = 12.dp, vertical = 6.dp)
-                        ) {
-                            Text("Разовый", color = if (!isRecurring) Color.White else CharcoalPrimary, fontSize = 11.sp)
-                        }
-                        Box(
-                            modifier = Modifier
-                                .clip(CircleShape)
-                                .background(if (isRecurring) SageGreenPrimary else Color.Transparent)
-                                .clickable { isRecurring = true }
-                                .padding(horizontal = 12.dp, vertical = 6.dp)
-                        ) {
-                            Text("Серия", color = if (isRecurring) Color.White else CharcoalPrimary, fontSize = 11.sp)
-                        }
-                    }
-                }
-
-                AnimatedVisibility(visible = isRecurring) {
-                    Column(modifier = Modifier.padding(top = 10.dp)) {
-                        Text("Дни недели:", fontSize = 12.sp, color = OliveGreySecondary)
-                        Spacer(modifier = Modifier.height(4.dp))
+                        Text("Регулярный график:", fontSize = 14.sp, fontWeight = FontWeight.SemiBold)
                         Row(
-                            modifier = Modifier.fillMaxWidth(),
-                            horizontalArrangement = Arrangement.SpaceBetween
+                            modifier = Modifier
+                                .clip(CircleShape)
+                                .background(SandBeige)
+                                .padding(2.dp)
                         ) {
-                            val daysOfWeek = listOf(
-                                DayOfWeek.MONDAY to "Пн",
-                                DayOfWeek.TUESDAY to "Вт",
-                                DayOfWeek.WEDNESDAY to "Ср",
-                                DayOfWeek.THURSDAY to "Чт",
-                                DayOfWeek.FRIDAY to "Пт",
-                                DayOfWeek.SATURDAY to "Сб",
-                                DayOfWeek.SUNDAY to "Вс"
-                            )
-                            daysOfWeek.forEach { (day, label) ->
-                                val isSelected = selectedDays.contains(day)
-                                Box(
-                                    modifier = Modifier
-                                        .size(38.dp)
-                                        .clip(CircleShape)
-                                        .background(if (isSelected) SageGreenPrimary else SandBeige)
-                                        .clickable {
-                                            selectedDays = if (isSelected) {
-                                                if (selectedDays.size > 1) selectedDays - day else selectedDays
-                                            } else {
-                                                selectedDays + day
-                                            }
-                                        },
-                                    contentAlignment = Alignment.Center
-                                ) {
-                                    Text(
-                                        text = label,
-                                        color = if (isSelected) Color.White else CharcoalPrimary,
-                                        fontSize = 12.sp,
-                                        fontWeight = FontWeight.Bold
-                                    )
-                                }
+                            Box(
+                                modifier = Modifier
+                                    .clip(CircleShape)
+                                    .background(if (!isRecurring) SageGreenPrimary else Color.Transparent)
+                                    .clickable { isRecurring = false }
+                                    .padding(horizontal = 12.dp, vertical = 6.dp)
+                            ) {
+                                Text("Разовый", color = if (!isRecurring) Color.White else CharcoalPrimary, fontSize = 11.sp)
+                            }
+                            Box(
+                                modifier = Modifier
+                                    .clip(CircleShape)
+                                    .background(if (isRecurring) SageGreenPrimary else Color.Transparent)
+                                    .clickable { isRecurring = true }
+                                    .padding(horizontal = 12.dp, vertical = 6.dp)
+                            ) {
+                                Text("Серия", color = if (isRecurring) Color.White else CharcoalPrimary, fontSize = 11.sp)
                             }
                         }
+                    }
 
-                        Spacer(modifier = Modifier.height(10.dp))
-
-                        // End Date Picker
-                        val endFormatted = recurrenceEndDate.format(DateTimeFormatter.ofPattern("d MMMM yyyy", Locale("ru")))
-                        OutlinedTextField(
-                            value = endFormatted,
-                            onValueChange = {},
-                            readOnly = true,
-                            label = { Text("Повторять до даты") },
-                            modifier = Modifier
-                                .fillMaxWidth()
-                                .clickable {
-                                    DatePickerDialog(
-                                        context,
-                                        { _, y, m, d ->
-                                            recurrenceEndDate = LocalDate.of(y, m + 1, d)
-                                        },
-                                        recurrenceEndDate.year,
-                                        recurrenceEndDate.monthValue - 1,
-                                        recurrenceEndDate.dayOfMonth
-                                    ).show()
+                    AnimatedVisibility(visible = isRecurring) {
+                        Column(modifier = Modifier.padding(top = 10.dp)) {
+                            Text("Дни недели:", fontSize = 12.sp, color = OliveGreySecondary)
+                            Spacer(modifier = Modifier.height(4.dp))
+                            Row(
+                                modifier = Modifier.fillMaxWidth(),
+                                horizontalArrangement = Arrangement.SpaceBetween
+                            ) {
+                                val daysOfWeek = listOf(
+                                    DayOfWeek.MONDAY to "Пн",
+                                    DayOfWeek.TUESDAY to "Вт",
+                                    DayOfWeek.WEDNESDAY to "Ср",
+                                    DayOfWeek.THURSDAY to "Чт",
+                                    DayOfWeek.FRIDAY to "Пт",
+                                    DayOfWeek.SATURDAY to "Сб",
+                                    DayOfWeek.SUNDAY to "Вс"
+                                )
+                                daysOfWeek.forEach { (day, label) ->
+                                    val isSelected = selectedDays.contains(day)
+                                    Box(
+                                        modifier = Modifier
+                                            .size(38.dp)
+                                            .clip(CircleShape)
+                                            .background(if (isSelected) SageGreenPrimary else SandBeige)
+                                            .clickable {
+                                                selectedDays = if (isSelected) {
+                                                    if (selectedDays.size > 1) selectedDays - day else selectedDays
+                                                } else {
+                                                    selectedDays + day
+                                                }
+                                            },
+                                        contentAlignment = Alignment.Center
+                                    ) {
+                                        Text(
+                                            text = label,
+                                            color = if (isSelected) Color.White else CharcoalPrimary,
+                                            fontSize = 12.sp,
+                                            fontWeight = FontWeight.Bold
+                                        )
+                                    }
                                 }
-                        )
+                            }
+
+                            Spacer(modifier = Modifier.height(10.dp))
+
+                            // End Date Picker with clickable overlay
+                            val endFormatted = recurrenceEndDate.format(DateTimeFormatter.ofPattern("d MMMM yyyy", Locale("ru")))
+                            Box(modifier = Modifier.fillMaxWidth()) {
+                                OutlinedTextField(
+                                    value = endFormatted,
+                                    onValueChange = {},
+                                    readOnly = true,
+                                    label = { Text("Повторять до даты") },
+                                    trailingIcon = {
+                                        Icon(Icons.Rounded.CalendarMonth, contentDescription = "Выбрать дату", tint = SageGreenPrimary)
+                                    },
+                                    modifier = Modifier.fillMaxWidth()
+                                )
+                                Box(
+                                    modifier = Modifier
+                                        .matchParentSize()
+                                        .clickable {
+                                            DatePickerDialog(
+                                                context,
+                                                { _, y, m, d ->
+                                                    recurrenceEndDate = LocalDate.of(y, m + 1, d)
+                                                },
+                                                recurrenceEndDate.year,
+                                                recurrenceEndDate.monthValue - 1,
+                                                recurrenceEndDate.dayOfMonth
+                                            ).show()
+                                        }
+                                )
+                            }
+                        }
                     }
                 }
 
@@ -989,12 +1272,15 @@ fun AddWalkDialog(
                     Spacer(modifier = Modifier.width(8.dp))
                     Button(
                         onClick = {
+                            val validDuration = durationMinutes.coerceAtLeast(10)
                             onSave(
+                                walkToEdit?.id ?: 0L,
                                 selectedClientId,
                                 selectedCategory,
                                 walkDate,
                                 startTimeMinutes,
-                                durationMinutes,
+                                validDuration,
+                                price,
                                 walkComment,
                                 isRecurring,
                                 selectedDays,
@@ -1004,7 +1290,7 @@ fun AddWalkDialog(
                         colors = ButtonDefaults.buttonColors(containerColor = SageGreenPrimary),
                         shape = CircleShape
                     ) {
-                        Text("Сохранить", color = Color.White)
+                        Text(if (walkToEdit != null) "Сохранить" else "Запланировать", color = Color.White)
                     }
                 }
             }

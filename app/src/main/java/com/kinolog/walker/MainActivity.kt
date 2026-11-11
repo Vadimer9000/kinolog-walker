@@ -7,7 +7,13 @@ import androidx.activity.ComponentActivity
 import androidx.activity.compose.setContent
 import androidx.activity.result.contract.ActivityResultContracts
 import androidx.activity.viewModels
-import androidx.compose.animation.Crossfade
+import androidx.compose.animation.AnimatedContent
+import androidx.compose.animation.core.tween
+import androidx.compose.animation.fadeIn
+import androidx.compose.animation.fadeOut
+import androidx.compose.animation.slideInHorizontally
+import androidx.compose.animation.slideOutHorizontally
+import androidx.compose.animation.togetherWith
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.padding
@@ -82,9 +88,18 @@ fun MainAppScreen(viewModel: MainViewModel) {
                     .fillMaxSize()
                     .padding(bottom = innerPadding.calculateBottomPadding())
             ) {
-                Crossfade(
+                AnimatedContent(
                     targetState = currentTab,
-                    label = "tab_crossfade"
+                    transitionSpec = {
+                        if (targetState.ordinal > initialState.ordinal) {
+                            (slideInHorizontally(animationSpec = tween(280)) { width -> width / 4 } + fadeIn(animationSpec = tween(240)))
+                                .togetherWith(slideOutHorizontally(animationSpec = tween(280)) { width -> -width / 4 } + fadeOut(animationSpec = tween(200)))
+                        } else {
+                            (slideInHorizontally(animationSpec = tween(280)) { width -> -width / 4 } + fadeIn(animationSpec = tween(240)))
+                                .togetherWith(slideOutHorizontally(animationSpec = tween(280)) { width -> width / 4 } + fadeOut(animationSpec = tween(200)))
+                        }
+                    },
+                    label = "tab_animated_content"
                 ) { tab ->
                     when (tab) {
                         NavigationTab.SCHEDULE -> ScheduleMapScreen(viewModel = viewModel)

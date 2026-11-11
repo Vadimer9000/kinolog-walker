@@ -81,12 +81,12 @@ class MainViewModel(application: Application) : AndroidViewModel(application) {
         .flatMapLatest { date -> repository.getWalksForDate(date.toEpochDay()) }
         .stateIn(viewModelScope, SharingStarted.WhileSubscribed(5000), emptyList())
 
-    // Map Markers for selected date
+    // Map Markers for selected date (only non-completed walks are shown on map)
     val mapMarkerPoints: StateFlow<List<MapMarkerPoint>> = combine(
         walksForSelectedDate,
         clientsMap
     ) { walks, map ->
-        val sortedWalks = walks.sortedBy { it.startTimeMinutes }
+        val sortedWalks = walks.filter { !it.isCompleted }.sortedBy { it.startTimeMinutes }
         var counter = 1
         val points = mutableListOf<MapMarkerPoint>()
 
@@ -213,6 +213,7 @@ class MainViewModel(application: Application) : AndroidViewModel(application) {
         date: LocalDate,
         startTimeMinutes: Int,
         durationMinutes: Int,
+        price: Int = 0,
         walkComment: String,
         isRecurring: Boolean,
         selectedDays: Set<DayOfWeek>,
@@ -227,6 +228,7 @@ class MainViewModel(application: Application) : AndroidViewModel(application) {
                     dateEpochDay = date.toEpochDay(),
                     startTimeMinutes = startTimeMinutes,
                     durationMinutes = durationMinutes,
+                    price = price,
                     category = category,
                     walkComment = walkComment.trim(),
                     isCompleted = false
@@ -245,6 +247,7 @@ class MainViewModel(application: Application) : AndroidViewModel(application) {
                                 dateEpochDay = cur.toEpochDay(),
                                 startTimeMinutes = startTimeMinutes,
                                 durationMinutes = durationMinutes,
+                                price = price,
                                 category = category,
                                 walkComment = walkComment.trim(),
                                 isCompleted = false
@@ -255,6 +258,13 @@ class MainViewModel(application: Application) : AndroidViewModel(application) {
                 }
                 repository.saveWalks(walksToCreate)
             }
+            onDone()
+        }
+    }
+
+    fun updateWalk(walk: WalkEventEntity, onDone: () -> Unit = {}) {
+        viewModelScope.launch {
+            repository.updateWalk(walk)
             onDone()
         }
     }
@@ -270,7 +280,8 @@ class MainViewModel(application: Application) : AndroidViewModel(application) {
     }
 
     fun routeDayWalks(context: Context) {
-        val sortedWalks = walksForSelectedDate.value.sortedBy { it.startTimeMinutes }
+        val walks = walksForSelectedDate.value.filter { !it.isCompleted }
+        val sortedWalks = walks.sortedBy { it.startTimeMinutes }
         val map = clientsMap.value
         val points = mutableListOf<Pair<Double, Double>>()
 
@@ -289,6 +300,7 @@ class MainViewModel(application: Application) : AndroidViewModel(application) {
         IntentHelper.openYandexMapsRoute(
             context = context,
             points = points,
+            destinationAddress = null,
             currentLocation = _currentLocation.value,
             routingMode = _routingMode.value
         )
@@ -296,14 +308,28 @@ class MainViewModel(application: Application) : AndroidViewModel(application) {
 
     fun routeSingleWalk(context: Context, walk: WalkEventEntity) {
         val client = clientsMap.value[walk.clientId]
-        if (client?.latitude == null || client.longitude == null) {
-            Toast.makeText(context, "У клиента не определены координаты", Toast.LENGTH_SHORT).show()
+        val points = if (client?.latitude != null && client.longitude != null) {
+            listOf(Pair(client.latitude, client.longitude))
+        } else emptyList()
+
+        val fullAddress = if (client != null) {
+            buildString {
+                append(client.addressStreet)
+                if (client.entrance.isNotBlank()) {
+                    append(", подъезд ${client.entrance}")
+                }
+            }
+        } else null
+
+        if (points.isEmpty() && fullAddress.isNullOrBlank()) {
+            Toast.makeText(context, "У клиента не определен адрес", Toast.LENGTH_SHORT).show()
             return
         }
 
         IntentHelper.openYandexMapsRoute(
             context = context,
-            points = listOf(Pair(client.latitude, client.longitude)),
+            points = points,
+            destinationAddress = fullAddress,
             currentLocation = _currentLocation.value,
             routingMode = _routingMode.value
         )

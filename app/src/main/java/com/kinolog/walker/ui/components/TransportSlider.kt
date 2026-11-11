@@ -23,6 +23,7 @@ import androidx.compose.runtime.remember
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
+import androidx.compose.ui.draw.scale
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.IntOffset
@@ -86,6 +87,11 @@ fun TransportSlider(
                     targetValue = if (isPedestrian) CharcoalPrimary else OliveGreySecondary,
                     label = "text1_color"
                 )
+                val scale1 by animateFloatAsState(
+                    targetValue = if (isPedestrian) 1.05f else 0.95f,
+                    animationSpec = spring(dampingRatio = 0.65f, stiffness = 500f),
+                    label = "scale_pd"
+                )
                 Box(
                     modifier = Modifier
                         .weight(1f)
@@ -100,8 +106,9 @@ fun TransportSlider(
                     Text(
                         text = "🚶 Пешком",
                         color = text1Color,
-                        fontWeight = if (isPedestrian) FontWeight.SemiBold else FontWeight.Medium,
-                        fontSize = 13.sp
+                        fontWeight = if (isPedestrian) FontWeight.Bold else FontWeight.Medium,
+                        fontSize = 13.sp,
+                        modifier = Modifier.scale(scale1)
                     )
                 }
 
@@ -109,6 +116,11 @@ fun TransportSlider(
                 val text2Color by animateColorAsState(
                     targetValue = if (!isPedestrian) CharcoalPrimary else OliveGreySecondary,
                     label = "text2_color"
+                )
+                val scale2 by animateFloatAsState(
+                    targetValue = if (!isPedestrian) 1.05f else 0.95f,
+                    animationSpec = spring(dampingRatio = 0.65f, stiffness = 500f),
+                    label = "scale_mt"
                 )
                 Box(
                     modifier = Modifier
@@ -124,8 +136,9 @@ fun TransportSlider(
                     Text(
                         text = "🚌 Транспорт",
                         color = text2Color,
-                        fontWeight = if (!isPedestrian) FontWeight.SemiBold else FontWeight.Medium,
-                        fontSize = 13.sp
+                        fontWeight = if (!isPedestrian) FontWeight.Bold else FontWeight.Medium,
+                        fontSize = 13.sp,
+                        modifier = Modifier.scale(scale2)
                     )
                 }
             }

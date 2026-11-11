@@ -50,9 +50,15 @@ class KinologRepository(
         // Geocode if coordinates are missing
         var resolvedClient = client
         if ((resolvedClient.latitude == null || resolvedClient.longitude == null) && resolvedClient.addressStreet.isNotBlank()) {
+            val geocodeTarget = buildString {
+                append(resolvedClient.addressStreet)
+                if (resolvedClient.entrance.isNotBlank()) {
+                    append(", подъезд ${resolvedClient.entrance}")
+                }
+            }
             val coords = GeocoderHelper.geocodeAddress(
                 context = context,
-                rawAddress = resolvedClient.addressStreet,
+                rawAddress = geocodeTarget,
                 yandexApiKey = prefs.yandexApiKey
             )
             if (coords != null) {

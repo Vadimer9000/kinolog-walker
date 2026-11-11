@@ -463,43 +463,31 @@ fun ClientFormDialog(
 
     val petList = remember { mutableStateListOf<PetItem>().apply { addAll(initialPets) } }
 
-    // Contact Picker from phone contacts
+    // Contact Picker from phone contacts (extracts both Name and Phone)
     val contactPickerLauncher = rememberLauncherForActivityResult(
-        contract = ActivityResultContracts.PickContact()
-    ) { contactUri ->
-        if (contactUri != null) {
+        contract = ActivityResultContracts.StartActivityForResult()
+    ) { result ->
+        if (result.resultCode == android.app.Activity.RESULT_OK) {
+            val contactUri = result.data?.data ?: return@rememberLauncherForActivityResult
             try {
                 context.contentResolver.query(
                     contactUri,
-                    null,
-                    null,
-                    null,
-                    null
+                    arrayOf(
+                        ContactsContract.CommonDataKinds.Phone.DISPLAY_NAME,
+                        ContactsContract.CommonDataKinds.Phone.NUMBER
+                    ),
+                    null, null, null
                 )?.use { cursor ->
                     if (cursor.moveToFirst()) {
-                        val nameIdx = cursor.getColumnIndex(ContactsContract.Contacts.DISPLAY_NAME)
+                        val nameIdx = cursor.getColumnIndex(ContactsContract.CommonDataKinds.Phone.DISPLAY_NAME)
                         if (nameIdx >= 0) {
-                            cursor.getString(nameIdx)?.let { fullName = it }
+                            cursor.getString(nameIdx)?.let { if (it.isNotBlank()) fullName = it }
                         }
-                        val idIdx = cursor.getColumnIndex(ContactsContract.Contacts._ID)
-                        val hasPhoneIdx = cursor.getColumnIndex(ContactsContract.Contacts.HAS_PHONE_NUMBER)
-                        val hasPhone = if (hasPhoneIdx >= 0) cursor.getInt(hasPhoneIdx) > 0 else true
-                        if (hasPhone && idIdx >= 0) {
-                            val contactId = cursor.getString(idIdx)
-                            context.contentResolver.query(
-                                ContactsContract.CommonDataKinds.Phone.CONTENT_URI,
-                                arrayOf(ContactsContract.CommonDataKinds.Phone.NUMBER),
-                                "${ContactsContract.CommonDataKinds.Phone.CONTACT_ID} = ?",
-                                arrayOf(contactId),
-                                null
-                            )?.use { phoneCursor ->
-                                if (phoneCursor.moveToFirst()) {
-                                    val numIdx = phoneCursor.getColumnIndex(ContactsContract.CommonDataKinds.Phone.NUMBER)
-                                    if (numIdx >= 0) {
-                                        phoneCursor.getString(numIdx)?.let {
-                                            phone = it.replace(" ", "").replace("-", "")
-                                        }
-                                    }
+                        val numIdx = cursor.getColumnIndex(ContactsContract.CommonDataKinds.Phone.NUMBER)
+                        if (numIdx >= 0) {
+                            cursor.getString(numIdx)?.let { rawNum ->
+                                if (rawNum.isNotBlank()) {
+                                    phone = rawNum.replace(" ", "").replace("-", "")
                                 }
                             }
                         }
@@ -544,7 +532,13 @@ fun ClientFormDialog(
                     )
 
                     Button(
-                        onClick = { contactPickerLauncher.launch(null) },
+                        onClick = {
+                            val intent = android.content.Intent(
+                                android.content.Intent.ACTION_PICK,
+                                ContactsContract.CommonDataKinds.Phone.CONTENT_URI
+                            )
+                            contactPickerLauncher.launch(intent)
+                        },
                         colors = ButtonDefaults.buttonColors(
                             containerColor = SoftMint,
                             contentColor = DeepForest

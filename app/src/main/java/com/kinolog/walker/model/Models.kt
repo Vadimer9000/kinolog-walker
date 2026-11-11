@@ -81,6 +81,7 @@ data class WalkEventEntity(
     val dateEpochDay: Long,
     val startTimeMinutes: Int,
     val durationMinutes: Int,
+    val price: Int = 0,
     val category: WalkCategory,
     val walkComment: String = "",
     val isCompleted: Boolean = false
