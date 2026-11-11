@@ -65,8 +65,12 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.platform.LocalContext
+import androidx.compose.ui.text.AnnotatedString
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.input.KeyboardType
+import androidx.compose.ui.text.input.OffsetMapping
+import androidx.compose.ui.text.input.TransformedText
+import androidx.compose.ui.text.input.VisualTransformation
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
@@ -431,23 +435,78 @@ fun ClientsScreen(
     }
 }
 
-fun formatRussianPhone(raw: String): String {
+fun extractRussianPhoneDigits(raw: String): String {
     val digits = raw.filter { it.isDigit() }
-    if (digits.isEmpty()) return ""
-    val nationalDigits = when {
-        (digits.startsWith("7") || digits.startsWith("8")) && digits.length > 1 -> digits.substring(1)
-        digits.startsWith("7") || digits.startsWith("8") -> ""
+    return when {
+        (digits.startsWith("7") || digits.startsWith("8")) && digits.length >= 11 -> digits.substring(1)
         else -> digits
     }.take(10)
+}
 
+fun formatRussianPhoneFromDigits(digits: String): String {
+    if (digits.isEmpty()) return ""
+    val d = digits.take(10)
     val sb = StringBuilder("+7 (")
-    for (i in nationalDigits.indices) {
+    for (i in d.indices) {
         if (i == 3) sb.append(") ")
         if (i == 6) sb.append("-")
         if (i == 8) sb.append("-")
-        sb.append(nationalDigits[i])
+        sb.append(d[i])
     }
     return sb.toString()
+}
+
+fun formatRussianPhone(raw: String): String {
+    val digits = extractRussianPhoneDigits(raw)
+    return formatRussianPhoneFromDigits(digits)
+}
+
+class RussianPhoneVisualTransformation : VisualTransformation {
+    override fun filter(text: AnnotatedString): TransformedText {
+        val digits = text.text.filter { it.isDigit() }.take(10)
+        val sb = StringBuilder()
+        if (digits.isNotEmpty()) {
+            sb.append("(")
+            for (i in digits.indices) {
+                if (i == 3) sb.append(") ")
+                if (i == 6) sb.append("-")
+                if (i == 8) sb.append("-")
+                sb.append(digits[i])
+            }
+        }
+        val transformed = AnnotatedString(sb.toString())
+
+        val offsetMapping = object : OffsetMapping {
+            override fun originalToTransformed(offset: Int): Int {
+                if (digits.isEmpty()) return 0
+                val clamped = offset.coerceIn(0, digits.length)
+                return when {
+                    clamped <= 0 -> 1 // after '('
+                    clamped <= 3 -> 1 + clamped
+                    clamped <= 6 -> 1 + clamped + 2 // + ") "
+                    clamped <= 8 -> 1 + clamped + 3 // + ") " + "-"
+                    else -> 1 + clamped + 4         // + ") " + "-" + "-"
+                }.coerceIn(0, transformed.length)
+            }
+
+            override fun transformedToOriginal(offset: Int): Int {
+                if (digits.isEmpty()) return 0
+                val orig = when {
+                    offset <= 1 -> 0
+                    offset <= 4 -> offset - 1
+                    offset <= 6 -> 3
+                    offset <= 9 -> offset - 3
+                    offset <= 10 -> 6
+                    offset <= 12 -> offset - 4
+                    offset <= 13 -> 8
+                    else -> offset - 5
+                }
+                return orig.coerceIn(0, digits.length)
+            }
+        }
+
+        return TransformedText(transformed, offsetMapping)
+    }
 }
 
 @Composable
@@ -460,8 +519,8 @@ fun ClientFormDialog(
     val json = remember { Json { ignoreUnknownKeys = true } }
 
     var fullName by remember { mutableStateOf(client?.fullName ?: "") }
-    var phone by remember {
-        mutableStateOf(if (client != null && client.phone.isNotBlank()) formatRussianPhone(client.phone) else "")
+    var phoneDigits by remember {
+        mutableStateOf(extractRussianPhoneDigits(client?.phone ?: ""))
     }
     var messengerType by remember { mutableStateOf(client?.messengerType ?: MessengerType.TELEGRAM) }
     var messengerIdentifier by remember { mutableStateOf(client?.messengerIdentifier ?: "") }
@@ -512,7 +571,7 @@ fun ClientFormDialog(
                         if (numIdx >= 0) {
                             cursor.getString(numIdx)?.let { rawNum ->
                                 if (rawNum.isNotBlank()) {
-                                    phone = formatRussianPhone(rawNum)
+                                    phoneDigits = extractRussianPhoneDigits(rawNum)
                                 }
                             }
                         }
@@ -591,12 +650,36 @@ fun ClientFormDialog(
 
                 Spacer(modifier = Modifier.height(10.dp))
 
-                // Phone with Russian Mask
+                // Phone with Russian Mask & Visual Transformation
                 OutlinedTextField(
-                    value = phone,
-                    onValueChange = { phone = formatRussianPhone(it) },
+                    value = phoneDigits,
+                    onValueChange = { input ->
+                        val clean = input.filter { it.isDigit() }
+                        val normalized = if (phoneDigits.isEmpty() && (clean.startsWith("79") || clean.startsWith("89"))) {
+                            clean.substring(1)
+                        } else if (phoneDigits.isEmpty() && (clean == "7" || clean == "8")) {
+                            ""
+                        } else if (clean.length > 10) {
+                            if ((clean.startsWith("7") || clean.startsWith("8")) && clean.length == 11) {
+                                clean.substring(1)
+                            } else {
+                                clean.take(10)
+                            }
+                        } else {
+                            clean
+                        }
+                        phoneDigits = normalized.take(10)
+                    },
                     label = { Text("Номер телефона") },
-                    placeholder = { Text("+7 (___) ___-__-__") },
+                    placeholder = { Text("(___) ___-__-__") },
+                    prefix = {
+                        Text(
+                            text = "+7 ",
+                            fontWeight = FontWeight.SemiBold,
+                            color = CharcoalPrimary
+                        )
+                    },
+                    visualTransformation = RussianPhoneVisualTransformation(),
                     keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Phone),
                     singleLine = true,
                     modifier = Modifier.fillMaxWidth()
@@ -800,14 +883,15 @@ fun ClientFormDialog(
                     Spacer(modifier = Modifier.width(8.dp))
                     Button(
                         onClick = {
-                            if (fullName.isNotBlank() && phone.isNotBlank()) {
+                            val formattedPhone = formatRussianPhoneFromDigits(phoneDigits)
+                            if (fullName.isNotBlank() && phoneDigits.isNotBlank()) {
                                 val validPets = petList.filter { it.name.isNotBlank() }.ifEmpty {
                                     listOf(PetItem(name = "Питомец", type = PetType.DOG))
                                 }
                                 val updated = ClientEntity(
                                     id = client?.id ?: 0L,
                                     fullName = fullName,
-                                    phone = phone,
+                                    phone = formattedPhone,
                                     messengerType = messengerType,
                                     messengerIdentifier = messengerIdentifier,
                                     petsJson = "",

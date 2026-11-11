@@ -483,7 +483,7 @@ fun ScheduleMapScreen(
         Column(
             modifier = contentModifier
                 .fillMaxWidth()
-                .background(CanvasAlabaster)
+                .background(Color.Transparent)
         ) {
                         // Header of BottomSheet
                     val totalPlannedEarnings = walks.sumOf { it.price }
@@ -644,25 +644,26 @@ fun ScheduleMapScreen(
                                                     .background(if (isDone) Color(0xFFEAEFEB).copy(alpha = 0.6f) else Color.Transparent)
                                                     .padding(horizontal = 12.dp, vertical = 6.dp)
                                             ) {
-                                                // Line 1: Time, Price, Client, Pet, Checkbox
+                                                // Line 1: Time, Client, Pet, Price, and Checkbox
                                                 Row(
                                                     modifier = Modifier.fillMaxWidth(),
                                                     horizontalArrangement = Arrangement.SpaceBetween,
-                                                    verticalAlignment = Alignment.CenterVertically
+                                                    verticalAlignment = Alignment.Top
                                                 ) {
-                                                    Row(
+                                                    FlowRow(
                                                         modifier = Modifier.weight(1f),
-                                                        verticalAlignment = Alignment.CenterVertically,
-                                                        horizontalArrangement = Arrangement.spacedBy(6.dp)
+                                                        horizontalArrangement = Arrangement.spacedBy(6.dp),
+                                                        verticalArrangement = Arrangement.spacedBy(4.dp, Alignment.CenterVertically)
                                                     ) {
                                                         Text(
                                                             text = String.format("%02d:%02d-%02d:%02d", startHours, startMins, endHours, endMins),
                                                             fontSize = 12.sp,
                                                             fontWeight = FontWeight.Bold,
                                                             color = if (isDone) OliveGreySecondary else CharcoalPrimary,
-                                                            textDecoration = if (isDone) TextDecoration.LineThrough else TextDecoration.None
+                                                            textDecoration = if (isDone) TextDecoration.LineThrough else TextDecoration.None,
+                                                            modifier = Modifier.align(Alignment.CenterVertically)
                                                         )
-    
+
                                                         if (client != null) {
                                                             Text(
                                                                 text = client.fullName,
@@ -670,25 +671,24 @@ fun ScheduleMapScreen(
                                                                 fontSize = 13.sp,
                                                                 color = if (isDone) OliveGreySecondary else CharcoalPrimary,
                                                                 textDecoration = if (isDone) TextDecoration.LineThrough else TextDecoration.None,
-                                                                maxLines = 1,
-                                                                overflow = TextOverflow.Ellipsis
+                                                                modifier = Modifier.align(Alignment.CenterVertically)
                                                             )
-    
+
                                                             if (pets.isNotEmpty()) {
                                                                 val petSummary = pets.joinToString(" ") { "${it.type.icon} ${it.name}" }
                                                                 Text(
                                                                     text = "($petSummary)",
                                                                     fontSize = 11.sp,
                                                                     color = OliveGreySecondary,
-                                                                    maxLines = 1,
-                                                                    overflow = TextOverflow.Ellipsis
+                                                                    modifier = Modifier.align(Alignment.CenterVertically)
                                                                 )
                                                             }
-    
-                                                            // Price Badge placed directly to the right of pet name
+
+                                                            // Price Badge placed directly to the right of pet name or wraps smoothly
                                                             if (walk.price > 0) {
                                                                 Box(
                                                                     modifier = Modifier
+                                                                        .align(Alignment.CenterVertically)
                                                                         .clip(CircleShape)
                                                                         .background(if (isDone) Color.LightGray.copy(alpha = 0.3f) else PriceBadgeBg)
                                                                         .padding(horizontal = 6.dp, vertical = 2.dp)
@@ -697,13 +697,17 @@ fun ScheduleMapScreen(
                                                                         text = "${walk.price} ₽",
                                                                         color = if (isDone) OliveGreySecondary else PriceBadgeText,
                                                                         fontSize = 10.sp,
-                                                                        fontWeight = FontWeight.Bold
+                                                                        fontWeight = FontWeight.Bold,
+                                                                        maxLines = 1,
+                                                                        softWrap = false
                                                                     )
                                                                 }
                                                             }
                                                         }
                                                     }
-    
+
+                                                    Spacer(modifier = Modifier.width(6.dp))
+
                                                     IconButton(
                                                         onClick = { viewModel.toggleWalkCompletion(walk) },
                                                         modifier = Modifier.size(24.dp)
