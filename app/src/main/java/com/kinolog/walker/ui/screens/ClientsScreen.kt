@@ -5,6 +5,7 @@ import androidx.activity.compose.rememberLauncherForActivityResult
 import androidx.activity.result.contract.ActivityResultContracts
 import androidx.compose.animation.AnimatedVisibility
 import androidx.compose.foundation.background
+import androidx.compose.foundation.border
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
@@ -18,6 +19,7 @@ import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.imePadding
+import androidx.compose.foundation.layout.offset
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.statusBarsPadding
@@ -27,6 +29,7 @@ import androidx.compose.foundation.lazy.items
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
+import androidx.compose.foundation.text.BasicTextField
 import androidx.compose.foundation.text.KeyboardOptions
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.material.icons.Icons
@@ -63,9 +66,12 @@ import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
+import androidx.compose.ui.focus.onFocusChanged
 import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.graphics.SolidColor
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.text.AnnotatedString
+import androidx.compose.ui.text.TextStyle
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.input.KeyboardType
 import androidx.compose.ui.text.input.OffsetMapping
@@ -88,6 +94,7 @@ import com.kinolog.walker.ui.theme.CharcoalPrimary
 import com.kinolog.walker.ui.theme.DangerRedBg
 import com.kinolog.walker.ui.theme.DangerRedText
 import com.kinolog.walker.ui.theme.DeepForest
+import com.kinolog.walker.ui.theme.DividerMuted
 import com.kinolog.walker.ui.theme.MintLight
 import com.kinolog.walker.ui.theme.OliveGreySecondary
 import com.kinolog.walker.ui.theme.SageGreenPrimary
@@ -510,6 +517,68 @@ class RussianPhoneVisualTransformation : VisualTransformation {
 }
 
 @Composable
+private fun ContourInputField(
+    value: String,
+    onValueChange: (String) -> Unit,
+    label: String,
+    modifier: Modifier = Modifier,
+    keyboardType: KeyboardType = KeyboardType.Text
+) {
+    var isFocused by remember { mutableStateOf(false) }
+    val borderColor = if (isFocused) SageGreenPrimary else DividerMuted
+    val labelColor = if (isFocused) SageGreenPrimary else OliveGreySecondary
+
+    Box(
+        modifier = modifier
+            .padding(top = 7.dp)
+            .height(50.dp)
+            .border(
+                width = if (isFocused) 1.5.dp else 1.dp,
+                color = borderColor,
+                shape = RoundedCornerShape(12.dp)
+            )
+    ) {
+        Text(
+            text = label,
+            fontSize = 11.sp,
+            fontWeight = FontWeight.Medium,
+            color = labelColor,
+            maxLines = 1,
+            softWrap = false,
+            modifier = Modifier
+                .offset(x = 10.dp, y = (-7).dp)
+                .background(CanvasAlabaster)
+                .padding(horizontal = 4.dp)
+        )
+
+        BasicTextField(
+            value = value,
+            onValueChange = onValueChange,
+            singleLine = true,
+            textStyle = TextStyle(
+                color = CharcoalPrimary,
+                fontSize = 14.sp,
+                fontWeight = FontWeight.Medium
+            ),
+            keyboardOptions = KeyboardOptions(keyboardType = keyboardType),
+            cursorBrush = SolidColor(SageGreenPrimary),
+            modifier = Modifier
+                .fillMaxSize()
+                .onFocusChanged { isFocused = it.isFocused }
+                .padding(horizontal = 12.dp, vertical = 12.dp),
+            decorationBox = { innerTextField ->
+                Box(
+                    modifier = Modifier.fillMaxSize(),
+                    contentAlignment = Alignment.CenterStart
+                ) {
+                    innerTextField()
+                }
+            }
+        )
+    }
+}
+
+@Composable
 fun ClientFormDialog(
     client: ClientEntity?,
     onDismiss: () -> Unit,
@@ -837,25 +906,22 @@ fun ClientFormDialog(
                     modifier = Modifier.fillMaxWidth(),
                     horizontalArrangement = Arrangement.spacedBy(8.dp)
                 ) {
-                    OutlinedTextField(
+                    ContourInputField(
                         value = entrance,
                         onValueChange = { entrance = it },
-                        label = { Text("Парадная") },
-                        singleLine = true,
+                        label = "Парадная",
                         modifier = Modifier.weight(1f)
                     )
-                    OutlinedTextField(
+                    ContourInputField(
                         value = floor,
                         onValueChange = { floor = it },
-                        label = { Text("Этаж") },
-                        singleLine = true,
+                        label = "Этаж",
                         modifier = Modifier.weight(1f)
                     )
-                    OutlinedTextField(
+                    ContourInputField(
                         value = apartment,
                         onValueChange = { apartment = it },
-                        label = { Text("Квартира") },
-                        singleLine = true,
+                        label = "Квартира",
                         modifier = Modifier.weight(1f)
                     )
                 }
