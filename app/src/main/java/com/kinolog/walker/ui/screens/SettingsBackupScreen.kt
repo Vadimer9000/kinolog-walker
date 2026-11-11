@@ -14,11 +14,13 @@ import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
+import androidx.compose.foundation.layout.statusBarsPadding
 import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.rounded.ArrowBack
 import androidx.compose.material.icons.rounded.FileDownload
 import androidx.compose.material.icons.rounded.FileUpload
 import androidx.compose.material.icons.rounded.Key
@@ -28,6 +30,7 @@ import androidx.compose.material.icons.rounded.Shield
 import androidx.compose.material3.Button
 import androidx.compose.material3.ButtonDefaults
 import androidx.compose.material3.Icon
+import androidx.compose.material3.IconButton
 import androidx.compose.material3.OutlinedTextField
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
@@ -45,6 +48,7 @@ import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import com.kinolog.walker.ui.MainViewModel
 import com.kinolog.walker.ui.components.GlassBox
+import com.kinolog.walker.ui.components.NavigationTab
 import com.kinolog.walker.ui.theme.CharcoalPrimary
 import com.kinolog.walker.ui.theme.DeepForest
 import com.kinolog.walker.ui.theme.OliveGreySecondary
@@ -77,23 +81,38 @@ fun SettingsBackupScreen(
         Column(
             modifier = Modifier
                 .fillMaxSize()
+                .statusBarsPadding()
                 .padding(horizontal = 16.dp)
                 .verticalScroll(rememberScrollState())
         ) {
-            Spacer(modifier = Modifier.height(16.dp))
-
-            Text(
-                text = "Настройки и Бэкап",
-                fontSize = 24.sp,
-                fontWeight = FontWeight.Bold,
-                color = CharcoalPrimary
-            )
-            Text(
-                text = "Управление ключами карт и сохранение базы данных",
-                fontSize = 13.sp,
-                color = OliveGreySecondary,
-                modifier = Modifier.padding(bottom = 16.dp)
-            )
+            Row(
+                verticalAlignment = Alignment.CenterVertically,
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .padding(top = 12.dp, bottom = 12.dp)
+            ) {
+                IconButton(onClick = { viewModel.setTab(NavigationTab.SCHEDULE) }) {
+                    Icon(
+                        imageVector = Icons.Rounded.ArrowBack,
+                        contentDescription = "Назад к карте",
+                        tint = CharcoalPrimary
+                    )
+                }
+                Spacer(modifier = Modifier.width(6.dp))
+                Column {
+                    Text(
+                        text = "Настройки и Бэкап",
+                        fontSize = 22.sp,
+                        fontWeight = FontWeight.Bold,
+                        color = CharcoalPrimary
+                    )
+                    Text(
+                        text = "Управление ключами карт и сохранение базы данных",
+                        fontSize = 12.sp,
+                        color = OliveGreySecondary
+                    )
+                }
+            }
 
             // Section 1: Yandex Maps JS API Key
             GlassBox(

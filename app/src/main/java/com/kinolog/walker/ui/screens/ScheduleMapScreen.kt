@@ -47,6 +47,7 @@ import androidx.compose.material.icons.rounded.Payments
 import androidx.compose.material.icons.rounded.RadioButtonUnchecked
 import androidx.compose.material.icons.rounded.Route
 import androidx.compose.material.icons.rounded.Schedule
+import androidx.compose.material.icons.rounded.Settings
 import androidx.compose.material.icons.rounded.ViewAgenda
 import androidx.compose.material.icons.rounded.ViewHeadline
 import androidx.compose.material3.AlertDialog
@@ -98,6 +99,7 @@ import com.kinolog.walker.model.WalkCategory
 import com.kinolog.walker.model.WalkEventEntity
 import com.kinolog.walker.ui.MainViewModel
 import com.kinolog.walker.ui.components.GlassBox
+import com.kinolog.walker.ui.components.NavigationTab
 import com.kinolog.walker.ui.components.PetTag
 import com.kinolog.walker.ui.components.TransportSlider
 import com.kinolog.walker.ui.components.YandexMapView
@@ -180,7 +182,7 @@ fun ScheduleMapScreen(
                     horizontalArrangement = Arrangement.SpaceBetween,
                     verticalAlignment = Alignment.CenterVertically
                 ) {
-                    Column {
+                    Column(modifier = Modifier.weight(1f, fill = false)) {
                         Text(
                             text = "План на день (${walks.size})",
                             fontSize = 17.sp,
@@ -212,25 +214,17 @@ fun ScheduleMapScreen(
                     ) {
                         val pendingCount = walks.count { !it.isCompleted }
                         if (pendingCount > 0) {
-                            Button(
+                            // Compact Route Button without text "Маршрут", fixed 36x36 dp
+                            FilledTonalIconButton(
                                 onClick = { viewModel.routeDayWalks(context) },
-                                colors = ButtonDefaults.buttonColors(
+                                colors = IconButtonDefaults.filledTonalIconButtonColors(
                                     containerColor = SageGreenPrimary,
                                     contentColor = Color.White
                                 ),
                                 shape = RoundedCornerShape(12.dp),
-                                contentPadding = PaddingValues(horizontal = 10.dp, vertical = 0.dp),
-                                modifier = Modifier.height(36.dp)
+                                modifier = Modifier.size(36.dp)
                             ) {
-                                Icon(Icons.Rounded.Route, contentDescription = null, modifier = Modifier.size(16.dp))
-                                Spacer(modifier = Modifier.width(4.dp))
-                                Text(
-                                    text = "Маршрут ($pendingCount)",
-                                    fontSize = 12.sp,
-                                    fontWeight = FontWeight.SemiBold,
-                                    maxLines = 1,
-                                    softWrap = false
-                                )
+                                Icon(Icons.Rounded.Route, contentDescription = "Маршрут ($pendingCount)", modifier = Modifier.size(18.dp))
                             }
                         }
 
@@ -550,6 +544,7 @@ fun ScheduleMapScreen(
                                             verticalAlignment = Alignment.CenterVertically
                                         ) {
                                             Row(
+                                                modifier = Modifier.weight(1f, fill = false),
                                                 verticalAlignment = Alignment.CenterVertically,
                                                 horizontalArrangement = Arrangement.spacedBy(6.dp)
                                             ) {
@@ -599,13 +594,13 @@ fun ScheduleMapScreen(
 
                                             IconButton(
                                                 onClick = { viewModel.toggleWalkCompletion(walk) },
-                                                modifier = Modifier.size(28.dp)
+                                                modifier = Modifier.size(32.dp)
                                             ) {
                                                 Icon(
                                                     imageVector = if (isDone) Icons.Rounded.CheckCircle else Icons.Rounded.RadioButtonUnchecked,
                                                     contentDescription = "Статус",
                                                     tint = if (isDone) Color(0xFF2E7D32) else OliveGreySecondary,
-                                                    modifier = Modifier.size(22.dp)
+                                                    modifier = Modifier.size(24.dp)
                                                 )
                                             }
                                         }
@@ -813,52 +808,77 @@ fun ScheduleMapScreen(
                         .statusBarsPadding()
                         .padding(top = 16.dp, start = 16.dp, end = 16.dp)
                 ) {
-                    // Date Selector Pill
-                    GlassBox(
+                    Row(
                         modifier = Modifier.fillMaxWidth(),
-                        shape = CircleShape,
-                        elevation = 6.dp
+                        verticalAlignment = Alignment.CenterVertically,
+                        horizontalArrangement = Arrangement.spacedBy(8.dp)
                     ) {
-                        Row(
-                            modifier = Modifier
-                                .fillMaxWidth()
-                                .padding(horizontal = 8.dp, vertical = 4.dp),
-                            horizontalArrangement = Arrangement.SpaceBetween,
-                            verticalAlignment = Alignment.CenterVertically
+                        // Date Selector Pill
+                        GlassBox(
+                            modifier = Modifier.weight(1f),
+                            shape = CircleShape,
+                            elevation = 6.dp
                         ) {
-                            IconButton(onClick = { viewModel.setSelectedDate(selectedDate.minusDays(1)) }) {
-                                Icon(Icons.Rounded.ChevronLeft, contentDescription = "Предыдущий день", tint = SageGreenPrimary)
-                            }
-
                             Row(
-                                verticalAlignment = Alignment.CenterVertically,
                                 modifier = Modifier
-                                    .clip(CircleShape)
-                                    .clickable {
-                                        DatePickerDialog(
-                                            context,
-                                            { _, y, m, d ->
-                                                viewModel.setSelectedDate(LocalDate.of(y, m + 1, d))
-                                            },
-                                            selectedDate.year,
-                                            selectedDate.monthValue - 1,
-                                            selectedDate.dayOfMonth
-                                        ).show()
-                                    }
-                                    .padding(horizontal = 12.dp, vertical = 6.dp)
+                                    .fillMaxWidth()
+                                    .padding(horizontal = 8.dp, vertical = 4.dp),
+                                horizontalArrangement = Arrangement.SpaceBetween,
+                                verticalAlignment = Alignment.CenterVertically
                             ) {
-                                Icon(Icons.Rounded.CalendarMonth, contentDescription = null, tint = SageGreenPrimary, modifier = Modifier.size(16.dp))
-                                Spacer(modifier = Modifier.width(6.dp))
-                                Text(
-                                    text = selectedDate.format(dateFormatter).replaceFirstChar { it.uppercase() },
-                                    fontWeight = FontWeight.SemiBold,
-                                    fontSize = 13.sp,
-                                    color = CharcoalPrimary
-                                )
-                            }
+                                IconButton(onClick = { viewModel.setSelectedDate(selectedDate.minusDays(1)) }) {
+                                    Icon(Icons.Rounded.ChevronLeft, contentDescription = "Предыдущий день", tint = SageGreenPrimary)
+                                }
 
-                            IconButton(onClick = { viewModel.setSelectedDate(selectedDate.plusDays(1)) }) {
-                                Icon(Icons.Rounded.ChevronRight, contentDescription = "Следующий день", tint = SageGreenPrimary)
+                                Row(
+                                    verticalAlignment = Alignment.CenterVertically,
+                                    modifier = Modifier
+                                        .clip(CircleShape)
+                                        .clickable {
+                                            DatePickerDialog(
+                                                context,
+                                                { _, y, m, d ->
+                                                    viewModel.setSelectedDate(LocalDate.of(y, m + 1, d))
+                                                },
+                                                selectedDate.year,
+                                                selectedDate.monthValue - 1,
+                                                selectedDate.dayOfMonth
+                                            ).show()
+                                        }
+                                        .padding(horizontal = 10.dp, vertical = 6.dp)
+                                ) {
+                                    Icon(Icons.Rounded.CalendarMonth, contentDescription = null, tint = SageGreenPrimary, modifier = Modifier.size(16.dp))
+                                    Spacer(modifier = Modifier.width(6.dp))
+                                    Text(
+                                        text = selectedDate.format(dateFormatter).replaceFirstChar { it.uppercase() },
+                                        fontWeight = FontWeight.SemiBold,
+                                        fontSize = 13.sp,
+                                        color = CharcoalPrimary
+                                    )
+                                }
+
+                                IconButton(onClick = { viewModel.setSelectedDate(selectedDate.plusDays(1)) }) {
+                                    Icon(Icons.Rounded.ChevronRight, contentDescription = "Следующий день", tint = SageGreenPrimary)
+                                }
+                            }
+                        }
+
+                        // Settings / Backup gear button
+                        GlassBox(
+                            shape = CircleShape,
+                            elevation = 6.dp,
+                            modifier = Modifier.size(46.dp)
+                        ) {
+                            IconButton(
+                                onClick = { viewModel.setTab(NavigationTab.SETTINGS) },
+                                modifier = Modifier.fillMaxSize()
+                            ) {
+                                Icon(
+                                    imageVector = Icons.Rounded.Settings,
+                                    contentDescription = "Настройки и Бэкап",
+                                    tint = CharcoalPrimary,
+                                    modifier = Modifier.size(22.dp)
+                                )
                             }
                         }
                     }

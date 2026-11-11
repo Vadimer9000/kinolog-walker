@@ -68,7 +68,8 @@ fun AppBottomBar(
                 horizontalArrangement = Arrangement.SpaceBetween,
                 verticalAlignment = Alignment.CenterVertically
             ) {
-                NavigationTab.entries.forEach { tab ->
+                val bottomTabs = listOf(NavigationTab.SCHEDULE, NavigationTab.CLIENTS)
+                bottomTabs.forEach { tab ->
                     val isSelected = tab == currentTab
                     val animatedBgColor by animateColorAsState(
                         targetValue = if (isSelected) SoftMint else Color.Transparent,

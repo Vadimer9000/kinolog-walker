@@ -68,7 +68,12 @@ class KinologRepository(
                 )
             }
         }
-        clientDao.insertClient(resolvedClient)
+        if (resolvedClient.id == 0L) {
+            clientDao.insertClient(resolvedClient)
+        } else {
+            clientDao.updateClient(resolvedClient)
+            resolvedClient.id
+        }
     }
 
     suspend fun deleteClient(client: ClientEntity) = withContext(Dispatchers.IO) {

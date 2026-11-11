@@ -1,9 +1,12 @@
 package com.kinolog.walker
 
 import android.Manifest
+import android.app.Activity
 import android.os.Build
 import android.os.Bundle
+import android.widget.Toast
 import androidx.activity.ComponentActivity
+import androidx.activity.compose.BackHandler
 import androidx.activity.compose.setContent
 import androidx.activity.result.contract.ActivityResultContracts
 import androidx.activity.viewModels
@@ -22,9 +25,13 @@ import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.getValue
+import androidx.compose.runtime.mutableLongStateOf
+import androidx.compose.runtime.remember
+import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.platform.LocalContext
 import com.kinolog.walker.ui.MainViewModel
 import com.kinolog.walker.ui.components.AppBottomBar
 import com.kinolog.walker.ui.components.MeshBackground
@@ -72,6 +79,24 @@ class MainActivity : ComponentActivity() {
 @Composable
 fun MainAppScreen(viewModel: MainViewModel) {
     val currentTab by viewModel.currentTab.collectAsState()
+    val context = LocalContext.current
+    val activity = context as? Activity
+
+    var lastBackPressTime by remember { mutableLongStateOf(0L) }
+
+    BackHandler {
+        if (currentTab != NavigationTab.SCHEDULE) {
+            viewModel.setTab(NavigationTab.SCHEDULE)
+        } else {
+            val currentTime = System.currentTimeMillis()
+            if (currentTime - lastBackPressTime < 2000L) {
+                activity?.finish()
+            } else {
+                lastBackPressTime = currentTime
+                Toast.makeText(context, "Нажмите ещё раз назад для выхода", Toast.LENGTH_SHORT).show()
+            }
+        }
+    }
 
     MeshBackground {
         Scaffold(
