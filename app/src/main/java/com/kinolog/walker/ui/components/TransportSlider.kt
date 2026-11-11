@@ -122,7 +122,7 @@ fun TransportSlider(
                     contentAlignment = Alignment.Center
                 ) {
                     Text(
-                        text = "🚌 Общественный",
+                        text = "🚌 Транспорт",
                         color = text2Color,
                         fontWeight = if (!isPedestrian) FontWeight.SemiBold else FontWeight.Medium,
                         fontSize = 13.sp

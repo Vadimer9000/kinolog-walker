@@ -4,20 +4,23 @@ import android.app.DatePickerDialog
 import android.app.TimePickerDialog
 import androidx.compose.animation.AnimatedVisibility
 import androidx.compose.foundation.background
-import androidx.compose.foundation.border
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
+import androidx.compose.foundation.layout.BoxWithConstraints
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.ExperimentalLayoutApi
 import androidx.compose.foundation.layout.FlowRow
+import androidx.compose.foundation.layout.PaddingValues
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
+import androidx.compose.foundation.layout.imePadding
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
+import androidx.compose.foundation.layout.statusBarsPadding
 import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
@@ -39,6 +42,8 @@ import androidx.compose.material.icons.rounded.LocationOn
 import androidx.compose.material.icons.rounded.RadioButtonUnchecked
 import androidx.compose.material.icons.rounded.Route
 import androidx.compose.material3.AlertDialog
+import androidx.compose.material3.BottomSheetDefaults
+import androidx.compose.material3.BottomSheetScaffold
 import androidx.compose.material3.Button
 import androidx.compose.material3.ButtonDefaults
 import androidx.compose.material3.Card
@@ -47,13 +52,17 @@ import androidx.compose.material3.DropdownMenuItem
 import androidx.compose.material3.ExperimentalMaterial3Api
 import androidx.compose.material3.ExposedDropdownMenuBox
 import androidx.compose.material3.ExposedDropdownMenuDefaults
-import androidx.compose.material3.FloatingActionButton
+import androidx.compose.material3.FilledTonalIconButton
 import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
+import androidx.compose.material3.IconButtonDefaults
 import androidx.compose.material3.MenuAnchorType
 import androidx.compose.material3.OutlinedTextField
+import androidx.compose.material3.SheetValue
 import androidx.compose.material3.Text
 import androidx.compose.material3.TextButton
+import androidx.compose.material3.rememberBottomSheetScaffoldState
+import androidx.compose.material3.rememberStandardBottomSheetState
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.getValue
@@ -67,6 +76,7 @@ import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.text.font.FontWeight
+import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import androidx.compose.ui.window.Dialog
@@ -95,7 +105,7 @@ import java.time.LocalDate
 import java.time.format.DateTimeFormatter
 import java.util.Locale
 
-@OptIn(ExperimentalLayoutApi::class)
+@OptIn(ExperimentalLayoutApi::class, ExperimentalMaterial3Api::class)
 @Composable
 fun ScheduleMapScreen(
     viewModel: MainViewModel,
@@ -119,366 +129,436 @@ fun ScheduleMapScreen(
         DateTimeFormatter.ofPattern("EEEE, d MMMM", Locale("ru"))
     }
 
-    Box(modifier = modifier.fillMaxSize()) {
-        Column(modifier = Modifier.fillMaxSize()) {
+    BoxWithConstraints(modifier = modifier.fillMaxSize()) {
+        val peekHeight = (maxHeight * 0.40f).coerceIn(240.dp, 360.dp)
+        val scaffoldState = rememberBottomSheetScaffoldState(
+            bottomSheetState = rememberStandardBottomSheetState(
+                initialValue = SheetValue.PartiallyExpanded,
+                skipHiddenState = true
+            )
+        )
 
-            // Top Floating Transport Slider & Date Controls
-            Column(
-                modifier = Modifier
-                    .fillMaxWidth()
-                    .padding(horizontal = 16.dp, vertical = 8.dp)
-            ) {
-                TransportSlider(
-                    currentMode = routingMode,
-                    onModeChanged = { viewModel.setRoutingMode(it) }
+        BottomSheetScaffold(
+            scaffoldState = scaffoldState,
+            sheetPeekHeight = peekHeight,
+            sheetShape = RoundedCornerShape(topStart = 24.dp, topEnd = 24.dp),
+            sheetContainerColor = CanvasAlabaster.copy(alpha = 0.97f),
+            sheetShadowElevation = 16.dp,
+            sheetDragHandle = {
+                BottomSheetDefaults.DragHandle(
+                    color = SageGreenPrimary.copy(alpha = 0.4f),
+                    width = 38.dp,
+                    height = 4.dp
                 )
-
-                Spacer(modifier = Modifier.height(8.dp))
-
-                // Date Selector Pill
-                GlassBox(
-                    modifier = Modifier.fillMaxWidth(),
-                    shape = CircleShape,
-                    elevation = 4.dp
+            },
+            containerColor = Color.Transparent,
+            sheetContent = {
+                // Header of BottomSheet
+                Row(
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .padding(horizontal = 20.dp, vertical = 4.dp),
+                    horizontalArrangement = Arrangement.SpaceBetween,
+                    verticalAlignment = Alignment.CenterVertically
                 ) {
-                    Row(
-                        modifier = Modifier
-                            .fillMaxWidth()
-                            .padding(horizontal = 8.dp, vertical = 4.dp),
-                        horizontalArrangement = Arrangement.SpaceBetween,
-                        verticalAlignment = Alignment.CenterVertically
-                    ) {
-                        IconButton(onClick = { viewModel.setSelectedDate(selectedDate.minusDays(1)) }) {
-                            Icon(Icons.Rounded.ChevronLeft, contentDescription = "Предыдущий день", tint = SageGreenPrimary)
-                        }
-
-                        Row(
-                            verticalAlignment = Alignment.CenterVertically,
-                            modifier = Modifier
-                                .clip(CircleShape)
-                                .clickable {
-                                    DatePickerDialog(
-                                        context,
-                                        { _, y, m, d ->
-                                            viewModel.setSelectedDate(LocalDate.of(y, m + 1, d))
-                                        },
-                                        selectedDate.year,
-                                        selectedDate.monthValue - 1,
-                                        selectedDate.dayOfMonth
-                                    ).show()
-                                }
-                                .padding(horizontal = 12.dp, vertical = 6.dp)
-                        ) {
-                            Icon(Icons.Rounded.CalendarMonth, contentDescription = null, tint = SageGreenPrimary, modifier = Modifier.size(16.dp))
-                            Spacer(modifier = Modifier.width(6.dp))
+                    Column {
+                        Text(
+                            text = "План на день (${walks.size})",
+                            fontSize = 17.sp,
+                            fontWeight = FontWeight.Bold,
+                            color = CharcoalPrimary
+                        )
+                        if (walks.isNotEmpty()) {
                             Text(
-                                text = selectedDate.format(dateFormatter).replaceFirstChar { it.uppercase() },
-                                fontWeight = FontWeight.SemiBold,
-                                fontSize = 13.sp,
-                                color = CharcoalPrimary
+                                text = "Выполнено: ${walks.count { it.isCompleted }}/${walks.size}",
+                                fontSize = 11.sp,
+                                color = OliveGreySecondary
                             )
                         }
+                    }
 
-                        IconButton(onClick = { viewModel.setSelectedDate(selectedDate.plusDays(1)) }) {
-                            Icon(Icons.Rounded.ChevronRight, contentDescription = "Следующий день", tint = SageGreenPrimary)
+                    Row(
+                        horizontalArrangement = Arrangement.spacedBy(8.dp),
+                        verticalAlignment = Alignment.CenterVertically
+                    ) {
+                        if (walks.isNotEmpty()) {
+                            Button(
+                                onClick = { viewModel.routeDayWalks(context) },
+                                colors = ButtonDefaults.buttonColors(
+                                    containerColor = SageGreenPrimary,
+                                    contentColor = Color.White
+                                ),
+                                shape = RoundedCornerShape(12.dp),
+                                contentPadding = PaddingValues(horizontal = 10.dp, vertical = 0.dp),
+                                modifier = Modifier.height(36.dp)
+                            ) {
+                                Icon(Icons.Rounded.Route, contentDescription = null, modifier = Modifier.size(16.dp))
+                                Spacer(modifier = Modifier.width(4.dp))
+                                Text(
+                                    text = "Маршрут (${walks.size})",
+                                    fontSize = 12.sp,
+                                    fontWeight = FontWeight.SemiBold,
+                                    maxLines = 1,
+                                    softWrap = false
+                                )
+                            }
+                        }
+
+                        // Add Walk Button
+                        FilledTonalIconButton(
+                            onClick = { showAddWalkDialog = true },
+                            colors = IconButtonDefaults.filledTonalIconButtonColors(
+                                containerColor = SoftMint,
+                                contentColor = DeepForest
+                            ),
+                            shape = RoundedCornerShape(12.dp),
+                            modifier = Modifier.size(36.dp)
+                        ) {
+                            Icon(Icons.Rounded.Add, contentDescription = "Запланировать выгул", modifier = Modifier.size(20.dp))
                         }
                     }
                 }
-            }
 
-            // Embedded Yandex Map Container
-            Box(
-                modifier = Modifier
-                    .fillMaxWidth()
-                    .height(230.dp)
-                    .padding(horizontal = 16.dp)
-                    .clip(RoundedCornerShape(24.dp))
-            ) {
-                YandexMapView(
-                    apiKey = apiKey,
-                    points = mapMarkers,
-                    routingMode = routingMode
-                )
-            }
+                if (walks.isEmpty()) {
+                    Box(
+                        modifier = Modifier
+                            .fillMaxWidth()
+                            .padding(horizontal = 24.dp, vertical = 32.dp),
+                        contentAlignment = Alignment.Center
+                    ) {
+                        Text(
+                            text = "На этот день выгулов нет.\nНажмите '+', чтобы добавить в расписание.",
+                            color = OliveGreySecondary,
+                            fontSize = 14.sp,
+                            textAlign = androidx.compose.ui.text.style.TextAlign.Center
+                        )
+                    }
+                } else {
+                    LazyColumn(
+                        modifier = Modifier.fillMaxWidth(),
+                        contentPadding = PaddingValues(start = 16.dp, end = 16.dp, top = 8.dp, bottom = 120.dp),
+                        verticalArrangement = Arrangement.spacedBy(10.dp)
+                    ) {
+                        items(walks.sortedBy { it.startTimeMinutes }, key = { it.id }) { walk ->
+                            val client = clientsMap[walk.clientId]
+                            val pets = remember(client?.petsJson) {
+                                if (client != null && client.petsJson.isNotBlank()) {
+                                    try {
+                                        json.decodeFromString<List<PetItem>>(client.petsJson)
+                                    } catch (e: Exception) {
+                                        emptyList()
+                                    }
+                                } else emptyList()
+                            }
 
-            Spacer(modifier = Modifier.height(10.dp))
+                            val startHours = walk.startTimeMinutes / 60
+                            val startMins = walk.startTimeMinutes % 60
+                            val endTimeMinutes = walk.startTimeMinutes + walk.durationMinutes
+                            val endHours = (endTimeMinutes / 60) % 24
+                            val endMins = endTimeMinutes % 60
+                            val timeFormatted = String.format(
+                                "%02d:%02d – %02d:%02d (%d мин)",
+                                startHours, startMins, endHours, endMins, walk.durationMinutes
+                            )
 
-            // Daily Schedule List
-            Row(
-                modifier = Modifier
-                    .fillMaxWidth()
-                    .padding(horizontal = 20.dp, vertical = 4.dp),
-                horizontalArrangement = Arrangement.SpaceBetween,
-                verticalAlignment = Alignment.CenterVertically
-            ) {
-                Text(
-                    text = "План на день (${walks.size})",
-                    fontSize = 17.sp,
-                    fontWeight = FontWeight.Bold,
-                    color = CharcoalPrimary
-                )
-
-                if (walks.isNotEmpty()) {
-                    Text(
-                        text = "Выполнено: ${walks.count { it.isCompleted }}/${walks.size}",
-                        fontSize = 12.sp,
-                        color = OliveGreySecondary
-                    )
-                }
-            }
-
-            if (walks.isEmpty()) {
-                Box(
-                    modifier = Modifier
-                        .fillMaxWidth()
-                        .weight(1f),
-                    contentAlignment = Alignment.Center
-                ) {
-                    Text(
-                        text = "На этот день выгулов нет.\nНажмите '+', чтобы добавить в расписание.",
-                        color = OliveGreySecondary,
-                        fontSize = 14.sp,
-                        textAlign = androidx.compose.ui.text.style.TextAlign.Center
-                    )
-                }
-            } else {
-                LazyColumn(
-                    modifier = Modifier
-                        .fillMaxWidth()
-                        .weight(1f)
-                        .padding(horizontal = 16.dp),
-                    verticalArrangement = Arrangement.spacedBy(10.dp)
-                ) {
-                    items(walks.sortedBy { it.startTimeMinutes }, key = { it.id }) { walk ->
-                        val client = clientsMap[walk.clientId]
-                        val pets = remember(client?.petsJson) {
-                            if (client != null && client.petsJson.isNotBlank()) {
-                                try {
-                                    json.decodeFromString<List<PetItem>>(client.petsJson)
-                                } catch (e: Exception) {
-                                    emptyList()
-                                }
-                            } else emptyList()
-                        }
-
-                        val startHours = walk.startTimeMinutes / 60
-                        val startMins = walk.startTimeMinutes % 60
-                        val endTimeMinutes = walk.startTimeMinutes + walk.durationMinutes
-                        val endHours = (endTimeMinutes / 60) % 24
-                        val endMins = endTimeMinutes % 60
-                        val timeFormatted = String.format("%02d:%02d – %02d:%02d (%d мин)", startHours, startMins, endHours, endMins, walk.durationMinutes)
-
-                        GlassBox(
-                            modifier = Modifier.fillMaxWidth(),
-                            elevation = 3.dp
-                        ) {
-                            Column(
-                                modifier = Modifier
-                                    .fillMaxWidth()
-                                    .padding(14.dp)
+                            // Compact Walk Card (height <= 110-130dp)
+                            GlassBox(
+                                modifier = Modifier.fillMaxWidth(),
+                                elevation = 3.dp
                             ) {
-                                // Top row: Category Badge, Time, Checkbox
-                                Row(
-                                    modifier = Modifier.fillMaxWidth(),
-                                    horizontalArrangement = Arrangement.SpaceBetween,
-                                    verticalAlignment = Alignment.CenterVertically
+                                Column(
+                                    modifier = Modifier
+                                        .fillMaxWidth()
+                                        .padding(horizontal = 14.dp, vertical = 10.dp)
                                 ) {
+                                    // Line 1: Time badge, category chip, checkbox
                                     Row(
-                                        verticalAlignment = Alignment.CenterVertically,
-                                        horizontalArrangement = Arrangement.spacedBy(6.dp)
+                                        modifier = Modifier.fillMaxWidth(),
+                                        horizontalArrangement = Arrangement.SpaceBetween,
+                                        verticalAlignment = Alignment.CenterVertically
                                     ) {
-                                        // Category Pill
-                                        Box(
-                                            modifier = Modifier
-                                                .clip(CircleShape)
-                                                .background(walk.category.composeColor.copy(alpha = 0.18f))
-                                                .padding(horizontal = 10.dp, vertical = 4.dp)
+                                        Row(
+                                            verticalAlignment = Alignment.CenterVertically,
+                                            horizontalArrangement = Arrangement.spacedBy(8.dp)
                                         ) {
                                             Text(
-                                                text = walk.category.title,
-                                                color = walk.category.composeColor,
-                                                fontSize = 11.sp,
-                                                fontWeight = FontWeight.Bold
+                                                text = timeFormatted,
+                                                fontSize = 13.sp,
+                                                fontWeight = FontWeight.Bold,
+                                                color = CharcoalPrimary
                                             )
-                                        }
-
-                                        Text(
-                                            text = timeFormatted,
-                                            fontSize = 12.sp,
-                                            fontWeight = FontWeight.Medium,
-                                            color = CharcoalPrimary
-                                        )
-                                    }
-
-                                    // Checkbox / Completion toggle
-                                    IconButton(
-                                        onClick = { viewModel.toggleWalkCompletion(walk) },
-                                        modifier = Modifier.size(28.dp)
-                                    ) {
-                                        Icon(
-                                            imageVector = if (walk.isCompleted) Icons.Rounded.CheckCircle else Icons.Rounded.RadioButtonUnchecked,
-                                            contentDescription = "Статус",
-                                            tint = if (walk.isCompleted) SageGreenPrimary else OliveGreySecondary
-                                        )
-                                    }
-                                }
-
-                                Spacer(modifier = Modifier.height(8.dp))
-
-                                // Client name & phone
-                                if (client != null) {
-                                    Text(
-                                        text = client.fullName,
-                                        fontWeight = FontWeight.SemiBold,
-                                        fontSize = 15.sp,
-                                        color = CharcoalPrimary
-                                    )
-
-                                    if (pets.isNotEmpty()) {
-                                        Spacer(modifier = Modifier.height(6.dp))
-                                        FlowRow(
-                                            horizontalArrangement = Arrangement.spacedBy(6.dp),
-                                            verticalArrangement = Arrangement.spacedBy(6.dp)
-                                        ) {
-                                            pets.forEach { pet ->
-                                                PetTag(pet = pet)
+                                            Box(
+                                                modifier = Modifier
+                                                    .clip(CircleShape)
+                                                    .background(walk.category.composeColor.copy(alpha = 0.16f))
+                                                    .padding(horizontal = 8.dp, vertical = 2.dp)
+                                            ) {
+                                                Text(
+                                                    text = walk.category.title,
+                                                    color = walk.category.composeColor,
+                                                    fontSize = 11.sp,
+                                                    fontWeight = FontWeight.SemiBold,
+                                                    maxLines = 1
+                                                )
                                             }
                                         }
+
+                                        IconButton(
+                                            onClick = { viewModel.toggleWalkCompletion(walk) },
+                                            modifier = Modifier.size(28.dp)
+                                        ) {
+                                            Icon(
+                                                imageVector = if (walk.isCompleted) Icons.Rounded.CheckCircle else Icons.Rounded.RadioButtonUnchecked,
+                                                contentDescription = "Статус",
+                                                tint = if (walk.isCompleted) SageGreenPrimary else OliveGreySecondary,
+                                                modifier = Modifier.size(22.dp)
+                                            )
+                                        }
                                     }
 
-                                    Spacer(modifier = Modifier.height(6.dp))
+                                    Spacer(modifier = Modifier.height(4.dp))
 
-                                    // Address
-                                    Row(verticalAlignment = Alignment.CenterVertically) {
-                                        Icon(
-                                            imageVector = Icons.Rounded.LocationOn,
-                                            contentDescription = "Адрес",
-                                            tint = SageGreenPrimary,
-                                            modifier = Modifier.size(15.dp)
-                                        )
-                                        Spacer(modifier = Modifier.width(4.dp))
+                                    // Line 2: Client name + pet chips in one line/flow
+                                    if (client != null) {
+                                        Row(
+                                            modifier = Modifier.fillMaxWidth(),
+                                            verticalAlignment = Alignment.CenterVertically,
+                                            horizontalArrangement = Arrangement.spacedBy(6.dp)
+                                        ) {
+                                            Text(
+                                                text = client.fullName,
+                                                fontWeight = FontWeight.SemiBold,
+                                                fontSize = 14.sp,
+                                                color = CharcoalPrimary,
+                                                maxLines = 1,
+                                                overflow = TextOverflow.Ellipsis
+                                            )
+
+                                            if (pets.isNotEmpty()) {
+                                                FlowRow(
+                                                    horizontalArrangement = Arrangement.spacedBy(4.dp),
+                                                    verticalArrangement = Arrangement.Center
+                                                ) {
+                                                    pets.forEach { pet ->
+                                                        PetTag(pet = pet)
+                                                    }
+                                                }
+                                            }
+                                        }
+
+                                        Spacer(modifier = Modifier.height(4.dp))
+
+                                        // Line 3: Location pin & address (1-2 lines with ellipsis)
                                         val fullAddr = buildString {
                                             append(client.addressStreet)
                                             if (client.entrance.isNotBlank()) append(", под. ${client.entrance}")
                                             if (client.floor.isNotBlank()) append(", эт. ${client.floor}")
                                             if (client.apartment.isNotBlank()) append(", кв. ${client.apartment}")
                                         }
-                                        Text(text = fullAddr, fontSize = 12.sp, color = CharcoalPrimary)
-                                    }
-
-                                    if (walk.walkComment.isNotBlank()) {
-                                        Spacer(modifier = Modifier.height(4.dp))
-                                        Text(
-                                            text = "Заметка к выгулу: ${walk.walkComment}",
-                                            fontSize = 12.sp,
-                                            color = OliveGreySecondary
-                                        )
-                                    }
-
-                                    // Action buttons row
-                                    Spacer(modifier = Modifier.height(10.dp))
-                                    Row(
-                                        modifier = Modifier.fillMaxWidth(),
-                                        horizontalArrangement = Arrangement.spacedBy(6.dp)
-                                    ) {
-                                        // Route to this walk
-                                        Button(
-                                            onClick = { viewModel.routeSingleWalk(context, walk) },
-                                            colors = ButtonDefaults.buttonColors(containerColor = SoftMint, contentColor = DeepForest),
-                                            shape = CircleShape,
-                                            modifier = Modifier.weight(1f)
+                                        Row(
+                                            modifier = Modifier.fillMaxWidth(),
+                                            verticalAlignment = Alignment.CenterVertically
                                         ) {
-                                            Icon(Icons.Rounded.Directions, contentDescription = null, modifier = Modifier.size(15.dp))
-                                            Spacer(modifier = Modifier.width(2.dp))
-                                            Text("Маршрут", fontSize = 11.sp)
+                                            Icon(
+                                                imageVector = Icons.Rounded.LocationOn,
+                                                contentDescription = "Адрес",
+                                                tint = SageGreenPrimary,
+                                                modifier = Modifier.size(14.dp)
+                                            )
+                                            Spacer(modifier = Modifier.width(4.dp))
+                                            Text(
+                                                text = fullAddr,
+                                                fontSize = 12.sp,
+                                                color = CharcoalPrimary,
+                                                maxLines = 2,
+                                                overflow = TextOverflow.Ellipsis
+                                            )
                                         }
 
-                                        // Call
-                                        Button(
-                                            onClick = { IntentHelper.dialPhone(context, client.phone) },
-                                            colors = ButtonDefaults.buttonColors(containerColor = SandBeige, contentColor = CharcoalPrimary),
-                                            shape = CircleShape,
-                                            modifier = Modifier.weight(1f)
-                                        ) {
-                                            Icon(Icons.Rounded.Call, contentDescription = null, modifier = Modifier.size(15.dp))
-                                            Spacer(modifier = Modifier.width(2.dp))
-                                            Text("Звонок", fontSize = 11.sp)
+                                        if (walk.walkComment.isNotBlank()) {
+                                            Spacer(modifier = Modifier.height(2.dp))
+                                            Text(
+                                                text = "Заметка: ${walk.walkComment}",
+                                                fontSize = 11.sp,
+                                                color = OliveGreySecondary,
+                                                maxLines = 1,
+                                                overflow = TextOverflow.Ellipsis
+                                            )
                                         }
 
-                                        // Google Calendar
-                                        Button(
-                                            onClick = { IntentHelper.openGoogleCalendar(context, client, walk) },
-                                            colors = ButtonDefaults.buttonColors(containerColor = MintLight, contentColor = DeepForest),
-                                            shape = CircleShape,
-                                            modifier = Modifier.weight(1f)
-                                        ) {
-                                            Icon(Icons.Rounded.CalendarMonth, contentDescription = null, modifier = Modifier.size(15.dp))
-                                            Spacer(modifier = Modifier.width(2.dp))
-                                            Text("Календарь", fontSize = 11.sp)
-                                        }
+                                        Spacer(modifier = Modifier.height(8.dp))
 
-                                        // Delete
-                                        IconButton(
-                                            onClick = { walkToDelete = walk },
-                                            modifier = Modifier.size(36.dp)
+                                        // Line 4: Action buttons row (compact, 36.dp height, no wrapping)
+                                        Row(
+                                            modifier = Modifier.fillMaxWidth(),
+                                            horizontalArrangement = Arrangement.spacedBy(8.dp),
+                                            verticalAlignment = Alignment.CenterVertically
                                         ) {
-                                            Icon(Icons.Rounded.Delete, contentDescription = "Удалить", tint = Color(0xFFD9534F), modifier = Modifier.size(18.dp))
+                                            // Route to single walk
+                                            Button(
+                                                onClick = { viewModel.routeSingleWalk(context, walk) },
+                                                colors = ButtonDefaults.buttonColors(
+                                                    containerColor = SoftMint,
+                                                    contentColor = DeepForest
+                                                ),
+                                                shape = RoundedCornerShape(12.dp),
+                                                contentPadding = PaddingValues(horizontal = 12.dp, vertical = 0.dp),
+                                                modifier = Modifier.height(36.dp)
+                                            ) {
+                                                Icon(Icons.Rounded.Directions, contentDescription = null, modifier = Modifier.size(16.dp))
+                                                Spacer(modifier = Modifier.width(4.dp))
+                                                Text(
+                                                    text = "Маршрут",
+                                                    fontSize = 12.sp,
+                                                    fontWeight = FontWeight.SemiBold,
+                                                    maxLines = 1,
+                                                    softWrap = false
+                                                )
+                                            }
+
+                                            // Call
+                                            FilledTonalIconButton(
+                                                onClick = { IntentHelper.dialPhone(context, client.phone) },
+                                                colors = IconButtonDefaults.filledTonalIconButtonColors(
+                                                    containerColor = SandBeige,
+                                                    contentColor = CharcoalPrimary
+                                                ),
+                                                shape = RoundedCornerShape(12.dp),
+                                                modifier = Modifier.size(36.dp)
+                                            ) {
+                                                Icon(Icons.Rounded.Call, contentDescription = "Звонок", modifier = Modifier.size(17.dp))
+                                            }
+
+                                            // Messenger
+                                            FilledTonalIconButton(
+                                                onClick = {
+                                                    IntentHelper.openMessenger(
+                                                        context,
+                                                        client.messengerType,
+                                                        client.messengerIdentifier.ifBlank { client.phone }
+                                                    )
+                                                },
+                                                colors = IconButtonDefaults.filledTonalIconButtonColors(
+                                                    containerColor = MintLight,
+                                                    contentColor = DeepForest
+                                                ),
+                                                shape = RoundedCornerShape(12.dp),
+                                                modifier = Modifier.size(36.dp)
+                                            ) {
+                                                Icon(Icons.Rounded.Chat, contentDescription = "Мессенджер", modifier = Modifier.size(17.dp))
+                                            }
+
+                                            // Calendar
+                                            FilledTonalIconButton(
+                                                onClick = { IntentHelper.openGoogleCalendar(context, client, walk) },
+                                                colors = IconButtonDefaults.filledTonalIconButtonColors(
+                                                    containerColor = SandBeige,
+                                                    contentColor = CharcoalPrimary
+                                                ),
+                                                shape = RoundedCornerShape(12.dp),
+                                                modifier = Modifier.size(36.dp)
+                                            ) {
+                                                Icon(Icons.Rounded.CalendarMonth, contentDescription = "Календарь", modifier = Modifier.size(17.dp))
+                                            }
+
+                                            Spacer(modifier = Modifier.weight(1f))
+
+                                            // Delete
+                                            FilledTonalIconButton(
+                                                onClick = { walkToDelete = walk },
+                                                colors = IconButtonDefaults.filledTonalIconButtonColors(
+                                                    containerColor = Color(0xFFFFEBEE),
+                                                    contentColor = Color(0xFFD9534F)
+                                                ),
+                                                shape = RoundedCornerShape(12.dp),
+                                                modifier = Modifier.size(36.dp)
+                                            ) {
+                                                Icon(Icons.Rounded.Delete, contentDescription = "Удалить", modifier = Modifier.size(17.dp))
+                                            }
                                         }
                                     }
                                 }
                             }
                         }
                     }
-
-                    item {
-                        Spacer(modifier = Modifier.height(120.dp))
-                    }
                 }
             }
-        }
+        ) { innerPadding ->
+            // Background: 100% Fullscreen Map + Top Floating Controls
+            Box(modifier = Modifier.fillMaxSize()) {
+                YandexMapView(
+                    apiKey = apiKey,
+                    points = mapMarkers,
+                    routingMode = routingMode,
+                    modifier = Modifier.fillMaxSize()
+                )
 
-        // Floating Main Route CTA Button & FAB
-        Column(
-            modifier = Modifier
-                .align(Alignment.BottomCenter)
-                .padding(bottom = 85.dp, start = 16.dp, end = 16.dp),
-            horizontalAlignment = Alignment.CenterHorizontally
-        ) {
-            if (walks.isNotEmpty()) {
-                Button(
-                    onClick = { viewModel.routeDayWalks(context) },
-                    colors = ButtonDefaults.buttonColors(
-                        containerColor = SageGreenPrimary,
-                        contentColor = Color.White
-                    ),
-                    shape = CircleShape,
+                // Floating Controls overlay (statusBarsPadding avoids notification/clock bar)
+                Column(
                     modifier = Modifier
                         .fillMaxWidth()
-                        .height(48.dp)
+                        .statusBarsPadding()
+                        .padding(top = 16.dp, start = 16.dp, end = 16.dp)
                 ) {
-                    Icon(Icons.Rounded.Route, contentDescription = null)
-                    Spacer(modifier = Modifier.width(8.dp))
-                    Text(
-                        text = "Построить маршрут на день (${walks.size} точек)",
-                        fontWeight = FontWeight.Bold,
-                        fontSize = 14.sp
+                    // Date Selector Pill
+                    GlassBox(
+                        modifier = Modifier.fillMaxWidth(),
+                        shape = CircleShape,
+                        elevation = 6.dp
+                    ) {
+                        Row(
+                            modifier = Modifier
+                                .fillMaxWidth()
+                                .padding(horizontal = 8.dp, vertical = 4.dp),
+                            horizontalArrangement = Arrangement.SpaceBetween,
+                            verticalAlignment = Alignment.CenterVertically
+                        ) {
+                            IconButton(onClick = { viewModel.setSelectedDate(selectedDate.minusDays(1)) }) {
+                                Icon(Icons.Rounded.ChevronLeft, contentDescription = "Предыдущий день", tint = SageGreenPrimary)
+                            }
+
+                            Row(
+                                verticalAlignment = Alignment.CenterVertically,
+                                modifier = Modifier
+                                    .clip(CircleShape)
+                                    .clickable {
+                                        DatePickerDialog(
+                                            context,
+                                            { _, y, m, d ->
+                                                viewModel.setSelectedDate(LocalDate.of(y, m + 1, d))
+                                            },
+                                            selectedDate.year,
+                                            selectedDate.monthValue - 1,
+                                            selectedDate.dayOfMonth
+                                        ).show()
+                                    }
+                                    .padding(horizontal = 12.dp, vertical = 6.dp)
+                            ) {
+                                Icon(Icons.Rounded.CalendarMonth, contentDescription = null, tint = SageGreenPrimary, modifier = Modifier.size(16.dp))
+                                Spacer(modifier = Modifier.width(6.dp))
+                                Text(
+                                    text = selectedDate.format(dateFormatter).replaceFirstChar { it.uppercase() },
+                                    fontWeight = FontWeight.SemiBold,
+                                    fontSize = 13.sp,
+                                    color = CharcoalPrimary
+                                )
+                            }
+
+                            IconButton(onClick = { viewModel.setSelectedDate(selectedDate.plusDays(1)) }) {
+                                Icon(Icons.Rounded.ChevronRight, contentDescription = "Следующий день", tint = SageGreenPrimary)
+                            }
+                        }
+                    }
+
+                    Spacer(modifier = Modifier.height(8.dp))
+
+                    // Transport Slider right below Date Selector
+                    TransportSlider(
+                        currentMode = routingMode,
+                        onModeChanged = { viewModel.setRoutingMode(it) }
                     )
                 }
-                Spacer(modifier = Modifier.height(8.dp))
             }
-        }
-
-        // FAB to schedule a new walk
-        FloatingActionButton(
-            onClick = { showAddWalkDialog = true },
-            containerColor = SageGreenPrimary,
-            contentColor = Color.White,
-            shape = CircleShape,
-            modifier = Modifier
-                .align(Alignment.BottomEnd)
-                .padding(end = 20.dp, bottom = 145.dp)
-        ) {
-            Icon(Icons.Rounded.Add, contentDescription = "Запланировать выгул")
         }
     }
 
@@ -614,15 +694,17 @@ fun AddWalkDialog(
         Card(
             modifier = Modifier
                 .fillMaxWidth(0.95f)
-                .padding(vertical = 24.dp),
+                .padding(vertical = 20.dp)
+                .imePadding(),
             shape = RoundedCornerShape(24.dp),
             colors = CardDefaults.cardColors(containerColor = CanvasAlabaster)
         ) {
             Column(
                 modifier = Modifier
                     .fillMaxWidth()
-                    .padding(20.dp)
+                    .imePadding()
                     .verticalScroll(rememberScrollState())
+                    .padding(20.dp)
             ) {
                 Text(
                     text = "Запланировать выгул",

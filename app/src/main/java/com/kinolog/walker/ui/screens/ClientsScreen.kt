@@ -1,5 +1,8 @@
 package com.kinolog.walker.ui.screens
 
+import android.provider.ContactsContract
+import androidx.activity.compose.rememberLauncherForActivityResult
+import androidx.activity.result.contract.ActivityResultContracts
 import androidx.compose.animation.AnimatedVisibility
 import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
@@ -8,13 +11,16 @@ import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.ExperimentalLayoutApi
 import androidx.compose.foundation.layout.FlowRow
+import androidx.compose.foundation.layout.PaddingValues
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
+import androidx.compose.foundation.layout.imePadding
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
+import androidx.compose.foundation.layout.statusBarsPadding
 import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
@@ -30,15 +36,18 @@ import androidx.compose.material.icons.rounded.Clear
 import androidx.compose.material.icons.rounded.Delete
 import androidx.compose.material.icons.rounded.Edit
 import androidx.compose.material.icons.rounded.LocationOn
+import androidx.compose.material.icons.rounded.PersonSearch
 import androidx.compose.material.icons.rounded.Search
 import androidx.compose.material3.AlertDialog
 import androidx.compose.material3.Button
 import androidx.compose.material3.ButtonDefaults
 import androidx.compose.material3.Card
 import androidx.compose.material3.CardDefaults
+import androidx.compose.material3.FilledTonalIconButton
 import androidx.compose.material3.FloatingActionButton
 import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
+import androidx.compose.material3.IconButtonDefaults
 import androidx.compose.material3.OutlinedTextField
 import androidx.compose.material3.OutlinedTextFieldDefaults
 import androidx.compose.material3.Text
@@ -56,6 +65,7 @@ import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.text.font.FontWeight
+import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import androidx.compose.ui.window.Dialog
@@ -70,7 +80,6 @@ import com.kinolog.walker.ui.components.PetTag
 import com.kinolog.walker.ui.theme.CanvasAlabaster
 import com.kinolog.walker.ui.theme.CharcoalPrimary
 import com.kinolog.walker.ui.theme.DeepForest
-import com.kinolog.walker.ui.theme.DividerMuted
 import com.kinolog.walker.ui.theme.MintLight
 import com.kinolog.walker.ui.theme.OliveGreySecondary
 import com.kinolog.walker.ui.theme.SageGreenPrimary
@@ -78,7 +87,6 @@ import com.kinolog.walker.ui.theme.SandBeige
 import com.kinolog.walker.ui.theme.SoftMint
 import com.kinolog.walker.util.IntentHelper
 import kotlinx.serialization.json.Json
-import java.util.UUID
 
 @OptIn(ExperimentalLayoutApi::class)
 @Composable
@@ -100,6 +108,7 @@ fun ClientsScreen(
         Column(
             modifier = Modifier
                 .fillMaxSize()
+                .statusBarsPadding()
                 .padding(horizontal = 16.dp)
         ) {
             Spacer(modifier = Modifier.height(16.dp))
@@ -179,6 +188,7 @@ fun ClientsScreen(
             } else {
                 LazyColumn(
                     modifier = Modifier.weight(1f),
+                    contentPadding = PaddingValues(bottom = 120.dp),
                     verticalArrangement = Arrangement.spacedBy(12.dp)
                 ) {
                     items(clients, key = { it.id }) { client ->
@@ -192,12 +202,12 @@ fun ClientsScreen(
 
                         GlassBox(
                             modifier = Modifier.fillMaxWidth(),
-                            elevation = 4.dp
+                            elevation = 3.dp
                         ) {
                             Column(
                                 modifier = Modifier
                                     .fillMaxWidth()
-                                    .padding(16.dp)
+                                    .padding(14.dp)
                             ) {
                                 Row(
                                     modifier = Modifier.fillMaxWidth(),
@@ -208,7 +218,7 @@ fun ClientsScreen(
                                         Text(
                                             text = client.fullName,
                                             fontWeight = FontWeight.SemiBold,
-                                            fontSize = 17.sp,
+                                            fontSize = 16.sp,
                                             color = CharcoalPrimary
                                         )
                                         Text(
@@ -218,22 +228,34 @@ fun ClientsScreen(
                                         )
                                     }
 
-                                    Row {
-                                        IconButton(onClick = {
-                                            clientToEdit = client
-                                            showEditDialog = true
-                                        }) {
-                                            Icon(Icons.Rounded.Edit, contentDescription = "Редактировать", tint = SageGreenPrimary)
+                                    Row(horizontalArrangement = Arrangement.spacedBy(4.dp)) {
+                                        FilledTonalIconButton(
+                                            onClick = {
+                                                clientToEdit = client
+                                                showEditDialog = true
+                                            },
+                                            shape = RoundedCornerShape(10.dp),
+                                            modifier = Modifier.size(34.dp)
+                                        ) {
+                                            Icon(Icons.Rounded.Edit, contentDescription = "Редактировать", tint = SageGreenPrimary, modifier = Modifier.size(16.dp))
                                         }
-                                        IconButton(onClick = { clientToDelete = client }) {
-                                            Icon(Icons.Rounded.Delete, contentDescription = "Удалить", tint = Color(0xFFD9534F))
+                                        FilledTonalIconButton(
+                                            onClick = { clientToDelete = client },
+                                            colors = IconButtonDefaults.filledTonalIconButtonColors(
+                                                containerColor = Color(0xFFFFEBEE),
+                                                contentColor = Color(0xFFD9534F)
+                                            ),
+                                            shape = RoundedCornerShape(10.dp),
+                                            modifier = Modifier.size(34.dp)
+                                        ) {
+                                            Icon(Icons.Rounded.Delete, contentDescription = "Удалить", modifier = Modifier.size(16.dp))
                                         }
                                     }
                                 }
 
                                 // Pets Tags
                                 if (pets.isNotEmpty()) {
-                                    Spacer(modifier = Modifier.height(8.dp))
+                                    Spacer(modifier = Modifier.height(6.dp))
                                     FlowRow(
                                         horizontalArrangement = Arrangement.spacedBy(6.dp),
                                         verticalArrangement = Arrangement.spacedBy(6.dp)
@@ -245,13 +267,13 @@ fun ClientsScreen(
                                 }
 
                                 // Address
-                                Spacer(modifier = Modifier.height(8.dp))
+                                Spacer(modifier = Modifier.height(6.dp))
                                 Row(verticalAlignment = Alignment.CenterVertically) {
                                     Icon(
                                         imageVector = Icons.Rounded.LocationOn,
                                         contentDescription = "Адрес",
                                         tint = SageGreenPrimary,
-                                        modifier = Modifier.size(16.dp)
+                                        modifier = Modifier.size(15.dp)
                                     )
                                     Spacer(modifier = Modifier.width(4.dp))
                                     val fullAddress = buildString {
@@ -263,7 +285,9 @@ fun ClientsScreen(
                                     Text(
                                         text = fullAddress,
                                         fontSize = 12.sp,
-                                        color = CharcoalPrimary
+                                        color = CharcoalPrimary,
+                                        maxLines = 2,
+                                        overflow = TextOverflow.Ellipsis
                                     )
                                 }
 
@@ -272,12 +296,14 @@ fun ClientsScreen(
                                     Text(
                                         text = "Заметка: ${client.clientComment}",
                                         fontSize = 12.sp,
-                                        color = OliveGreySecondary
+                                        color = OliveGreySecondary,
+                                        maxLines = 2,
+                                        overflow = TextOverflow.Ellipsis
                                     )
                                 }
 
-                                // Quick Action Buttons
-                                Spacer(modifier = Modifier.height(12.dp))
+                                // Quick Action Buttons (Compact row)
+                                Spacer(modifier = Modifier.height(10.dp))
                                 Row(
                                     modifier = Modifier.fillMaxWidth(),
                                     horizontalArrangement = Arrangement.spacedBy(8.dp)
@@ -289,12 +315,15 @@ fun ClientsScreen(
                                             containerColor = SoftMint,
                                             contentColor = DeepForest
                                         ),
-                                        shape = CircleShape,
-                                        modifier = Modifier.weight(1f)
+                                        shape = RoundedCornerShape(12.dp),
+                                        contentPadding = PaddingValues(horizontal = 12.dp, vertical = 0.dp),
+                                        modifier = Modifier
+                                            .weight(1f)
+                                            .height(36.dp)
                                     ) {
                                         Icon(Icons.Rounded.Call, contentDescription = null, modifier = Modifier.size(16.dp))
-                                        Spacer(modifier = Modifier.width(4.dp))
-                                        Text("Звонок", fontSize = 12.sp, fontWeight = FontWeight.SemiBold)
+                                        Spacer(modifier = Modifier.width(6.dp))
+                                        Text("Звонок", fontSize = 12.sp, fontWeight = FontWeight.SemiBold, maxLines = 1)
                                     }
 
                                     // Messenger button
@@ -307,28 +336,28 @@ fun ClientsScreen(
                                             )
                                         },
                                         colors = ButtonDefaults.buttonColors(
-                                            containerColor = SageGreenPrimary,
-                                            contentColor = Color.White
+                                            containerColor = SandBeige,
+                                            contentColor = CharcoalPrimary
                                         ),
-                                        shape = CircleShape,
-                                        modifier = Modifier.weight(1f)
+                                        shape = RoundedCornerShape(12.dp),
+                                        contentPadding = PaddingValues(horizontal = 12.dp, vertical = 0.dp),
+                                        modifier = Modifier
+                                            .weight(1f)
+                                            .height(36.dp)
                                     ) {
                                         Icon(Icons.Rounded.Chat, contentDescription = null, modifier = Modifier.size(16.dp))
-                                        Spacer(modifier = Modifier.width(4.dp))
-                                        Text(client.messengerType.title, fontSize = 12.sp, fontWeight = FontWeight.SemiBold)
+                                        Spacer(modifier = Modifier.width(6.dp))
+                                        Text(client.messengerType.title, fontSize = 12.sp, fontWeight = FontWeight.SemiBold, maxLines = 1)
                                     }
                                 }
                             }
                         }
                     }
-                    item {
-                        Spacer(modifier = Modifier.height(80.dp))
-                    }
                 }
             }
         }
 
-        // FAB to Add Client
+        // Floating Action Button to Add Client
         FloatingActionButton(
             onClick = {
                 clientToEdit = null
@@ -339,28 +368,28 @@ fun ClientsScreen(
             shape = CircleShape,
             modifier = Modifier
                 .align(Alignment.BottomEnd)
-                .padding(end = 20.dp, bottom = 90.dp)
+                .padding(end = 20.dp, bottom = 96.dp)
         ) {
             Icon(Icons.Rounded.Add, contentDescription = "Добавить клиента")
         }
     }
 
-    // Delete Confirmation Dialog
+    // Delete Client Confirmation Dialog
     if (clientToDelete != null) {
         val client = clientToDelete!!
         AlertDialog(
             onDismissRequest = { clientToDelete = null },
             title = { Text("Удалить клиента?") },
-            text = { Text("Вы действительно хотите удалить клиента «${client.fullName}» и все связанные с ним выгулы?") },
+            text = { Text("Вы уверены, что хотите удалить клиента «${client.fullName}» и все связанные с ним данные?") },
             confirmButton = {
                 Button(
                     onClick = {
                         viewModel.deleteClient(client)
                         clientToDelete = null
                     },
-                    colors = ButtonDefaults.buttonColors(containerColor = Color(0xFFD9534F))
+                    colors = ButtonDefaults.buttonColors(containerColor = Color(0xFFD9534F), contentColor = Color.White)
                 ) {
-                    Text("Удалить", color = Color.White)
+                    Text("Удалить")
                 }
             },
             dismissButton = {
@@ -371,29 +400,14 @@ fun ClientsScreen(
         )
     }
 
-    // Add / Edit Client Form Dialog
+    // Add / Edit Client Dialog with Contacts Import
     if (showEditDialog) {
         ClientFormDialog(
             client = clientToEdit,
             onDismiss = { showEditDialog = false },
             onSave = { updatedClient, pets ->
-                viewModel.saveClient(
-                    id = updatedClient.id,
-                    fullName = updatedClient.fullName,
-                    phone = updatedClient.phone,
-                    messengerType = updatedClient.messengerType,
-                    messengerIdentifier = updatedClient.messengerIdentifier,
-                    pets = pets,
-                    addressStreet = updatedClient.addressStreet,
-                    entrance = updatedClient.entrance,
-                    floor = updatedClient.floor,
-                    apartment = updatedClient.apartment,
-                    clientComment = updatedClient.clientComment,
-                    latitude = updatedClient.latitude,
-                    longitude = updatedClient.longitude
-                ) {
-                    showEditDialog = false
-                }
+                viewModel.saveClient(updatedClient, pets)
+                showEditDialog = false
             }
         )
     }
@@ -405,6 +419,7 @@ fun ClientFormDialog(
     onDismiss: () -> Unit,
     onSave: (ClientEntity, List<PetItem>) -> Unit
 ) {
+    val context = LocalContext.current
     val json = remember { Json { ignoreUnknownKeys = true } }
 
     var fullName by remember { mutableStateOf(client?.fullName ?: "") }
@@ -434,6 +449,54 @@ fun ClientFormDialog(
 
     val petList = remember { mutableStateListOf<PetItem>().apply { addAll(initialPets) } }
 
+    // Contact Picker from phone contacts
+    val contactPickerLauncher = rememberLauncherForActivityResult(
+        contract = ActivityResultContracts.PickContact()
+    ) { contactUri ->
+        if (contactUri != null) {
+            try {
+                context.contentResolver.query(
+                    contactUri,
+                    null,
+                    null,
+                    null,
+                    null
+                )?.use { cursor ->
+                    if (cursor.moveToFirst()) {
+                        val nameIdx = cursor.getColumnIndex(ContactsContract.Contacts.DISPLAY_NAME)
+                        if (nameIdx >= 0) {
+                            cursor.getString(nameIdx)?.let { fullName = it }
+                        }
+                        val idIdx = cursor.getColumnIndex(ContactsContract.Contacts._ID)
+                        val hasPhoneIdx = cursor.getColumnIndex(ContactsContract.Contacts.HAS_PHONE_NUMBER)
+                        val hasPhone = if (hasPhoneIdx >= 0) cursor.getInt(hasPhoneIdx) > 0 else true
+                        if (hasPhone && idIdx >= 0) {
+                            val contactId = cursor.getString(idIdx)
+                            context.contentResolver.query(
+                                ContactsContract.CommonDataKinds.Phone.CONTENT_URI,
+                                arrayOf(ContactsContract.CommonDataKinds.Phone.NUMBER),
+                                "${ContactsContract.CommonDataKinds.Phone.CONTACT_ID} = ?",
+                                arrayOf(contactId),
+                                null
+                            )?.use { phoneCursor ->
+                                if (phoneCursor.moveToFirst()) {
+                                    val numIdx = phoneCursor.getColumnIndex(ContactsContract.CommonDataKinds.Phone.NUMBER)
+                                    if (numIdx >= 0) {
+                                        phoneCursor.getString(numIdx)?.let {
+                                            phone = it.replace(" ", "").replace("-", "")
+                                        }
+                                    }
+                                }
+                            }
+                        }
+                    }
+                }
+            } catch (e: Exception) {
+                e.printStackTrace()
+            }
+        }
+    }
+
     Dialog(
         onDismissRequest = onDismiss,
         properties = DialogProperties(usePlatformDefaultWidth = false)
@@ -441,22 +504,46 @@ fun ClientFormDialog(
         Card(
             modifier = Modifier
                 .fillMaxWidth(0.95f)
-                .padding(vertical = 24.dp),
+                .padding(vertical = 20.dp)
+                .imePadding(),
             shape = RoundedCornerShape(24.dp),
             colors = CardDefaults.cardColors(containerColor = CanvasAlabaster)
         ) {
             Column(
                 modifier = Modifier
                     .fillMaxWidth()
-                    .padding(20.dp)
+                    .imePadding()
                     .verticalScroll(rememberScrollState())
+                    .padding(20.dp)
             ) {
-                Text(
-                    text = if (client == null) "Новый клиент" else "Редактирование",
-                    fontSize = 20.sp,
-                    fontWeight = FontWeight.Bold,
-                    color = CharcoalPrimary
-                )
+                // Header with Title and "From Contacts" button
+                Row(
+                    modifier = Modifier.fillMaxWidth(),
+                    horizontalArrangement = Arrangement.SpaceBetween,
+                    verticalAlignment = Alignment.CenterVertically
+                ) {
+                    Text(
+                        text = if (client == null) "Новый клиент" else "Редактирование",
+                        fontSize = 20.sp,
+                        fontWeight = FontWeight.Bold,
+                        color = CharcoalPrimary
+                    )
+
+                    Button(
+                        onClick = { contactPickerLauncher.launch(null) },
+                        colors = ButtonDefaults.buttonColors(
+                            containerColor = SoftMint,
+                            contentColor = DeepForest
+                        ),
+                        shape = RoundedCornerShape(12.dp),
+                        contentPadding = PaddingValues(horizontal = 10.dp, vertical = 0.dp),
+                        modifier = Modifier.height(34.dp)
+                    ) {
+                        Icon(Icons.Rounded.PersonSearch, contentDescription = null, modifier = Modifier.size(16.dp))
+                        Spacer(modifier = Modifier.width(4.dp))
+                        Text("Из контактов", fontSize = 11.sp, fontWeight = FontWeight.SemiBold)
+                    }
+                }
 
                 Spacer(modifier = Modifier.height(14.dp))
 

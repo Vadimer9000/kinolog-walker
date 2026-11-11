@@ -14,8 +14,8 @@ import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.material.icons.Icons
-import androidx.compose.material.icons.rounded.CalendarMonth
-import androidx.compose.material.icons.rounded.People
+import androidx.compose.material.icons.rounded.Map
+import androidx.compose.material.icons.rounded.Pets
 import androidx.compose.material.icons.rounded.Settings
 import androidx.compose.material3.Icon
 import androidx.compose.material3.Text
@@ -28,6 +28,7 @@ import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.vector.ImageVector
 import androidx.compose.ui.text.font.FontWeight
+import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import com.kinolog.walker.ui.theme.CharcoalPrimary
@@ -36,9 +37,9 @@ import com.kinolog.walker.ui.theme.SageGreenPrimary
 import com.kinolog.walker.ui.theme.SoftMint
 
 enum class NavigationTab(val title: String, val icon: ImageVector) {
-    SCHEDULE("График и Карта", Icons.Rounded.CalendarMonth),
-    CLIENTS("Клиенты", Icons.Rounded.People),
-    SETTINGS("Настройки и Бэкап", Icons.Rounded.Settings)
+    SCHEDULE("Карта и План", Icons.Rounded.Map),
+    CLIENTS("Клиенты", Icons.Rounded.Pets),
+    SETTINGS("Бэкап", Icons.Rounded.Settings)
 }
 
 @Composable
@@ -108,6 +109,8 @@ fun AppBottomBar(
                                 fontSize = 11.sp,
                                 fontWeight = if (isSelected) FontWeight.SemiBold else FontWeight.Normal,
                                 maxLines = 1,
+                                softWrap = false,
+                                overflow = TextOverflow.Ellipsis,
                                 modifier = Modifier.padding(top = 2.dp)
                             )
                         }
