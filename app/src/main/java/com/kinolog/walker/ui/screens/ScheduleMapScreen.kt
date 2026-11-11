@@ -399,7 +399,7 @@ private fun MonthCalendarDropdown(
                                     verticalArrangement = Arrangement.Center
                                 ) {
                                     Text(
-                                        text = "",
+                                        text = "$dayNum",
                                         fontSize = 12.sp,
                                         fontWeight = if (isSelected || isToday) FontWeight.Bold else FontWeight.Medium,
                                         color = if (isSelected) Color.White else CharcoalPrimary
@@ -417,7 +417,7 @@ private fun MonthCalendarDropdown(
                                             contentAlignment = Alignment.Center
                                         ) {
                                             Text(
-                                                text = "",
+                                                text = "$walksCount",
                                                 fontSize = 9.sp,
                                                 fontWeight = FontWeight.Bold,
                                                 color = if (isSelected) SageGreenDark else PriceBadgeText,
