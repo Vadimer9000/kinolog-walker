@@ -86,6 +86,7 @@ import androidx.compose.ui.graphics.SolidColor
 import androidx.compose.ui.graphics.drawscope.Stroke
 import androidx.compose.ui.layout.onGloballyPositioned
 import androidx.compose.ui.platform.LocalContext
+import androidx.compose.ui.platform.LocalView
 import androidx.compose.ui.text.AnnotatedString
 import androidx.compose.ui.text.SpanStyle
 import androidx.compose.ui.text.TextStyle
@@ -121,6 +122,7 @@ import com.kinolog.walker.ui.theme.OliveGreySecondary
 import com.kinolog.walker.ui.theme.SageGreenPrimary
 import com.kinolog.walker.ui.theme.SandBeige
 import com.kinolog.walker.ui.theme.SoftMint
+import com.kinolog.walker.util.HapticHelper
 import com.kinolog.walker.util.IntentHelper
 import kotlinx.serialization.json.Json
 
@@ -737,6 +739,7 @@ fun ClientFormDialog(
     onSave: (ClientEntity, List<PetItem>) -> Unit
 ) {
     val context = LocalContext.current
+    val view = LocalView.current
     val json = remember { Json { ignoreUnknownKeys = true } }
 
     val addressSuggestions by viewModel.addressSuggestions.collectAsState()
@@ -942,7 +945,10 @@ fun ClientFormDialog(
                                 .weight(1f)
                                 .clip(CircleShape)
                                 .background(if (isSelected) SageGreenPrimary else SandBeige)
-                                .clickable { messengerType = type }
+                                .clickable {
+                                    HapticHelper.tick(view, context)
+                                    messengerType = type
+                                }
                                 .padding(vertical = 8.dp),
                             contentAlignment = Alignment.Center
                         ) {
@@ -1124,6 +1130,7 @@ fun ClientFormDialog(
                                                 .clip(CircleShape)
                                                 .background(if (isSelected) SageGreenPrimary else SandBeige)
                                                 .clickable {
+                                                    HapticHelper.tick(view, context)
                                                     petList[index] = pet.copy(type = pType)
                                                 }
                                                 .padding(horizontal = 10.dp, vertical = 6.dp)
@@ -1273,6 +1280,7 @@ fun ClientFormDialog(
                                     modifier = Modifier
                                         .fillMaxWidth()
                                         .clickable {
+                                            HapticHelper.lightClick(view, context)
                                             addressStreet = suggestion.fullAddress
                                             selectedLat = suggestion.lat
                                             selectedLon = suggestion.lon
@@ -1378,6 +1386,7 @@ fun ClientFormDialog(
                                     latitude = selectedLat ?: (if (addressChanged) null else client?.latitude),
                                     longitude = selectedLon ?: (if (addressChanged) null else client?.longitude)
                                 )
+                                HapticHelper.success(view, context)
                                 onSave(updated, validPets)
                             }
                         },

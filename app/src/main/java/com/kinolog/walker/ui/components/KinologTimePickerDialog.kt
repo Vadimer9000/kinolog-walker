@@ -34,6 +34,7 @@ import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.derivedStateOf
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableIntStateOf
+import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.rememberCoroutineScope
 import androidx.compose.runtime.setValue
@@ -41,7 +42,9 @@ import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.platform.LocalDensity
+import androidx.compose.ui.platform.LocalView
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
@@ -51,6 +54,7 @@ import com.kinolog.walker.ui.theme.CharcoalPrimary
 import com.kinolog.walker.ui.theme.LocalIsDarkTheme
 import com.kinolog.walker.ui.theme.OliveGreySecondary
 import com.kinolog.walker.ui.theme.SageGreenPrimary
+import com.kinolog.walker.util.HapticHelper
 import kotlinx.coroutines.launch
 
 @Composable
@@ -63,6 +67,8 @@ fun KinologTimePickerDialog(
     var selectedHour by remember { mutableIntStateOf(initialHour.coerceIn(0, 23)) }
     var selectedMinute by remember { mutableIntStateOf(initialMinute.coerceIn(0, 59)) }
 
+    val view = LocalView.current
+    val context = LocalContext.current
     val isDark = LocalIsDarkTheme.current
     val cardContainerColor = if (isDark) Color(0xFF141D17) else CanvasAlabaster
     val cardBorder = if (isDark) {
@@ -183,7 +189,10 @@ fun KinologTimePickerDialog(
                     }
                     Spacer(modifier = Modifier.width(8.dp))
                     Button(
-                        onClick = { onTimeSelected(selectedHour, selectedMinute) },
+                        onClick = {
+                            HapticHelper.success(view, context)
+                            onTimeSelected(selectedHour, selectedMinute)
+                        },
                         colors = ButtonDefaults.buttonColors(containerColor = SageGreenPrimary),
                         shape = RoundedCornerShape(12.dp)
                     ) {
@@ -205,6 +214,8 @@ private fun WheelPickerColumn(
     onValueChange: (Int) -> Unit
 ) {
     val coroutineScope = rememberCoroutineScope()
+    val view = LocalView.current
+    val context = LocalContext.current
     val itemHeight = 40.dp
     val density = LocalDensity.current
     val itemHeightPx = with(density) { itemHeight.toPx() }
@@ -225,9 +236,16 @@ private fun WheelPickerColumn(
         }
     }
 
+    var isFirstComposition by remember { mutableStateOf(true) }
+
     LaunchedEffect(centerIndex) {
         val currentValue = ((centerIndex % rangeSize) + rangeSize) % rangeSize
         onValueChange(currentValue)
+        if (isFirstComposition) {
+            isFirstComposition = false
+        } else {
+            HapticHelper.tick(view, context)
+        }
     }
 
     LazyColumn(

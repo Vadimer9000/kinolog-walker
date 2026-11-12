@@ -25,6 +25,8 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.draw.scale
 import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.platform.LocalContext
+import androidx.compose.ui.platform.LocalView
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.IntOffset
 import androidx.compose.ui.unit.dp
@@ -33,6 +35,7 @@ import com.kinolog.walker.ui.theme.CharcoalPrimary
 import com.kinolog.walker.ui.theme.OliveGreySecondary
 import com.kinolog.walker.ui.theme.SageGreenPrimary
 import com.kinolog.walker.ui.theme.SoftMint
+import com.kinolog.walker.util.HapticHelper
 
 @Composable
 fun TransportSlider(
@@ -40,6 +43,8 @@ fun TransportSlider(
     onModeChanged: (String) -> Unit,
     modifier: Modifier = Modifier
 ) {
+    val view = LocalView.current
+    val context = LocalContext.current
     val isPedestrian = currentMode == "pd"
 
     GlassBox(
@@ -100,7 +105,12 @@ fun TransportSlider(
                         .clickable(
                             interactionSource = remember { MutableInteractionSource() },
                             indication = null
-                        ) { onModeChanged("pd") },
+                        ) {
+                            if (!isPedestrian) {
+                                HapticHelper.lightClick(view, context)
+                                onModeChanged("pd")
+                            }
+                        },
                     contentAlignment = Alignment.Center
                 ) {
                     Text(
@@ -130,7 +140,12 @@ fun TransportSlider(
                         .clickable(
                             interactionSource = remember { MutableInteractionSource() },
                             indication = null
-                        ) { onModeChanged("mt") },
+                        ) {
+                            if (isPedestrian) {
+                                HapticHelper.lightClick(view, context)
+                                onModeChanged("mt")
+                            }
+                        },
                     contentAlignment = Alignment.Center
                 ) {
                     Text(

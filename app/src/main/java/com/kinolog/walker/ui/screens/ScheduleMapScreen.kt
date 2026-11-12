@@ -98,6 +98,7 @@ import androidx.compose.ui.draw.shadow
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.input.pointer.pointerInput
 import androidx.compose.ui.platform.LocalContext
+import androidx.compose.ui.platform.LocalView
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.input.KeyboardType
 import androidx.compose.ui.text.style.TextDecoration
@@ -133,6 +134,7 @@ import com.kinolog.walker.ui.theme.SageGreenDark
 import com.kinolog.walker.ui.theme.SageGreenPrimary
 import com.kinolog.walker.ui.theme.SandBeige
 import com.kinolog.walker.ui.theme.SoftMint
+import com.kinolog.walker.util.HapticHelper
 import com.kinolog.walker.util.IntentHelper
 import com.kinolog.walker.util.PreferencesManager
 import kotlinx.serialization.json.Json
@@ -159,6 +161,9 @@ private fun ScheduleTopControls(
     onSettingsClick: () -> Unit,
     modifier: Modifier = Modifier
 ) {
+    val view = LocalView.current
+    val context = LocalContext.current
+
     Row(
         modifier = modifier.fillMaxWidth(),
         verticalAlignment = Alignment.CenterVertically,
@@ -177,7 +182,10 @@ private fun ScheduleTopControls(
                 horizontalArrangement = Arrangement.SpaceBetween,
                 verticalAlignment = Alignment.CenterVertically
             ) {
-                IconButton(onClick = onPrevDay) {
+                IconButton(onClick = {
+                    HapticHelper.lightClick(view, context)
+                    onPrevDay()
+                }) {
                     Icon(Icons.Rounded.ChevronLeft, contentDescription = "Предыдущий день", tint = SageGreenPrimary)
                 }
 
@@ -185,7 +193,10 @@ private fun ScheduleTopControls(
                     verticalAlignment = Alignment.CenterVertically,
                     modifier = Modifier
                         .clip(CircleShape)
-                        .clickable { onToggleCalendar() }
+                        .clickable {
+                            HapticHelper.lightClick(view, context)
+                            onToggleCalendar()
+                        }
                         .padding(horizontal = 8.dp, vertical = 6.dp)
                 ) {
                     Icon(
@@ -210,7 +221,10 @@ private fun ScheduleTopControls(
                     )
                 }
 
-                IconButton(onClick = onNextDay) {
+                IconButton(onClick = {
+                    HapticHelper.lightClick(view, context)
+                    onNextDay()
+                }) {
                     Icon(Icons.Rounded.ChevronRight, contentDescription = "Следующий день", tint = SageGreenPrimary)
                 }
             }
@@ -453,6 +467,7 @@ fun ScheduleMapScreen(
     modifier: Modifier = Modifier
 ) {
     val context = LocalContext.current
+    val view = LocalView.current
     val isDark = LocalIsDarkTheme.current
     val selectedDate by viewModel.selectedDate.collectAsState()
     val routingMode by viewModel.routingMode.collectAsState()
@@ -534,7 +549,10 @@ fun ScheduleMapScreen(
                             if (pendingCount > 0) {
                                 // Compact Route Button without text "Маршрут", fixed 36x36 dp
                                 FilledTonalIconButton(
-                                    onClick = { viewModel.routeDayWalks(context) },
+                                    onClick = {
+                                        HapticHelper.lightClick(view, context)
+                                        viewModel.routeDayWalks(context)
+                                    },
                                     colors = IconButtonDefaults.filledTonalIconButtonColors(
                                         containerColor = SageGreenPrimary,
                                         contentColor = Color.White
@@ -737,7 +755,10 @@ fun ScheduleMapScreen(
                                                     Spacer(modifier = Modifier.width(6.dp))
 
                                                     IconButton(
-                                                        onClick = { viewModel.toggleWalkCompletion(walk) },
+                                                        onClick = {
+                                                            HapticHelper.success(view, context)
+                                                            viewModel.toggleWalkCompletion(walk)
+                                                        },
                                                         modifier = Modifier.size(24.dp)
                                                     ) {
                                                         Icon(
@@ -793,7 +814,10 @@ fun ScheduleMapScreen(
                                                         ) {
                                                             // Route
                                                             FilledTonalIconButton(
-                                                                onClick = { viewModel.routeSingleWalk(context, walk) },
+                                                                onClick = {
+                                                                    HapticHelper.lightClick(view, context)
+                                                                    viewModel.routeSingleWalk(context, walk)
+                                                                },
                                                                 colors = IconButtonDefaults.filledTonalIconButtonColors(
                                                                     containerColor = SoftMint,
                                                                     contentColor = DeepForest
@@ -929,7 +953,10 @@ fun ScheduleMapScreen(
                                                 }
     
                                                 IconButton(
-                                                    onClick = { viewModel.toggleWalkCompletion(walk) },
+                                                    onClick = {
+                                                        HapticHelper.success(view, context)
+                                                        viewModel.toggleWalkCompletion(walk)
+                                                    },
                                                     modifier = Modifier.size(32.dp)
                                                 ) {
                                                     Icon(
@@ -1049,7 +1076,10 @@ fun ScheduleMapScreen(
                                                 ) {
                                                     // Route to single walk
                                                     Button(
-                                                        onClick = { viewModel.routeSingleWalk(context, walk) },
+                                                        onClick = {
+                                                            HapticHelper.lightClick(view, context)
+                                                            viewModel.routeSingleWalk(context, walk)
+                                                        },
                                                         colors = ButtonDefaults.buttonColors(
                                                             containerColor = SoftMint,
                                                             contentColor = DeepForest
@@ -1648,6 +1678,7 @@ fun WalkFormDialog(
     ) -> Unit
 ) {
     val context = LocalContext.current
+    val view = LocalView.current
     val isDark = LocalIsDarkTheme.current
     val json = remember { Json { ignoreUnknownKeys = true } }
     val pricePresets by viewModel.pricePresets.collectAsState()
@@ -1842,7 +1873,10 @@ fun WalkFormDialog(
                                     .weight(1f)
                                     .clip(CircleShape)
                                     .background(if (isSelected) cat.composeColor else SandBeige)
-                                    .clickable { selectedCategory = cat }
+                                    .clickable {
+                                        HapticHelper.tick(view, context)
+                                        selectedCategory = cat
+                                    }
                                     .padding(vertical = 8.dp, horizontal = 6.dp),
                                 contentAlignment = Alignment.Center
                             ) {
@@ -1916,6 +1950,7 @@ fun WalkFormDialog(
                                 .clip(RoundedCornerShape(8.dp))
                                 .background(if (isSel) SageGreenPrimary else SandBeige)
                                 .clickable {
+                                    HapticHelper.tick(view, context)
                                     durationMinutes = minsPreset
                                     durationInput = minsPreset.toString()
                                 }
@@ -1975,6 +2010,7 @@ fun WalkFormDialog(
                                 .clip(RoundedCornerShape(8.dp))
                                 .background(if (isSel) SageGreenPrimary else SandBeige)
                                 .clickable {
+                                    HapticHelper.tick(view, context)
                                     price = presetPrice
                                     priceInput = presetPrice.toString()
                                 }
@@ -2033,6 +2069,7 @@ fun WalkFormDialog(
                                             .clip(CircleShape)
                                             .background(if (isSelected) SageGreenPrimary else SandBeige)
                                             .clickable {
+                                                HapticHelper.tick(view, context)
                                                 selectedDays = if (isSelected) {
                                                     if (selectedDays.size > 1) selectedDays - day else selectedDays
                                                 } else {
@@ -2121,6 +2158,7 @@ fun WalkFormDialog(
                             if (hasKeyChanges) {
                                 showSeriesEditConfirmDialog = true
                             } else {
+                                HapticHelper.success(view, context)
                                 onSave(
                                     walkToEdit?.id ?: 0L,
                                     selectedClientId,
@@ -2159,6 +2197,7 @@ fun WalkFormDialog(
                 confirmButton = {
                     Button(
                         onClick = {
+                            HapticHelper.success(view, context)
                             showSeriesEditConfirmDialog = false
                             val validDuration = durationMinutes.coerceAtLeast(10)
                             onSave(
@@ -2189,6 +2228,7 @@ fun WalkFormDialog(
                         Spacer(modifier = Modifier.width(4.dp))
                         Button(
                             onClick = {
+                                HapticHelper.success(view, context)
                                 showSeriesEditConfirmDialog = false
                                 val validDuration = durationMinutes.coerceAtLeast(10)
                                 onSave(

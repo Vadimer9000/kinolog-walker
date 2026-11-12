@@ -85,6 +85,15 @@ class MainViewModel(application: Application) : AndroidViewModel(application) {
         _isMapEnabled.value = enabled
     }
 
+    // Haptic feedback enabled flow
+    private val _isHapticFeedbackEnabled = MutableStateFlow(prefs.isHapticFeedbackEnabled)
+    val isHapticFeedbackEnabled: StateFlow<Boolean> = _isHapticFeedbackEnabled.asStateFlow()
+
+    fun setHapticFeedbackEnabled(enabled: Boolean) {
+        prefs.isHapticFeedbackEnabled = enabled
+        _isHapticFeedbackEnabled.value = enabled
+    }
+
     // Quick Price Presets
     private val _pricePresets = MutableStateFlow(prefs.pricePresets)
     val pricePresets: StateFlow<List<Int>> = _pricePresets.asStateFlow()

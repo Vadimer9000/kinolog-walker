@@ -33,11 +33,14 @@ import androidx.compose.material.icons.rounded.Payments
 import androidx.compose.material.icons.rounded.Save
 import androidx.compose.material.icons.rounded.Send
 import androidx.compose.material.icons.rounded.Shield
+import androidx.compose.material.icons.rounded.Vibration
 import androidx.compose.material3.Button
 import androidx.compose.material3.ButtonDefaults
 import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
 import androidx.compose.material3.OutlinedTextField
+import androidx.compose.material3.Switch
+import androidx.compose.material3.SwitchDefaults
 import androidx.compose.material3.Text
 import androidx.compose.material3.TextButton
 import androidx.compose.runtime.Composable
@@ -52,6 +55,7 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.platform.LocalContext
+import androidx.compose.ui.platform.LocalView
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
@@ -69,6 +73,7 @@ import com.kinolog.walker.ui.theme.PriceBadgeText
 import com.kinolog.walker.ui.theme.SageGreenPrimary
 import com.kinolog.walker.ui.theme.SandBeige
 import com.kinolog.walker.ui.theme.SoftMint
+import com.kinolog.walker.util.HapticHelper
 import com.kinolog.walker.util.PreferencesManager
 import com.kinolog.walker.util.ThemeMode
 import java.time.LocalDate
@@ -79,6 +84,7 @@ fun SettingsBackupScreen(
     modifier: Modifier = Modifier
 ) {
     val context = LocalContext.current
+    val view = LocalView.current
     val isDark = LocalIsDarkTheme.current
     val earnedGreen = if (isDark) Color(0xFF81C784) else Color(0xFF2E7D32)
     val currentApiKey by viewModel.yandexApiKey.collectAsState()
@@ -88,6 +94,7 @@ fun SettingsBackupScreen(
     val allWalks by viewModel.allWalks.collectAsState()
     val themeMode by viewModel.themeMode.collectAsState()
     val isMapEnabled by viewModel.isMapEnabled.collectAsState()
+    val isHapticFeedbackEnabled by viewModel.isHapticFeedbackEnabled.collectAsState()
     val currentPricePresets by viewModel.pricePresets.collectAsState()
     var pricePresetsInput by remember(currentPricePresets) {
         mutableStateOf(currentPricePresets.joinToString(", "))
@@ -235,11 +242,74 @@ fun SettingsBackupScreen(
                         items = listOf("Только план", "Карта и план"),
                         selectedIndex = if (!isMapEnabled) 0 else 1,
                         onItemSelected = { idx ->
+                            HapticHelper.lightClick(view, context)
                             viewModel.setMapEnabled(idx == 1)
                         },
                         itemLabel = { it },
                         modifier = Modifier.fillMaxWidth(),
                         height = 40.dp
+                    )
+                }
+            }
+
+            Spacer(modifier = Modifier.height(16.dp))
+
+            // Section: Haptic Feedback
+            GlassBox(
+                modifier = Modifier.fillMaxWidth(),
+                elevation = 4.dp
+            ) {
+                Row(
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .padding(16.dp),
+                    horizontalArrangement = Arrangement.SpaceBetween,
+                    verticalAlignment = Alignment.CenterVertically
+                ) {
+                    Row(
+                        modifier = Modifier.weight(1f),
+                        verticalAlignment = Alignment.CenterVertically
+                    ) {
+                        Icon(
+                            imageVector = Icons.Rounded.Vibration,
+                            contentDescription = null,
+                            tint = SageGreenPrimary,
+                            modifier = Modifier.size(24.dp)
+                        )
+                        Spacer(modifier = Modifier.width(10.dp))
+                        Column {
+                            Text(
+                                text = "Тактильный отклик (вибрация)",
+                                fontWeight = FontWeight.SemiBold,
+                                fontSize = 16.sp,
+                                color = CharcoalPrimary
+                            )
+                            Spacer(modifier = Modifier.height(2.dp))
+                            Text(
+                                text = "Мягкая вибрация при нажатиях и прокрутке времени",
+                                fontSize = 12.sp,
+                                color = OliveGreySecondary
+                            )
+                        }
+                    }
+
+                    Spacer(modifier = Modifier.width(8.dp))
+
+                    Switch(
+                        checked = isHapticFeedbackEnabled,
+                        onCheckedChange = { enabled ->
+                            if (enabled) {
+                                HapticHelper.lightClick(view, context)
+                            }
+                            viewModel.setHapticFeedbackEnabled(enabled)
+                        },
+                        colors = SwitchDefaults.colors(
+                            checkedThumbColor = Color.White,
+                            checkedTrackColor = SageGreenPrimary,
+                            uncheckedThumbColor = if (isDark) Color(0xFFBAC4BE) else Color.White,
+                            uncheckedTrackColor = if (isDark) Color(0xFF28352C) else Color(0xFFD6DFD9),
+                            uncheckedBorderColor = Color.Transparent
+                        )
                     )
                 }
             }
@@ -337,6 +407,7 @@ fun SettingsBackupScreen(
                         Button(
                             onClick = {
                                 if (previewList.isNotEmpty()) {
+                                    HapticHelper.success(view, context)
                                     viewModel.setPricePresets(previewList)
                                 }
                             },
@@ -617,6 +688,7 @@ fun SettingsBackupScreen(
 
                     Button(
                         onClick = {
+                            HapticHelper.success(view, context)
                             viewModel.setYandexApiKey(apiKeyInput)
                             Toast.makeText(context, "API-ключ сохранён", Toast.LENGTH_SHORT).show()
                         },

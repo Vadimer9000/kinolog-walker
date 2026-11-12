@@ -36,6 +36,8 @@ import androidx.compose.ui.draw.clip
 import androidx.compose.ui.draw.scale
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.vector.ImageVector
+import androidx.compose.ui.platform.LocalContext
+import androidx.compose.ui.platform.LocalView
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.IntOffset
@@ -45,6 +47,7 @@ import com.kinolog.walker.ui.theme.CharcoalPrimary
 import com.kinolog.walker.ui.theme.OliveGreySecondary
 import com.kinolog.walker.ui.theme.SageGreenPrimary
 import com.kinolog.walker.ui.theme.SoftMint
+import com.kinolog.walker.util.HapticHelper
 
 enum class NavigationTab(val title: String, val icon: ImageVector) {
     SCHEDULE("Карта и План", Icons.Rounded.Map),
@@ -59,6 +62,8 @@ fun AppBottomBar(
     isMapEnabled: Boolean = false,
     modifier: Modifier = Modifier
 ) {
+    val view = LocalView.current
+    val context = LocalContext.current
     val bottomTabs = remember { listOf(NavigationTab.SCHEDULE, NavigationTab.CLIENTS) }
     val selectedIndex = bottomTabs.indexOf(currentTab).coerceAtLeast(0)
 
@@ -133,7 +138,12 @@ fun AppBottomBar(
                                 .clickable(
                                     interactionSource = interactionSource,
                                     indication = null
-                                ) { onTabSelected(tab) },
+                                ) {
+                                    if (tab != currentTab) {
+                                        HapticHelper.lightClick(view, context)
+                                    }
+                                    onTabSelected(tab)
+                                },
                             contentAlignment = Alignment.Center
                         ) {
                             Column(
