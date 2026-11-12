@@ -22,6 +22,8 @@ class PreferencesManager(context: Context) {
         private const val KEY_GEOCODING_VERSION = "geocoding_version"
         private const val KEY_PRICE_PRESETS = "price_presets"
         private const val KEY_HAPTIC_FEEDBACK_ENABLED = "haptic_feedback_enabled"
+        private const val KEY_NOTIFICATIONS_ENABLED = "notifications_enabled"
+        private const val KEY_NOTIFICATION_LEAD_TIME_MINUTES = "notification_lead_time_minutes"
         val DEFAULT_PRICE_PRESETS = listOf(500, 800, 1000, 1500)
     }
 
@@ -59,6 +61,14 @@ class PreferencesManager(context: Context) {
     var isHapticFeedbackEnabled: Boolean
         get() = prefs.getBoolean(KEY_HAPTIC_FEEDBACK_ENABLED, true)
         set(value) = prefs.edit().putBoolean(KEY_HAPTIC_FEEDBACK_ENABLED, value).apply()
+
+    var isNotificationsEnabled: Boolean
+        get() = prefs.getBoolean(KEY_NOTIFICATIONS_ENABLED, true)
+        set(value) = prefs.edit().putBoolean(KEY_NOTIFICATIONS_ENABLED, value).apply()
+
+    var notificationLeadTimeMinutes: Int
+        get() = prefs.getInt(KEY_NOTIFICATION_LEAD_TIME_MINUTES, 30)
+        set(value) = prefs.edit().putInt(KEY_NOTIFICATION_LEAD_TIME_MINUTES, value).apply()
 
     var themeMode: ThemeMode
         get() {

@@ -1,9 +1,13 @@
 package com.kinolog.walker.ui.screens
 
+import android.Manifest
+import android.content.pm.PackageManager
 import android.net.Uri
+import android.os.Build
 import android.widget.Toast
 import androidx.activity.compose.rememberLauncherForActivityResult
 import androidx.activity.result.contract.ActivityResultContracts
+import androidx.compose.animation.AnimatedVisibility
 import androidx.compose.foundation.background
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
@@ -26,16 +30,17 @@ import androidx.compose.material.icons.rounded.ArrowBack
 import androidx.compose.material.icons.rounded.Assessment
 import androidx.compose.material.icons.rounded.FileDownload
 import androidx.compose.material.icons.rounded.FileUpload
+import androidx.compose.material.icons.rounded.Info
 import androidx.compose.material.icons.rounded.Key
-import androidx.compose.material.icons.rounded.Map
+import androidx.compose.material.icons.rounded.Notifications
 import androidx.compose.material.icons.rounded.Palette
 import androidx.compose.material.icons.rounded.Payments
 import androidx.compose.material.icons.rounded.Save
 import androidx.compose.material.icons.rounded.Send
-import androidx.compose.material.icons.rounded.Shield
 import androidx.compose.material.icons.rounded.Vibration
 import androidx.compose.material3.Button
 import androidx.compose.material3.ButtonDefaults
+import androidx.compose.material3.HorizontalDivider
 import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
 import androidx.compose.material3.OutlinedTextField
@@ -60,6 +65,8 @@ import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
+import androidx.core.content.ContextCompat
+import com.kinolog.walker.BuildConfig
 import com.kinolog.walker.ui.MainViewModel
 import com.kinolog.walker.ui.components.AnimatedSegmentedControl
 import com.kinolog.walker.ui.components.GlassBox
@@ -67,6 +74,7 @@ import com.kinolog.walker.ui.components.NavigationTab
 import com.kinolog.walker.ui.theme.LocalIsDarkTheme
 import com.kinolog.walker.ui.theme.CharcoalPrimary
 import com.kinolog.walker.ui.theme.DeepForest
+import com.kinolog.walker.ui.theme.DividerMuted
 import com.kinolog.walker.ui.theme.OliveGreySecondary
 import com.kinolog.walker.ui.theme.PriceBadgeBg
 import com.kinolog.walker.ui.theme.PriceBadgeText
@@ -87,6 +95,8 @@ fun SettingsBackupScreen(
     val view = LocalView.current
     val isDark = LocalIsDarkTheme.current
     val earnedGreen = if (isDark) Color(0xFF81C784) else Color(0xFF2E7D32)
+    val dividerColor = if (isDark) Color(0xFF28362D) else DividerMuted.copy(alpha = 0.6f)
+
     val currentApiKey by viewModel.yandexApiKey.collectAsState()
     var apiKeyInput by remember(currentApiKey) { mutableStateOf(currentApiKey) }
 
@@ -95,9 +105,17 @@ fun SettingsBackupScreen(
     val themeMode by viewModel.themeMode.collectAsState()
     val isMapEnabled by viewModel.isMapEnabled.collectAsState()
     val isHapticFeedbackEnabled by viewModel.isHapticFeedbackEnabled.collectAsState()
+    val isNotificationsEnabled by viewModel.isNotificationsEnabled.collectAsState()
+    val notificationLeadTimeMinutes by viewModel.notificationLeadTimeMinutes.collectAsState()
     val currentPricePresets by viewModel.pricePresets.collectAsState()
     var pricePresetsInput by remember(currentPricePresets) {
         mutableStateOf(currentPricePresets.joinToString(", "))
+    }
+
+    val notificationPermissionLauncher = rememberLauncherForActivityResult(
+        contract = ActivityResultContracts.RequestPermission()
+    ) { isGranted ->
+        viewModel.setNotificationsEnabled(isGranted)
     }
 
     // Import file launcher
@@ -139,290 +157,14 @@ fun SettingsBackupScreen(
                         color = CharcoalPrimary
                     )
                     Text(
-                        text = "Управление темой, аналитикой, ключами карт и базой данных",
+                        text = "Управление отчетами, уведомлениями, интерфейсом и базой",
                         fontSize = 12.sp,
                         color = OliveGreySecondary
                     )
                 }
             }
 
-            // Section: Theme Mode (Soft Dark Theme)
-            GlassBox(
-                modifier = Modifier.fillMaxWidth(),
-                elevation = 4.dp
-            ) {
-                Column(
-                    modifier = Modifier
-                        .fillMaxWidth()
-                        .padding(16.dp)
-                ) {
-                    Row(verticalAlignment = Alignment.CenterVertically) {
-                        Icon(Icons.Rounded.Palette, contentDescription = null, tint = SageGreenPrimary)
-                        Spacer(modifier = Modifier.width(8.dp))
-                        Text(
-                            text = "Тема оформления",
-                            fontWeight = FontWeight.SemiBold,
-                            fontSize = 16.sp,
-                            color = CharcoalPrimary
-                        )
-                    }
-
-                    Spacer(modifier = Modifier.height(4.dp))
-
-                    Text(
-                        text = "Мягкая палитра: автоматическая системная, светлая или ночная тёмная тема.",
-                        fontSize = 12.sp,
-                        color = OliveGreySecondary
-                    )
-
-                    Spacer(modifier = Modifier.height(12.dp))
-
-                    AnimatedSegmentedControl(
-                        items = listOf(ThemeMode.SYSTEM, ThemeMode.LIGHT, ThemeMode.DARK),
-                        selectedIndex = when (themeMode) {
-                            ThemeMode.SYSTEM -> 0
-                            ThemeMode.LIGHT -> 1
-                            ThemeMode.DARK -> 2
-                        },
-                        onItemSelected = { idx ->
-                            val newMode = when (idx) {
-                                0 -> ThemeMode.SYSTEM
-                                1 -> ThemeMode.LIGHT
-                                else -> ThemeMode.DARK
-                            }
-                            viewModel.setThemeMode(newMode)
-                        },
-                        itemLabel = {
-                            when (it) {
-                                ThemeMode.SYSTEM -> "Как в системе"
-                                ThemeMode.LIGHT -> "Светлая"
-                                ThemeMode.DARK -> "Тёмная"
-                            }
-                        },
-                        modifier = Modifier.fillMaxWidth(),
-                        height = 40.dp
-                    )
-                }
-            }
-
-            Spacer(modifier = Modifier.height(16.dp))
-
-            // Section: Display Mode (Pure Plan vs Embedded Map)
-            GlassBox(
-                modifier = Modifier.fillMaxWidth(),
-                elevation = 4.dp
-            ) {
-                Column(
-                    modifier = Modifier
-                        .fillMaxWidth()
-                        .padding(16.dp)
-                ) {
-                    Row(verticalAlignment = Alignment.CenterVertically) {
-                        Icon(Icons.Rounded.Map, contentDescription = null, tint = SageGreenPrimary)
-                        Spacer(modifier = Modifier.width(8.dp))
-                        Text(
-                            text = "Режим отображения",
-                            fontWeight = FontWeight.SemiBold,
-                            fontSize = 16.sp,
-                            color = CharcoalPrimary
-                        )
-                    }
-
-                    Spacer(modifier = Modifier.height(4.dp))
-
-                    Text(
-                        text = "В режиме «Только план» приложение работает быстрее без встроенной карты. Маршруты строятся прямо в приложении Яндекс.Карт.",
-                        fontSize = 12.sp,
-                        color = OliveGreySecondary
-                    )
-
-                    Spacer(modifier = Modifier.height(12.dp))
-
-                    AnimatedSegmentedControl(
-                        items = listOf("Только план", "Карта и план"),
-                        selectedIndex = if (!isMapEnabled) 0 else 1,
-                        onItemSelected = { idx ->
-                            HapticHelper.lightClick(view, context)
-                            viewModel.setMapEnabled(idx == 1)
-                        },
-                        itemLabel = { it },
-                        modifier = Modifier.fillMaxWidth(),
-                        height = 40.dp
-                    )
-                }
-            }
-
-            Spacer(modifier = Modifier.height(16.dp))
-
-            // Section: Haptic Feedback
-            GlassBox(
-                modifier = Modifier.fillMaxWidth(),
-                elevation = 4.dp
-            ) {
-                Row(
-                    modifier = Modifier
-                        .fillMaxWidth()
-                        .padding(16.dp),
-                    horizontalArrangement = Arrangement.SpaceBetween,
-                    verticalAlignment = Alignment.CenterVertically
-                ) {
-                    Row(
-                        modifier = Modifier.weight(1f),
-                        verticalAlignment = Alignment.CenterVertically
-                    ) {
-                        Icon(
-                            imageVector = Icons.Rounded.Vibration,
-                            contentDescription = null,
-                            tint = SageGreenPrimary,
-                            modifier = Modifier.size(24.dp)
-                        )
-                        Spacer(modifier = Modifier.width(10.dp))
-                        Column {
-                            Text(
-                                text = "Тактильный отклик (вибрация)",
-                                fontWeight = FontWeight.SemiBold,
-                                fontSize = 16.sp,
-                                color = CharcoalPrimary
-                            )
-                            Spacer(modifier = Modifier.height(2.dp))
-                            Text(
-                                text = "Мягкая вибрация при нажатиях и прокрутке времени",
-                                fontSize = 12.sp,
-                                color = OliveGreySecondary
-                            )
-                        }
-                    }
-
-                    Spacer(modifier = Modifier.width(8.dp))
-
-                    Switch(
-                        checked = isHapticFeedbackEnabled,
-                        onCheckedChange = { enabled ->
-                            if (enabled) {
-                                HapticHelper.lightClick(view, context)
-                            }
-                            viewModel.setHapticFeedbackEnabled(enabled)
-                        },
-                        colors = SwitchDefaults.colors(
-                            checkedThumbColor = Color.White,
-                            checkedTrackColor = SageGreenPrimary,
-                            uncheckedThumbColor = if (isDark) Color(0xFFBAC4BE) else Color.White,
-                            uncheckedTrackColor = if (isDark) Color(0xFF28352C) else Color(0xFFD6DFD9),
-                            uncheckedBorderColor = Color.Transparent
-                        )
-                    )
-                }
-            }
-
-            Spacer(modifier = Modifier.height(16.dp))
-
-            // Section: Quick Price Presets
-            GlassBox(
-                modifier = Modifier.fillMaxWidth(),
-                elevation = 4.dp
-            ) {
-                Column(
-                    modifier = Modifier
-                        .fillMaxWidth()
-                        .padding(16.dp)
-                ) {
-                    Row(verticalAlignment = Alignment.CenterVertically) {
-                        Icon(Icons.Rounded.Payments, contentDescription = null, tint = SageGreenPrimary)
-                        Spacer(modifier = Modifier.width(8.dp))
-                        Text(
-                            text = "Быстрые цены (шаблоны стоимости)",
-                            fontWeight = FontWeight.SemiBold,
-                            fontSize = 16.sp,
-                            color = CharcoalPrimary
-                        )
-                    }
-
-                    Spacer(modifier = Modifier.height(4.dp))
-
-                    Text(
-                        text = "Чипы для быстрого выбора стоимости в форме записи. Укажите суммы через запятую:",
-                        fontSize = 12.sp,
-                        color = OliveGreySecondary
-                    )
-
-                    Spacer(modifier = Modifier.height(10.dp))
-
-                    OutlinedTextField(
-                        value = pricePresetsInput,
-                        onValueChange = { pricePresetsInput = it },
-                        label = { Text("Суммы в рублях (через запятую)") },
-                        placeholder = { Text("500, 800, 1000, 1500") },
-                        singleLine = true,
-                        modifier = Modifier.fillMaxWidth()
-                    )
-
-                    Spacer(modifier = Modifier.height(8.dp))
-
-                    val previewList = pricePresetsInput
-                        .split(",")
-                        .mapNotNull { it.trim().toIntOrNull() }
-                        .filter { it > 0 }
-
-                    if (previewList.isNotEmpty()) {
-                        Row(
-                            modifier = Modifier.fillMaxWidth(),
-                            horizontalArrangement = Arrangement.spacedBy(6.dp),
-                            verticalAlignment = Alignment.CenterVertically
-                        ) {
-                            Text("Превью:", fontSize = 11.sp, color = OliveGreySecondary)
-                            previewList.forEach { p ->
-                                Box(
-                                    modifier = Modifier
-                                        .clip(RoundedCornerShape(8.dp))
-                                        .background(PriceBadgeBg)
-                                        .padding(horizontal = 8.dp, vertical = 3.dp)
-                                ) {
-                                    Text(
-                                        text = "$p ₽",
-                                        fontSize = 11.sp,
-                                        fontWeight = FontWeight.Bold,
-                                        color = PriceBadgeText
-                                    )
-                                }
-                            }
-                        }
-                        Spacer(modifier = Modifier.height(10.dp))
-                    }
-
-                    Row(
-                        modifier = Modifier.fillMaxWidth(),
-                        horizontalArrangement = Arrangement.SpaceBetween,
-                        verticalAlignment = Alignment.CenterVertically
-                    ) {
-                        TextButton(
-                            onClick = {
-                                val def = PreferencesManager.DEFAULT_PRICE_PRESETS
-                                pricePresetsInput = def.joinToString(", ")
-                                viewModel.setPricePresets(def)
-                            }
-                        ) {
-                            Text("Сбросить", color = OliveGreySecondary, fontSize = 12.sp)
-                        }
-
-                        Button(
-                            onClick = {
-                                if (previewList.isNotEmpty()) {
-                                    HapticHelper.success(view, context)
-                                    viewModel.setPricePresets(previewList)
-                                }
-                            },
-                            colors = ButtonDefaults.buttonColors(containerColor = SageGreenPrimary),
-                            shape = RoundedCornerShape(12.dp)
-                        ) {
-                            Text("Сохранить цены", color = Color.White, fontSize = 13.sp)
-                        }
-                    }
-                }
-            }
-
-            Spacer(modifier = Modifier.height(16.dp))
-
-            // Section: Analytics & Period Reporting
+            // 1. Отчетность за период (Первая карточка)
             GlassBox(
                 modifier = Modifier.fillMaxWidth(),
                 elevation = 4.dp
@@ -645,7 +387,7 @@ fun SettingsBackupScreen(
 
             Spacer(modifier = Modifier.height(16.dp))
 
-            // Section 1: Yandex Maps JS API Key
+            // 2. Интерфейс (Вторая позиция: Тема оформления и Режим отображения)
             GlassBox(
                 modifier = Modifier.fillMaxWidth(),
                 elevation = 4.dp
@@ -656,20 +398,305 @@ fun SettingsBackupScreen(
                         .padding(16.dp)
                 ) {
                     Row(verticalAlignment = Alignment.CenterVertically) {
-                        Icon(Icons.Rounded.Key, contentDescription = null, tint = SageGreenPrimary)
+                        Icon(Icons.Rounded.Palette, contentDescription = null, tint = SageGreenPrimary)
                         Spacer(modifier = Modifier.width(8.dp))
                         Text(
-                            text = "API-ключ Яндекс.Карт (JS API)",
+                            text = "Интерфейс",
                             fontWeight = FontWeight.SemiBold,
                             fontSize = 16.sp,
                             color = CharcoalPrimary
                         )
                     }
 
-                    Spacer(modifier = Modifier.height(6.dp))
+                    Spacer(modifier = Modifier.height(4.dp))
 
                     Text(
-                        text = "Используется для встроенной интерактивной карты в приложении. Если поле пустое, карта работает в базовом режиме.",
+                        text = "Настройка темы оформления и режима отображения карты.",
+                        fontSize = 12.sp,
+                        color = OliveGreySecondary
+                    )
+
+                    Spacer(modifier = Modifier.height(12.dp))
+
+                    Text(
+                        text = "Тема оформления",
+                        fontWeight = FontWeight.Medium,
+                        fontSize = 13.sp,
+                        color = CharcoalPrimary
+                    )
+
+                    Spacer(modifier = Modifier.height(6.dp))
+
+                    AnimatedSegmentedControl(
+                        items = listOf(ThemeMode.SYSTEM, ThemeMode.LIGHT, ThemeMode.DARK),
+                        selectedIndex = when (themeMode) {
+                            ThemeMode.SYSTEM -> 0
+                            ThemeMode.LIGHT -> 1
+                            ThemeMode.DARK -> 2
+                        },
+                        onItemSelected = { idx ->
+                            HapticHelper.lightClick(view, context)
+                            val newMode = when (idx) {
+                                0 -> ThemeMode.SYSTEM
+                                1 -> ThemeMode.LIGHT
+                                else -> ThemeMode.DARK
+                            }
+                            viewModel.setThemeMode(newMode)
+                        },
+                        itemLabel = {
+                            when (it) {
+                                ThemeMode.SYSTEM -> "Как в системе"
+                                ThemeMode.LIGHT -> "Светлая"
+                                ThemeMode.DARK -> "Тёмная"
+                            }
+                        },
+                        modifier = Modifier.fillMaxWidth(),
+                        height = 38.dp
+                    )
+
+                    Spacer(modifier = Modifier.height(14.dp))
+                    HorizontalDivider(color = dividerColor, thickness = 0.5.dp)
+                    Spacer(modifier = Modifier.height(14.dp))
+
+                    Text(
+                        text = "Режим отображения",
+                        fontWeight = FontWeight.Medium,
+                        fontSize = 13.sp,
+                        color = CharcoalPrimary
+                    )
+
+                    Spacer(modifier = Modifier.height(4.dp))
+
+                    Text(
+                        text = "В режиме «Только план» приложение работает быстрее без встроенной карты. Маршруты строятся прямо в приложении Яндекс.Карт.",
+                        fontSize = 12.sp,
+                        color = OliveGreySecondary
+                    )
+
+                    Spacer(modifier = Modifier.height(8.dp))
+
+                    AnimatedSegmentedControl(
+                        items = listOf("Только план", "Карта и план"),
+                        selectedIndex = if (!isMapEnabled) 0 else 1,
+                        onItemSelected = { idx ->
+                            HapticHelper.lightClick(view, context)
+                            viewModel.setMapEnabled(idx == 1)
+                        },
+                        itemLabel = { it },
+                        modifier = Modifier.fillMaxWidth(),
+                        height = 38.dp
+                    )
+                }
+            }
+
+            Spacer(modifier = Modifier.height(16.dp))
+
+            // 3. Уведомления и отклик (Третья карточка)
+            GlassBox(
+                modifier = Modifier.fillMaxWidth(),
+                elevation = 4.dp
+            ) {
+                Column(
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .padding(16.dp)
+                ) {
+                    Row(verticalAlignment = Alignment.CenterVertically) {
+                        Icon(
+                            imageVector = Icons.Rounded.Notifications,
+                            contentDescription = null,
+                            tint = SageGreenPrimary,
+                            modifier = Modifier.size(22.dp)
+                        )
+                        Spacer(modifier = Modifier.width(8.dp))
+                        Text(
+                            text = "Уведомления и отклик",
+                            fontWeight = FontWeight.SemiBold,
+                            fontSize = 16.sp,
+                            color = CharcoalPrimary
+                        )
+                    }
+
+                    Spacer(modifier = Modifier.height(4.dp))
+
+                    Text(
+                        text = "Напоминания о предстоящих мероприятиях и тактильная вибрация.",
+                        fontSize = 12.sp,
+                        color = OliveGreySecondary
+                    )
+
+                    Spacer(modifier = Modifier.height(12.dp))
+
+                    // Switch 1: Notifications
+                    Row(
+                        modifier = Modifier.fillMaxWidth(),
+                        horizontalArrangement = Arrangement.SpaceBetween,
+                        verticalAlignment = Alignment.CenterVertically
+                    ) {
+                        Column(modifier = Modifier.weight(1f)) {
+                            Text(
+                                text = "Уведомления о записях",
+                                fontWeight = FontWeight.SemiBold,
+                                fontSize = 14.sp,
+                                color = CharcoalPrimary
+                            )
+                            Spacer(modifier = Modifier.height(2.dp))
+                            Text(
+                                text = "Локальные Push-напоминания до начала мероприятий",
+                                fontSize = 11.sp,
+                                color = OliveGreySecondary
+                            )
+                        }
+
+                        Spacer(modifier = Modifier.width(8.dp))
+
+                        Switch(
+                            checked = isNotificationsEnabled,
+                            onCheckedChange = { enabled ->
+                                if (enabled) {
+                                    if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.TIRAMISU) {
+                                        val granted = ContextCompat.checkSelfPermission(
+                                            context,
+                                            Manifest.permission.POST_NOTIFICATIONS
+                                        ) == PackageManager.PERMISSION_GRANTED
+                                        if (!granted) {
+                                            notificationPermissionLauncher.launch(Manifest.permission.POST_NOTIFICATIONS)
+                                            return@Switch
+                                        }
+                                    }
+                                    HapticHelper.lightClick(view, context)
+                                }
+                                viewModel.setNotificationsEnabled(enabled)
+                            },
+                            colors = SwitchDefaults.colors(
+                                checkedThumbColor = Color.White,
+                                checkedTrackColor = SageGreenPrimary,
+                                uncheckedThumbColor = if (isDark) Color(0xFFBAC4BE) else Color.White,
+                                uncheckedTrackColor = if (isDark) Color(0xFF28352C) else Color(0xFFD6DFD9),
+                                uncheckedBorderColor = Color.Transparent
+                            )
+                        )
+                    }
+
+                    // Lead time selector (visible when notifications are enabled)
+                    AnimatedVisibility(visible = isNotificationsEnabled) {
+                        Column(modifier = Modifier.fillMaxWidth().padding(top = 10.dp)) {
+                            Text(
+                                text = "Напоминать за:",
+                                fontWeight = FontWeight.Medium,
+                                fontSize = 13.sp,
+                                color = CharcoalPrimary
+                            )
+                            Spacer(modifier = Modifier.height(6.dp))
+
+                            val leadTimeOptions = remember { listOf(15, 30, 60, 120) }
+                            val selectedLeadIndex = leadTimeOptions.indexOf(notificationLeadTimeMinutes).coerceAtLeast(0)
+
+                            AnimatedSegmentedControl(
+                                items = leadTimeOptions,
+                                selectedIndex = selectedLeadIndex,
+                                onItemSelected = { idx ->
+                                    HapticHelper.tick(view, context)
+                                    viewModel.setNotificationLeadTimeMinutes(leadTimeOptions[idx])
+                                },
+                                itemLabel = { minutes ->
+                                    when (minutes) {
+                                        15 -> "15 мин"
+                                        30 -> "30 мин"
+                                        60 -> "1 час"
+                                        120 -> "2 часа"
+                                        else -> "$minutes мин"
+                                    }
+                                },
+                                modifier = Modifier.fillMaxWidth(),
+                                height = 36.dp
+                            )
+                        }
+                    }
+
+                    Spacer(modifier = Modifier.height(12.dp))
+                    HorizontalDivider(color = dividerColor, thickness = 0.5.dp)
+                    Spacer(modifier = Modifier.height(12.dp))
+
+                    // Switch 2: Haptic Feedback
+                    Row(
+                        modifier = Modifier.fillMaxWidth(),
+                        horizontalArrangement = Arrangement.SpaceBetween,
+                        verticalAlignment = Alignment.CenterVertically
+                    ) {
+                        Column(modifier = Modifier.weight(1f)) {
+                            Row(verticalAlignment = Alignment.CenterVertically) {
+                                Icon(
+                                    imageVector = Icons.Rounded.Vibration,
+                                    contentDescription = null,
+                                    tint = SageGreenPrimary,
+                                    modifier = Modifier.size(18.dp)
+                                )
+                                Spacer(modifier = Modifier.width(6.dp))
+                                Text(
+                                    text = "Тактильный виброотклик",
+                                    fontWeight = FontWeight.SemiBold,
+                                    fontSize = 14.sp,
+                                    color = CharcoalPrimary
+                                )
+                            }
+                            Spacer(modifier = Modifier.height(2.dp))
+                            Text(
+                                text = "Мягкая вибрация при прокрутке времени и нажатиях",
+                                fontSize = 11.sp,
+                                color = OliveGreySecondary
+                            )
+                        }
+
+                        Spacer(modifier = Modifier.width(8.dp))
+
+                        Switch(
+                            checked = isHapticFeedbackEnabled,
+                            onCheckedChange = { enabled ->
+                                if (enabled) {
+                                    HapticHelper.lightClick(view, context)
+                                }
+                                viewModel.setHapticFeedbackEnabled(enabled)
+                            },
+                            colors = SwitchDefaults.colors(
+                                checkedThumbColor = Color.White,
+                                checkedTrackColor = SageGreenPrimary,
+                                uncheckedThumbColor = if (isDark) Color(0xFFBAC4BE) else Color.White,
+                                uncheckedTrackColor = if (isDark) Color(0xFF28352C) else Color(0xFFD6DFD9),
+                                uncheckedBorderColor = Color.Transparent
+                            )
+                        )
+                    }
+                }
+            }
+
+            Spacer(modifier = Modifier.height(16.dp))
+
+            // 4. Быстрые цены (шаблоны стоимости) (Четвёртая карточка)
+            GlassBox(
+                modifier = Modifier.fillMaxWidth(),
+                elevation = 4.dp
+            ) {
+                Column(
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .padding(16.dp)
+                ) {
+                    Row(verticalAlignment = Alignment.CenterVertically) {
+                        Icon(Icons.Rounded.Payments, contentDescription = null, tint = SageGreenPrimary)
+                        Spacer(modifier = Modifier.width(8.dp))
+                        Text(
+                            text = "Быстрые цены (шаблоны стоимости)",
+                            fontWeight = FontWeight.SemiBold,
+                            fontSize = 16.sp,
+                            color = CharcoalPrimary
+                        )
+                    }
+
+                    Spacer(modifier = Modifier.height(4.dp))
+
+                    Text(
+                        text = "Чипы для быстрого выбора стоимости в форме записи. Укажите суммы через запятую:",
                         fontSize = 12.sp,
                         color = OliveGreySecondary
                     )
@@ -677,35 +704,81 @@ fun SettingsBackupScreen(
                     Spacer(modifier = Modifier.height(10.dp))
 
                     OutlinedTextField(
-                        value = apiKeyInput,
-                        onValueChange = { apiKeyInput = it },
-                        placeholder = { Text("Вставьте ключ из Кабинета разработчика", fontSize = 12.sp) },
+                        value = pricePresetsInput,
+                        onValueChange = { pricePresetsInput = it },
+                        label = { Text("Суммы в рублях (через запятую)") },
+                        placeholder = { Text("500, 800, 1000, 1500") },
                         singleLine = true,
                         modifier = Modifier.fillMaxWidth()
                     )
 
-                    Spacer(modifier = Modifier.height(12.dp))
+                    Spacer(modifier = Modifier.height(8.dp))
 
-                    Button(
-                        onClick = {
-                            HapticHelper.success(view, context)
-                            viewModel.setYandexApiKey(apiKeyInput)
-                            Toast.makeText(context, "API-ключ сохранён", Toast.LENGTH_SHORT).show()
-                        },
-                        colors = ButtonDefaults.buttonColors(containerColor = SageGreenPrimary),
-                        shape = CircleShape,
-                        modifier = Modifier.align(Alignment.End)
+                    val previewList = pricePresetsInput
+                        .split(",")
+                        .mapNotNull { it.trim().toIntOrNull() }
+                        .filter { it > 0 }
+
+                    if (previewList.isNotEmpty()) {
+                        Row(
+                            modifier = Modifier.fillMaxWidth(),
+                            horizontalArrangement = Arrangement.spacedBy(6.dp),
+                            verticalAlignment = Alignment.CenterVertically
+                        ) {
+                            Text("Превью:", fontSize = 11.sp, color = OliveGreySecondary)
+                            previewList.forEach { p ->
+                                Box(
+                                    modifier = Modifier
+                                        .clip(RoundedCornerShape(8.dp))
+                                        .background(PriceBadgeBg)
+                                        .padding(horizontal = 8.dp, vertical = 3.dp)
+                                ) {
+                                    Text(
+                                        text = "$p ₽",
+                                        fontSize = 11.sp,
+                                        fontWeight = FontWeight.Bold,
+                                        color = PriceBadgeText
+                                    )
+                                }
+                            }
+                        }
+                        Spacer(modifier = Modifier.height(10.dp))
+                    }
+
+                    Row(
+                        modifier = Modifier.fillMaxWidth(),
+                        horizontalArrangement = Arrangement.SpaceBetween,
+                        verticalAlignment = Alignment.CenterVertically
                     ) {
-                        Icon(Icons.Rounded.Save, contentDescription = null, modifier = Modifier.size(16.dp))
-                        Spacer(modifier = Modifier.width(6.dp))
-                        Text("Сохранить ключ", color = Color.White, fontSize = 13.sp)
+                        TextButton(
+                            onClick = {
+                                val def = PreferencesManager.DEFAULT_PRICE_PRESETS
+                                pricePresetsInput = def.joinToString(", ")
+                                viewModel.setPricePresets(def)
+                            }
+                        ) {
+                            Text("Сбросить", color = OliveGreySecondary, fontSize = 12.sp)
+                        }
+
+                        Button(
+                            onClick = {
+                                if (previewList.isNotEmpty()) {
+                                    HapticHelper.success(view, context)
+                                    viewModel.setPricePresets(previewList)
+                                }
+                            },
+                            colors = ButtonDefaults.buttonColors(containerColor = SageGreenPrimary),
+                            shape = RoundedCornerShape(12.dp)
+                        ) {
+                            Text("Сохранить цены", color = Color.White, fontSize = 13.sp)
+                        }
                     }
                 }
             }
 
             Spacer(modifier = Modifier.height(16.dp))
 
-            // Section 2: Telegram Backup Export / Import
+            // 5. Резервная копия базы (Telegram) (Пятая карточка)
             GlassBox(
                 modifier = Modifier.fillMaxWidth(),
                 elevation = 4.dp
@@ -780,7 +853,67 @@ fun SettingsBackupScreen(
 
             Spacer(modifier = Modifier.height(16.dp))
 
-            // Section 3: App info
+            // 6. API-ключ Яндекс.Карт (JS API) (Шестая карточка)
+            GlassBox(
+                modifier = Modifier.fillMaxWidth(),
+                elevation = 4.dp
+            ) {
+                Column(
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .padding(16.dp)
+                ) {
+                    Row(verticalAlignment = Alignment.CenterVertically) {
+                        Icon(Icons.Rounded.Key, contentDescription = null, tint = SageGreenPrimary)
+                        Spacer(modifier = Modifier.width(8.dp))
+                        Text(
+                            text = "API-ключ Яндекс.Карт (JS API)",
+                            fontWeight = FontWeight.SemiBold,
+                            fontSize = 16.sp,
+                            color = CharcoalPrimary
+                        )
+                    }
+
+                    Spacer(modifier = Modifier.height(6.dp))
+
+                    Text(
+                        text = "Используется для встроенной интерактивной карты в приложении. Если поле пустое, карта работает в базовом режиме.",
+                        fontSize = 12.sp,
+                        color = OliveGreySecondary
+                    )
+
+                    Spacer(modifier = Modifier.height(10.dp))
+
+                    OutlinedTextField(
+                        value = apiKeyInput,
+                        onValueChange = { apiKeyInput = it },
+                        placeholder = { Text("Вставьте ключ из Кабинета разработчика", fontSize = 12.sp) },
+                        singleLine = true,
+                        modifier = Modifier.fillMaxWidth()
+                    )
+
+                    Spacer(modifier = Modifier.height(12.dp))
+
+                    Button(
+                        onClick = {
+                            HapticHelper.success(view, context)
+                            viewModel.setYandexApiKey(apiKeyInput)
+                            Toast.makeText(context, "API-ключ сохранён", Toast.LENGTH_SHORT).show()
+                        },
+                        colors = ButtonDefaults.buttonColors(containerColor = SageGreenPrimary),
+                        shape = CircleShape,
+                        modifier = Modifier.align(Alignment.End)
+                    ) {
+                        Icon(Icons.Rounded.Save, contentDescription = null, modifier = Modifier.size(16.dp))
+                        Spacer(modifier = Modifier.width(6.dp))
+                        Text("Сохранить ключ", color = Color.White, fontSize = 13.sp)
+                    }
+                }
+            }
+
+            Spacer(modifier = Modifier.height(16.dp))
+
+            // 7. О приложении (Седьмая карточка, в самом низу)
             GlassBox(
                 modifier = Modifier.fillMaxWidth(),
                 elevation = 2.dp
@@ -791,7 +924,7 @@ fun SettingsBackupScreen(
                         .padding(16.dp)
                 ) {
                     Row(verticalAlignment = Alignment.CenterVertically) {
-                        Icon(Icons.Rounded.Shield, contentDescription = null, tint = SageGreenPrimary)
+                        Icon(Icons.Rounded.Info, contentDescription = null, tint = SageGreenPrimary)
                         Spacer(modifier = Modifier.width(8.dp))
                         Text(
                             text = "О приложении",
@@ -804,10 +937,10 @@ fun SettingsBackupScreen(
                     Spacer(modifier = Modifier.height(8.dp))
 
                     Text(
-                        text = "Кинолог-Выгульщик v1.0.0\n" +
-                                "Локальная база данных Room + Geocoder\n" +
-                                "Маршрутизация Яндекс.Карты (Пешком / Транспорт)\n" +
-                                "Безопасное хранилище и бэкапы без сторонних облаков",
+                        text = "KinologWalker v${BuildConfig.VERSION_NAME}\n" +
+                                "Профессиональное приложение для кинологов и выгульщиков.\n" +
+                                "Локальная база данных Room • Интеграция Яндекс.Карт\n" +
+                                "Локальные Push-напоминания и тактильный отклик.",
                         fontSize = 12.sp,
                         color = OliveGreySecondary,
                         lineHeight = 18.sp

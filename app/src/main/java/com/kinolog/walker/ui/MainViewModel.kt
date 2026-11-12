@@ -25,7 +25,9 @@ import android.location.LocationManager
 import com.google.android.gms.location.Priority
 import com.kinolog.walker.util.AddressSuggestion
 import com.kinolog.walker.util.GeocoderHelper
+import com.kinolog.walker.util.NotificationHelper
 import com.kinolog.walker.util.ThemeMode
+import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.FlowPreview
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.SharingStarted
@@ -92,6 +94,30 @@ class MainViewModel(application: Application) : AndroidViewModel(application) {
     fun setHapticFeedbackEnabled(enabled: Boolean) {
         prefs.isHapticFeedbackEnabled = enabled
         _isHapticFeedbackEnabled.value = enabled
+    }
+
+    // Notifications enabled flow
+    private val _isNotificationsEnabled = MutableStateFlow(prefs.isNotificationsEnabled)
+    val isNotificationsEnabled: StateFlow<Boolean> = _isNotificationsEnabled.asStateFlow()
+
+    // Notification lead time in minutes (15, 30, 60, 120)
+    private val _notificationLeadTimeMinutes = MutableStateFlow(prefs.notificationLeadTimeMinutes)
+    val notificationLeadTimeMinutes: StateFlow<Int> = _notificationLeadTimeMinutes.asStateFlow()
+
+    fun setNotificationsEnabled(enabled: Boolean) {
+        prefs.isNotificationsEnabled = enabled
+        _isNotificationsEnabled.value = enabled
+        viewModelScope.launch(Dispatchers.IO) {
+            NotificationHelper.rescheduleAllReminders(getApplication())
+        }
+    }
+
+    fun setNotificationLeadTimeMinutes(minutes: Int) {
+        prefs.notificationLeadTimeMinutes = minutes
+        _notificationLeadTimeMinutes.value = minutes
+        viewModelScope.launch(Dispatchers.IO) {
+            NotificationHelper.rescheduleAllReminders(getApplication())
+        }
     }
 
     // Quick Price Presets

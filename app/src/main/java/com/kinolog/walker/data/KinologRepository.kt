@@ -8,8 +8,8 @@ import com.kinolog.walker.model.ClientEntity
 import com.kinolog.walker.model.PetItem
 import com.kinolog.walker.model.WalkEventEntity
 import com.kinolog.walker.util.GeocoderHelper
+import com.kinolog.walker.util.NotificationHelper
 import com.kinolog.walker.util.PreferencesManager
-import com.kinolog.walker.worker.WalkNotificationWorker
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.map
@@ -153,7 +153,7 @@ class KinologRepository(
         val savedWalk = if (walk.id == 0L) walk.copy(id = id) else walk
         val client = clientDao.getClientByIdSync(savedWalk.clientId)
         if (client != null && !savedWalk.isCompleted) {
-            WalkNotificationWorker.scheduleReminder(context, client, savedWalk)
+            NotificationHelper.scheduleReminder(context, client, savedWalk)
         }
         id
     }
@@ -163,7 +163,7 @@ class KinologRepository(
         for (w in walks) {
             val client = clientDao.getClientByIdSync(w.clientId)
             if (client != null && !w.isCompleted) {
-                WalkNotificationWorker.scheduleReminder(context, client, w)
+                NotificationHelper.scheduleReminder(context, client, w)
             }
         }
     }
@@ -173,9 +173,9 @@ class KinologRepository(
         val client = clientDao.getClientByIdSync(walk.clientId)
         if (client != null) {
             if (walk.isCompleted) {
-                WalkNotificationWorker.cancelReminder(context, walk.id)
+                NotificationHelper.cancelReminder(context, walk.id)
             } else {
-                WalkNotificationWorker.scheduleReminder(context, client, walk)
+                NotificationHelper.scheduleReminder(context, client, walk)
             }
         }
     }
@@ -191,13 +191,13 @@ class KinologRepository(
         for (w in seriesWalks) {
             val client = clientDao.getClientByIdSync(w.clientId)
             if (client != null && !w.isCompleted) {
-                WalkNotificationWorker.scheduleReminder(context, client, w)
+                NotificationHelper.scheduleReminder(context, client, w)
             }
         }
     }
 
     suspend fun deleteWalk(walkId: Long) = withContext(Dispatchers.IO) {
-        WalkNotificationWorker.cancelReminder(context, walkId)
+        NotificationHelper.cancelReminder(context, walkId)
         walkEventDao.deleteWalkById(walkId)
     }
 
@@ -205,13 +205,13 @@ class KinologRepository(
         if (fromEpochDay != null) {
             val futureWalks = walkEventDao.getFutureWalksBySeries(seriesId, fromEpochDay)
             for (w in futureWalks) {
-                WalkNotificationWorker.cancelReminder(context, w.id)
+                NotificationHelper.cancelReminder(context, w.id)
             }
             walkEventDao.deleteFutureWalksBySeries(seriesId, fromEpochDay)
         } else {
             val seriesWalks = walkEventDao.getWalksBySeries(seriesId)
             for (w in seriesWalks) {
-                WalkNotificationWorker.cancelReminder(context, w.id)
+                NotificationHelper.cancelReminder(context, w.id)
             }
             walkEventDao.deleteWalksBySeries(seriesId)
         }
@@ -254,14 +254,7 @@ class KinologRepository(
         walkEventDao.insertWalks(backupData.walks)
 
         // Reschedule notifications for pending walks
-        for (w in backupData.walks) {
-            if (!w.isCompleted) {
-                val client = clientDao.getClientByIdSync(w.clientId)
-                if (client != null) {
-                    WalkNotificationWorker.scheduleReminder(context, client, w)
-                }
-            }
-        }
+        NotificationHelper.rescheduleAllReminders(context)
         Pair(backupData.clients.size, backupData.walks.size)
     }
 }

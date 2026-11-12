@@ -29,6 +29,9 @@ interface WalkEventDao {
     @Query("SELECT * FROM walk_events WHERE id = :id LIMIT 1")
     suspend fun getWalkByIdSync(id: Long): WalkEventEntity?
 
+    @Query("SELECT * FROM walk_events WHERE dateEpochDay >= :fromEpochDay AND isCompleted = 0 ORDER BY dateEpochDay ASC, startTimeMinutes ASC")
+    suspend fun getUpcomingUncompletedWalks(fromEpochDay: Long): List<WalkEventEntity>
+
     @Query("SELECT * FROM walk_events WHERE seriesId = :seriesId")
     suspend fun getWalksBySeries(seriesId: String): List<WalkEventEntity>
 
