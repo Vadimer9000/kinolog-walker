@@ -1,12 +1,15 @@
 package com.kinolog.walker.ui.components
 
 import androidx.compose.foundation.BorderStroke
+import androidx.compose.foundation.ExperimentalFoundationApi
 import androidx.compose.foundation.background
+import androidx.compose.foundation.border
 import androidx.compose.foundation.clickable
-import androidx.compose.foundation.horizontalScroll
+import androidx.compose.foundation.gestures.snapping.rememberSnapFlingBehavior
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
+import androidx.compose.foundation.layout.PaddingValues
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.fillMaxWidth
@@ -14,30 +17,31 @@ import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.width
-import androidx.compose.foundation.rememberScrollState
-import androidx.compose.foundation.shape.CircleShape
+import androidx.compose.foundation.lazy.LazyColumn
+import androidx.compose.foundation.lazy.rememberLazyListState
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
-import androidx.compose.material.icons.rounded.Add
-import androidx.compose.material.icons.rounded.Remove
 import androidx.compose.material.icons.rounded.Schedule
 import androidx.compose.material3.Button
 import androidx.compose.material3.ButtonDefaults
 import androidx.compose.material3.Card
 import androidx.compose.material3.CardDefaults
 import androidx.compose.material3.Icon
-import androidx.compose.material3.IconButton
 import androidx.compose.material3.Text
 import androidx.compose.material3.TextButton
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.LaunchedEffect
+import androidx.compose.runtime.derivedStateOf
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableIntStateOf
 import androidx.compose.runtime.remember
+import androidx.compose.runtime.rememberCoroutineScope
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.platform.LocalDensity
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
@@ -47,7 +51,7 @@ import com.kinolog.walker.ui.theme.CharcoalPrimary
 import com.kinolog.walker.ui.theme.LocalIsDarkTheme
 import com.kinolog.walker.ui.theme.OliveGreySecondary
 import com.kinolog.walker.ui.theme.SageGreenPrimary
-import com.kinolog.walker.ui.theme.SandBeige
+import kotlinx.coroutines.launch
 
 @Composable
 fun KinologTimePickerDialog(
@@ -60,38 +64,39 @@ fun KinologTimePickerDialog(
     var selectedMinute by remember { mutableIntStateOf(initialMinute.coerceIn(0, 59)) }
 
     val isDark = LocalIsDarkTheme.current
-    val cardBorder = if (isDark) BorderStroke(1.dp, Color(0xFF4C7A5B)) else BorderStroke(1.dp, SageGreenPrimary.copy(alpha = 0.35f))
+    val cardContainerColor = if (isDark) Color(0xFF141D17) else CanvasAlabaster
+    val cardBorder = if (isDark) {
+        BorderStroke(1.dp, Color(0xFF3B694C))
+    } else {
+        BorderStroke(1.dp, SageGreenPrimary.copy(alpha = 0.35f))
+    }
 
-    val popularSlots = listOf(
-        8 to 0,
-        9 to 0,
-        10 to 0,
-        11 to 0,
-        12 to 0,
-        14 to 0,
-        16 to 0,
-        18 to 0,
-        19 to 0,
-        20 to 0
-    )
-
-    val minuteOptions = listOf(0, 5, 10, 15, 20, 25, 30, 35, 40, 45, 50, 55)
+    val focusBgColor = if (isDark) {
+        Color(0xFF284232).copy(alpha = 0.75f)
+    } else {
+        SageGreenPrimary.copy(alpha = 0.12f)
+    }
+    val focusBorderColor = if (isDark) {
+        Color(0xFF3B694C).copy(alpha = 0.6f)
+    } else {
+        SageGreenPrimary.copy(alpha = 0.3f)
+    }
 
     Dialog(onDismissRequest = onDismiss) {
         Card(
             modifier = Modifier
-                .fillMaxWidth(0.96f)
+                .fillMaxWidth(0.85f)
                 .padding(vertical = 16.dp),
             shape = RoundedCornerShape(24.dp),
-            colors = CardDefaults.cardColors(containerColor = CanvasAlabaster),
+            colors = CardDefaults.cardColors(containerColor = cardContainerColor),
             border = cardBorder
         ) {
             Column(
                 modifier = Modifier
                     .fillMaxWidth()
-                    .padding(20.dp)
+                    .padding(horizontal = 20.dp, vertical = 18.dp)
             ) {
-                // Header
+                // Header: Title with clock icon
                 Row(
                     verticalAlignment = Alignment.CenterVertically
                 ) {
@@ -99,9 +104,9 @@ fun KinologTimePickerDialog(
                         imageVector = Icons.Rounded.Schedule,
                         contentDescription = null,
                         tint = SageGreenPrimary,
-                        modifier = Modifier.size(24.dp)
+                        modifier = Modifier.size(22.dp)
                     )
-                    Spacer(modifier = Modifier.width(10.dp))
+                    Spacer(modifier = Modifier.width(8.dp))
                     Text(
                         text = "Время начала",
                         fontSize = 18.sp,
@@ -110,196 +115,64 @@ fun KinologTimePickerDialog(
                     )
                 }
 
-                Spacer(modifier = Modifier.height(16.dp))
-
-                // Big Time Display with +/- steppers
-                Row(
-                    modifier = Modifier.fillMaxWidth(),
-                    horizontalArrangement = Arrangement.Center,
-                    verticalAlignment = Alignment.CenterVertically
-                ) {
-                    // Hours Stepper
-                    IconButton(
-                        onClick = { selectedHour = if (selectedHour > 0) selectedHour - 1 else 23 },
-                        modifier = Modifier.size(36.dp)
-                    ) {
-                        Icon(Icons.Rounded.Remove, contentDescription = "Час назад", tint = OliveGreySecondary)
-                    }
-
-                    Box(
-                        modifier = Modifier
-                            .clip(RoundedCornerShape(16.dp))
-                            .background(SageGreenPrimary.copy(alpha = 0.14f))
-                            .padding(horizontal = 16.dp, vertical = 10.dp),
-                        contentAlignment = Alignment.Center
-                    ) {
-                        Text(
-                            text = String.format("%02d", selectedHour),
-                            fontSize = 34.sp,
-                            fontWeight = FontWeight.Bold,
-                            color = SageGreenPrimary
-                        )
-                    }
-
-                    IconButton(
-                        onClick = { selectedHour = (selectedHour + 1) % 24 },
-                        modifier = Modifier.size(36.dp)
-                    ) {
-                        Icon(Icons.Rounded.Add, contentDescription = "Час вперед", tint = OliveGreySecondary)
-                    }
-
-                    Text(
-                        text = ":",
-                        fontSize = 32.sp,
-                        fontWeight = FontWeight.Bold,
-                        color = CharcoalPrimary,
-                        modifier = Modifier.padding(horizontal = 4.dp)
-                    )
-
-                    // Minutes Stepper
-                    IconButton(
-                        onClick = { selectedMinute = if (selectedMinute > 0) selectedMinute - 1 else 59 },
-                        modifier = Modifier.size(36.dp)
-                    ) {
-                        Icon(Icons.Rounded.Remove, contentDescription = "Минута назад", tint = OliveGreySecondary)
-                    }
-
-                    Box(
-                        modifier = Modifier
-                            .clip(RoundedCornerShape(16.dp))
-                            .background(SageGreenPrimary.copy(alpha = 0.14f))
-                            .padding(horizontal = 16.dp, vertical = 10.dp),
-                        contentAlignment = Alignment.Center
-                    ) {
-                        Text(
-                            text = String.format("%02d", selectedMinute),
-                            fontSize = 34.sp,
-                            fontWeight = FontWeight.Bold,
-                            color = SageGreenPrimary
-                        )
-                    }
-
-                    IconButton(
-                        onClick = { selectedMinute = (selectedMinute + 1) % 60 },
-                        modifier = Modifier.size(36.dp)
-                    ) {
-                        Icon(Icons.Rounded.Add, contentDescription = "Минута вперед", tint = OliveGreySecondary)
-                    }
-                }
-
                 Spacer(modifier = Modifier.height(14.dp))
 
-                // Popular Quick Slots
-                Text(
-                    text = "Популярное время:",
-                    fontSize = 12.sp,
-                    fontWeight = FontWeight.Medium,
-                    color = OliveGreySecondary
-                )
-                Spacer(modifier = Modifier.height(6.dp))
-                Row(
+                // Center: Apple-style Wheel Drums (Hours : Minutes)
+                Box(
                     modifier = Modifier
                         .fillMaxWidth()
-                        .horizontalScroll(rememberScrollState()),
-                    horizontalArrangement = Arrangement.spacedBy(6.dp)
+                        .height(200.dp),
+                    contentAlignment = Alignment.Center
                 ) {
-                    popularSlots.forEach { (h, m) ->
-                        val isSel = selectedHour == h && selectedMinute == m
-                        Box(
-                            modifier = Modifier
-                                .clip(RoundedCornerShape(10.dp))
-                                .background(if (isSel) SageGreenPrimary else SandBeige)
-                                .clickable {
-                                    selectedHour = h
-                                    selectedMinute = m
-                                }
-                                .padding(horizontal = 10.dp, vertical = 6.dp)
-                        ) {
-                            Text(
-                                text = String.format("%02d:%02d", h, m),
-                                fontSize = 12.sp,
-                                fontWeight = if (isSel) FontWeight.Bold else FontWeight.Medium,
-                                color = if (isSel) Color.White else CharcoalPrimary
-                            )
-                        }
+                    // Central Highlight Focus Plate across both wheels
+                    Box(
+                        modifier = Modifier
+                            .fillMaxWidth()
+                            .height(42.dp)
+                            .clip(RoundedCornerShape(10.dp))
+                            .background(focusBgColor)
+                            .border(1.dp, focusBorderColor, RoundedCornerShape(10.dp))
+                    )
+
+                    // The Two Drums + Colon Separator
+                    Row(
+                        modifier = Modifier
+                            .fillMaxWidth()
+                            .height(200.dp),
+                        verticalAlignment = Alignment.CenterVertically
+                    ) {
+                        // Hours Drum (00..23)
+                        WheelPickerColumn(
+                            rangeSize = 24,
+                            initialValue = initialHour,
+                            modifier = Modifier.weight(1f),
+                            isDark = isDark,
+                            onValueChange = { selectedHour = it }
+                        )
+
+                        // Center Colon Separator
+                        Text(
+                            text = ":",
+                            fontSize = 24.sp,
+                            fontWeight = FontWeight.Bold,
+                            color = if (isDark) Color(0xFFE2E8E4) else CharcoalPrimary,
+                            modifier = Modifier.padding(horizontal = 4.dp)
+                        )
+
+                        // Minutes Drum (00..59)
+                        WheelPickerColumn(
+                            rangeSize = 60,
+                            initialValue = initialMinute,
+                            modifier = Modifier.weight(1f),
+                            isDark = isDark,
+                            onValueChange = { selectedMinute = it }
+                        )
                     }
                 }
 
-                Spacer(modifier = Modifier.height(12.dp))
+                Spacer(modifier = Modifier.height(16.dp))
 
-                // Hours Picker (00..23)
-                Text(
-                    text = "Часы (00 - 23):",
-                    fontSize = 12.sp,
-                    fontWeight = FontWeight.Medium,
-                    color = OliveGreySecondary
-                )
-                Spacer(modifier = Modifier.height(6.dp))
-                Row(
-                    modifier = Modifier
-                        .fillMaxWidth()
-                        .horizontalScroll(rememberScrollState()),
-                    horizontalArrangement = Arrangement.spacedBy(6.dp)
-                ) {
-                    (0..23).forEach { h ->
-                        val isSel = selectedHour == h
-                        Box(
-                            modifier = Modifier
-                                .clip(CircleShape)
-                                .background(if (isSel) SageGreenPrimary else SandBeige)
-                                .clickable { selectedHour = h }
-                                .size(34.dp),
-                            contentAlignment = Alignment.Center
-                        ) {
-                            Text(
-                                text = String.format("%02d", h),
-                                fontSize = 12.sp,
-                                fontWeight = if (isSel) FontWeight.Bold else FontWeight.Normal,
-                                color = if (isSel) Color.White else CharcoalPrimary
-                            )
-                        }
-                    }
-                }
-
-                Spacer(modifier = Modifier.height(12.dp))
-
-                // Minutes Picker (00, 05, 10..55)
-                Text(
-                    text = "Минуты (шаг 5 мин):",
-                    fontSize = 12.sp,
-                    fontWeight = FontWeight.Medium,
-                    color = OliveGreySecondary
-                )
-                Spacer(modifier = Modifier.height(6.dp))
-                Row(
-                    modifier = Modifier
-                        .fillMaxWidth()
-                        .horizontalScroll(rememberScrollState()),
-                    horizontalArrangement = Arrangement.spacedBy(6.dp)
-                ) {
-                    minuteOptions.forEach { m ->
-                        val isSel = selectedMinute == m
-                        Box(
-                            modifier = Modifier
-                                .clip(CircleShape)
-                                .background(if (isSel) SageGreenPrimary else SandBeige)
-                                .clickable { selectedMinute = m }
-                                .size(34.dp),
-                            contentAlignment = Alignment.Center
-                        ) {
-                            Text(
-                                text = String.format("%02d", m),
-                                fontSize = 12.sp,
-                                fontWeight = if (isSel) FontWeight.Bold else FontWeight.Normal,
-                                color = if (isSel) Color.White else CharcoalPrimary
-                            )
-                        }
-                    }
-                }
-
-                Spacer(modifier = Modifier.height(20.dp))
-
-                // Action Buttons
+                // Action Buttons: Cancel and Select
                 Row(
                     modifier = Modifier.fillMaxWidth(),
                     horizontalArrangement = Arrangement.End,
@@ -317,6 +190,89 @@ fun KinologTimePickerDialog(
                         Text("Выбрать", color = Color.White, fontWeight = FontWeight.SemiBold)
                     }
                 }
+            }
+        }
+    }
+}
+
+@OptIn(ExperimentalFoundationApi::class)
+@Composable
+private fun WheelPickerColumn(
+    rangeSize: Int,
+    initialValue: Int,
+    modifier: Modifier = Modifier,
+    isDark: Boolean,
+    onValueChange: (Int) -> Unit
+) {
+    val coroutineScope = rememberCoroutineScope()
+    val itemHeight = 40.dp
+    val density = LocalDensity.current
+    val itemHeightPx = with(density) { itemHeight.toPx() }
+
+    // Position around middle of Int.MAX_VALUE for infinite two-way scrolling
+    val baseMultiplier = 100_000
+    val startIndex = (baseMultiplier * rangeSize) + (initialValue % rangeSize)
+    val listState = rememberLazyListState(initialFirstVisibleItemIndex = startIndex)
+    val snapFlingBehavior = rememberSnapFlingBehavior(lazyListState = listState)
+
+    // Center item index in the viewport (with vertical padding of 80dp on a 200dp column,
+    // firstVisibleItemIndex is the item snapped to the top of padded area = exactly center)
+    val centerIndex by remember {
+        derivedStateOf {
+            val firstVisible = listState.firstVisibleItemIndex
+            val scrollOffset = listState.firstVisibleItemScrollOffset
+            if (scrollOffset > itemHeightPx / 2f) firstVisible + 1 else firstVisible
+        }
+    }
+
+    LaunchedEffect(centerIndex) {
+        val currentValue = ((centerIndex % rangeSize) + rangeSize) % rangeSize
+        onValueChange(currentValue)
+    }
+
+    LazyColumn(
+        state = listState,
+        flingBehavior = snapFlingBehavior,
+        contentPadding = PaddingValues(vertical = 80.dp),
+        horizontalAlignment = Alignment.CenterHorizontally,
+        modifier = modifier.height(200.dp)
+    ) {
+        items(
+            count = Int.MAX_VALUE,
+            key = { it }
+        ) { index ->
+            val value = ((index % rangeSize) + rangeSize) % rangeSize
+            val distance = kotlin.math.abs(index - centerIndex)
+
+            val (alpha, fontSize) = when (distance) {
+                0 -> 1.0f to 24.sp
+                1 -> 0.50f to 18.sp
+                else -> 0.20f to 15.sp
+            }
+            val fontWeight = if (distance == 0) FontWeight.SemiBold else FontWeight.Normal
+            val textColor = if (distance == 0) {
+                if (isDark) Color(0xFFE2E8E4) else CharcoalPrimary
+            } else {
+                if (isDark) Color(0xFFA0ABA4) else OliveGreySecondary
+            }
+
+            Box(
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .height(itemHeight)
+                    .clickable {
+                        coroutineScope.launch {
+                            listState.animateScrollToItem(index)
+                        }
+                    },
+                contentAlignment = Alignment.Center
+            ) {
+                Text(
+                    text = String.format("%02d", value),
+                    fontSize = fontSize,
+                    fontWeight = fontWeight,
+                    color = textColor.copy(alpha = alpha)
+                )
             }
         }
     }
