@@ -58,6 +58,7 @@ import com.kinolog.walker.ui.MainViewModel
 import com.kinolog.walker.ui.components.AnimatedSegmentedControl
 import com.kinolog.walker.ui.components.GlassBox
 import com.kinolog.walker.ui.components.NavigationTab
+import com.kinolog.walker.ui.theme.LocalIsDarkTheme
 import com.kinolog.walker.ui.theme.CharcoalPrimary
 import com.kinolog.walker.ui.theme.DeepForest
 import com.kinolog.walker.ui.theme.OliveGreySecondary
@@ -73,6 +74,8 @@ fun SettingsBackupScreen(
     modifier: Modifier = Modifier
 ) {
     val context = LocalContext.current
+    val isDark = LocalIsDarkTheme.current
+    val earnedGreen = if (isDark) Color(0xFF81C784) else Color(0xFF2E7D32)
     val currentApiKey by viewModel.yandexApiKey.collectAsState()
     var apiKeyInput by remember(currentApiKey) { mutableStateOf(currentApiKey) }
 
@@ -325,7 +328,7 @@ fun SettingsBackupScreen(
                                     text = "$totalEarned ₽",
                                     fontSize = 18.sp,
                                     fontWeight = FontWeight.Bold,
-                                    color = Color(0xFF2E7D32)
+                                    color = earnedGreen
                                 )
                                 if (plannedEarned > totalEarned) {
                                     Text(
@@ -437,7 +440,7 @@ fun SettingsBackupScreen(
                                                 text = "$clientEarned ₽",
                                                 fontWeight = FontWeight.Bold,
                                                 fontSize = 13.sp,
-                                                color = Color(0xFF2E7D32)
+                                                color = earnedGreen
                                             )
                                             if (clientPlanned > clientEarned) {
                                                 Text(

@@ -123,6 +123,8 @@ import com.kinolog.walker.ui.theme.CharcoalPrimary
 import com.kinolog.walker.ui.theme.DangerRedBg
 import com.kinolog.walker.ui.theme.DangerRedText
 import com.kinolog.walker.ui.theme.DeepForest
+import com.kinolog.walker.ui.theme.GlassSurface
+import com.kinolog.walker.ui.theme.LocalIsDarkTheme
 import com.kinolog.walker.ui.theme.MintLight
 import com.kinolog.walker.ui.theme.OliveGreySecondary
 import com.kinolog.walker.ui.theme.PriceBadgeBg
@@ -451,6 +453,7 @@ fun ScheduleMapScreen(
     modifier: Modifier = Modifier
 ) {
     val context = LocalContext.current
+    val isDark = LocalIsDarkTheme.current
     val selectedDate by viewModel.selectedDate.collectAsState()
     val routingMode by viewModel.routingMode.collectAsState()
     val apiKey by viewModel.yandexApiKey.collectAsState()
@@ -517,7 +520,7 @@ fun ScheduleMapScreen(
                                         text = "• $totalEarned / $totalPlannedEarnings ₽",
                                         fontSize = 11.sp,
                                         fontWeight = FontWeight.SemiBold,
-                                        color = Color(0xFF2E7D32)
+                                        color = if (isDark) Color(0xFF81C784) else Color(0xFF2E7D32)
                                     )
                                 }
                             }
@@ -627,22 +630,46 @@ fun ScheduleMapScreen(
                                 )
     
                                 val isDone = walk.isCompleted
+
+                                val walkCardBg = when {
+                                    isDone && isDark -> Color(0xFF1A241E)
+                                    isDone && !isDark -> Color(0xFFEAEFEB).copy(alpha = 0.6f)
+                                    isDark -> Color(0xFF1E2620)
+                                    else -> GlassSurface
+                                }
+                                val walkCardAlpha = if (isDone && !isDark) 0.75f else 1.0f
+
+                                val walkPrimaryText = when {
+                                    isDone && isDark -> Color(0xFFE2E8E4)
+                                    isDone && !isDark -> OliveGreySecondary
+                                    else -> CharcoalPrimary
+                                }
+                                val walkSecondaryText = when {
+                                    isDone && isDark -> Color(0xFFBAC4BE)
+                                    else -> OliveGreySecondary
+                                }
+                                val walkDoneCheckTint = if (isDark) Color(0xFF81C784) else Color(0xFF2E7D32)
+                                val walkChipBg = if (isDone) (if (isDark) Color(0xFF23362A) else Color(0xFFD6DFD9).copy(alpha = 0.5f)) else walk.category.composeColor.copy(alpha = 0.16f)
+                                val walkChipText = if (isDone) (if (isDark) Color(0xFF81C784) else Color(0xFF2E7D32)) else walk.category.composeColor
+                                val walkPriceBg = if (isDone) (if (isDark) Color(0xFF23362A) else Color(0xFFD6DFD9).copy(alpha = 0.5f)) else PriceBadgeBg
+                                val walkPriceText = if (isDone) (if (isDark) Color(0xFF81C784) else OliveGreySecondary) else PriceBadgeText
+                                val walkLocationTint = if (isDone) (if (isDark) Color(0xFF81C784) else OliveGreySecondary) else SageGreenPrimary
     
                                 if (isCompactView) {
                                     // Narrow Compact Walk Card (~56dp height)
                                     Box(
                                         modifier = Modifier
                                             .fillMaxWidth()
-                                            .alpha(if (isDone) 0.65f else 1.0f)
+                                            .alpha(walkCardAlpha)
                                     ) {
                                         GlassBox(
                                             modifier = Modifier.fillMaxWidth(),
+                                            backgroundColor = walkCardBg,
                                             elevation = if (isDone) 1.dp else 2.dp
                                         ) {
                                             Column(
                                                 modifier = Modifier
                                                     .fillMaxWidth()
-                                                    .background(if (isDone) Color(0xFFEAEFEB).copy(alpha = 0.6f) else Color.Transparent)
                                                     .padding(horizontal = 12.dp, vertical = 6.dp)
                                             ) {
                                                 // Line 1: Time, Client, Pet, Price, and Checkbox
@@ -660,7 +687,7 @@ fun ScheduleMapScreen(
                                                             text = String.format("%02d:%02d-%02d:%02d", startHours, startMins, endHours, endMins),
                                                             fontSize = 12.sp,
                                                             fontWeight = FontWeight.Bold,
-                                                            color = if (isDone) OliveGreySecondary else CharcoalPrimary,
+                                                            color = walkPrimaryText,
                                                             textDecoration = if (isDone) TextDecoration.LineThrough else TextDecoration.None,
                                                             modifier = Modifier.align(Alignment.CenterVertically)
                                                         )
@@ -670,7 +697,7 @@ fun ScheduleMapScreen(
                                                                 text = client.fullName,
                                                                 fontWeight = FontWeight.SemiBold,
                                                                 fontSize = 13.sp,
-                                                                color = if (isDone) OliveGreySecondary else CharcoalPrimary,
+                                                                color = walkPrimaryText,
                                                                 textDecoration = if (isDone) TextDecoration.LineThrough else TextDecoration.None,
                                                                 modifier = Modifier.align(Alignment.CenterVertically)
                                                             )
@@ -680,7 +707,7 @@ fun ScheduleMapScreen(
                                                                 Text(
                                                                     text = "($petSummary)",
                                                                     fontSize = 11.sp,
-                                                                    color = OliveGreySecondary,
+                                                                    color = walkSecondaryText,
                                                                     modifier = Modifier.align(Alignment.CenterVertically)
                                                                 )
                                                             }
@@ -691,12 +718,12 @@ fun ScheduleMapScreen(
                                                                     modifier = Modifier
                                                                         .align(Alignment.CenterVertically)
                                                                         .clip(CircleShape)
-                                                                        .background(if (isDone) Color.LightGray.copy(alpha = 0.3f) else PriceBadgeBg)
+                                                                        .background(walkPriceBg)
                                                                         .padding(horizontal = 6.dp, vertical = 2.dp)
                                                                 ) {
                                                                     Text(
                                                                         text = "${walk.price} ₽",
-                                                                        color = if (isDone) OliveGreySecondary else PriceBadgeText,
+                                                                        color = walkPriceText,
                                                                         fontSize = 10.sp,
                                                                         fontWeight = FontWeight.Bold,
                                                                         maxLines = 1,
@@ -716,7 +743,7 @@ fun ScheduleMapScreen(
                                                         Icon(
                                                             imageVector = if (isDone) Icons.Rounded.CheckCircle else Icons.Rounded.RadioButtonUnchecked,
                                                             contentDescription = "Статус",
-                                                            tint = if (isDone) Color(0xFF2E7D32) else OliveGreySecondary,
+                                                            tint = if (isDone) walkDoneCheckTint else OliveGreySecondary,
                                                             modifier = Modifier.size(20.dp)
                                                         )
                                                     }
@@ -745,14 +772,14 @@ fun ScheduleMapScreen(
                                                             Icon(
                                                                 imageVector = Icons.Rounded.LocationOn,
                                                                 contentDescription = "Адрес",
-                                                                tint = if (isDone) OliveGreySecondary else SageGreenPrimary,
+                                                                tint = walkLocationTint,
                                                                 modifier = Modifier.size(12.dp)
                                                             )
                                                             Spacer(modifier = Modifier.width(3.dp))
                                                             Text(
                                                                 text = fullAddr,
                                                                 fontSize = 11.sp,
-                                                                color = if (isDone) OliveGreySecondary else CharcoalPrimary,
+                                                                color = walkPrimaryText,
                                                                 maxLines = 1,
                                                                 overflow = TextOverflow.Ellipsis
                                                             )
@@ -851,52 +878,49 @@ fun ScheduleMapScreen(
                                     }
                                 } else {
                                     // Standard Walk Card with Completed Visual Styling
-                                Box(
-                                    modifier = Modifier
-                                        .fillMaxWidth()
-                                        .alpha(if (isDone) 0.65f else 1.0f)
-                                ) {
-                                    GlassBox(
-                                        modifier = Modifier.fillMaxWidth(),
-                                        elevation = if (isDone) 1.dp else 3.dp
+                                    Box(
+                                        modifier = Modifier
+                                            .fillMaxWidth()
+                                            .alpha(walkCardAlpha)
                                     ) {
-                                        Column(
-                                            modifier = Modifier
-                                                .fillMaxWidth()
-                                                .background(if (isDone) Color(0xFFEAEFEB).copy(alpha = 0.6f) else Color.Transparent)
-                                                .padding(horizontal = 14.dp, vertical = 10.dp)
+                                        GlassBox(
+                                            modifier = Modifier.fillMaxWidth(),
+                                            backgroundColor = walkCardBg,
+                                            elevation = if (isDone) 1.dp else 3.dp
                                         ) {
-                                            // Line 1: Time badge, category chip, price, and checkbox
-                                            Row(
-                                                modifier = Modifier.fillMaxWidth(),
-                                                horizontalArrangement = Arrangement.SpaceBetween,
-                                                verticalAlignment = Alignment.CenterVertically
+                                            Column(
+                                                modifier = Modifier
+                                                    .fillMaxWidth()
+                                                    .padding(horizontal = 14.dp, vertical = 10.dp)
                                             ) {
+                                                // Line 1: Time badge, category chip, price, and checkbox
                                                 Row(
-                                                    modifier = Modifier.weight(1f, fill = false),
-                                                    verticalAlignment = Alignment.CenterVertically,
-                                                    horizontalArrangement = Arrangement.spacedBy(6.dp)
+                                                    modifier = Modifier.fillMaxWidth(),
+                                                    horizontalArrangement = Arrangement.SpaceBetween,
+                                                    verticalAlignment = Alignment.CenterVertically
                                                 ) {
-                                                    Text(
-                                                        text = timeFormatted,
-                                                        fontSize = 13.sp,
-                                                        fontWeight = FontWeight.Bold,
-                                                        color = if (isDone) OliveGreySecondary else CharcoalPrimary,
-                                                        textDecoration = if (isDone) TextDecoration.LineThrough else TextDecoration.None
-                                                    )
-    
-                                                    Box(
-                                                        modifier = Modifier
-                                                            .clip(CircleShape)
-                                                            .background(
-                                                                if (isDone) Color.LightGray.copy(alpha = 0.3f)
-                                                                else walk.category.composeColor.copy(alpha = 0.16f)
-                                                            )
-                                                            .padding(horizontal = 8.dp, vertical = 2.dp)
+                                                    Row(
+                                                        modifier = Modifier.weight(1f, fill = false),
+                                                        verticalAlignment = Alignment.CenterVertically,
+                                                        horizontalArrangement = Arrangement.spacedBy(6.dp)
                                                     ) {
                                                         Text(
-                                                            text = if (isDone) "✓ Выполнен" else walk.category.title,
-                                                            color = if (isDone) Color(0xFF2E7D32) else walk.category.composeColor,
+                                                            text = timeFormatted,
+                                                            fontSize = 13.sp,
+                                                            fontWeight = FontWeight.Bold,
+                                                            color = walkPrimaryText,
+                                                            textDecoration = if (isDone) TextDecoration.LineThrough else TextDecoration.None
+                                                        )
+
+                                                        Box(
+                                                            modifier = Modifier
+                                                                .clip(CircleShape)
+                                                                .background(walkChipBg)
+                                                                .padding(horizontal = 8.dp, vertical = 2.dp)
+                                                        ) {
+                                                            Text(
+                                                                text = if (isDone) "✓ Выполнен" else walk.category.title,
+                                                                color = walkChipText,
                                                             fontSize = 11.sp,
                                                             fontWeight = FontWeight.SemiBold,
                                                             maxLines = 1
@@ -911,7 +935,7 @@ fun ScheduleMapScreen(
                                                     Icon(
                                                         imageVector = if (isDone) Icons.Rounded.CheckCircle else Icons.Rounded.RadioButtonUnchecked,
                                                         contentDescription = "Статус",
-                                                        tint = if (isDone) Color(0xFF2E7D32) else OliveGreySecondary,
+                                                        tint = if (isDone) walkDoneCheckTint else OliveGreySecondary,
                                                         modifier = Modifier.size(24.dp)
                                                     )
                                                 }
@@ -925,7 +949,7 @@ fun ScheduleMapScreen(
                                                     text = client.fullName,
                                                     fontWeight = FontWeight.SemiBold,
                                                     fontSize = 14.sp,
-                                                    color = if (isDone) OliveGreySecondary else CharcoalPrimary,
+                                                    color = walkPrimaryText,
                                                     textDecoration = if (isDone) TextDecoration.LineThrough else TextDecoration.None,
                                                     maxLines = 1,
                                                     overflow = TextOverflow.Ellipsis
@@ -959,16 +983,13 @@ fun ScheduleMapScreen(
                                                                     modifier = Modifier
                                                                         .align(Alignment.CenterVertically)
                                                                         .clip(CircleShape)
-                                                                        .background(
-                                                                            if (isDone) Color.LightGray.copy(alpha = 0.3f)
-                                                                            else PriceBadgeBg
-                                                                        )
+                                                                        .background(walkPriceBg)
                                                                         .padding(horizontal = 8.dp, vertical = 3.dp),
                                                                     contentAlignment = Alignment.Center
                                                                 ) {
                                                                     Text(
                                                                         text = "${walk.price} ₽",
-                                                                        color = if (isDone) OliveGreySecondary else PriceBadgeText,
+                                                                        color = walkPriceText,
                                                                         fontSize = 11.sp,
                                                                         fontWeight = FontWeight.Bold
                                                                     )
@@ -994,14 +1015,14 @@ fun ScheduleMapScreen(
                                                     Icon(
                                                         imageVector = Icons.Rounded.LocationOn,
                                                         contentDescription = "Адрес",
-                                                        tint = if (isDone) OliveGreySecondary else SageGreenPrimary,
+                                                        tint = walkLocationTint,
                                                         modifier = Modifier.size(14.dp)
                                                     )
                                                     Spacer(modifier = Modifier.width(4.dp))
                                                     Text(
                                                         text = fullAddr,
                                                         fontSize = 12.sp,
-                                                        color = if (isDone) OliveGreySecondary else CharcoalPrimary,
+                                                        color = walkPrimaryText,
                                                         maxLines = 2,
                                                         overflow = TextOverflow.Ellipsis
                                                     )
@@ -1012,7 +1033,7 @@ fun ScheduleMapScreen(
                                                     Text(
                                                         text = "Заметка: ${walk.walkComment}",
                                                         fontSize = 11.sp,
-                                                        color = OliveGreySecondary,
+                                                        color = walkSecondaryText,
                                                         maxLines = 1,
                                                         overflow = TextOverflow.Ellipsis
                                                     )
@@ -1595,6 +1616,7 @@ fun WalkFormDialog(
     ) -> Unit
 ) {
     val context = LocalContext.current
+    val isDark = LocalIsDarkTheme.current
     val json = remember { Json { ignoreUnknownKeys = true } }
 
     var selectedClientId by remember {

@@ -87,8 +87,12 @@ import androidx.compose.ui.graphics.drawscope.Stroke
 import androidx.compose.ui.layout.onGloballyPositioned
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.text.AnnotatedString
+import androidx.compose.ui.text.SpanStyle
 import androidx.compose.ui.text.TextStyle
+import androidx.compose.ui.text.buildAnnotatedString
 import androidx.compose.ui.text.font.FontWeight
+import androidx.compose.ui.text.withStyle
+import com.kinolog.walker.ui.theme.LocalIsDarkTheme
 import androidx.compose.ui.text.input.KeyboardType
 import androidx.compose.ui.text.input.OffsetMapping
 import androidx.compose.ui.text.input.TransformedText
@@ -1179,7 +1183,9 @@ fun ClientFormDialog(
                         viewModel.onAddressQueryChanged(newValue)
                     },
                     label = { Text("Город, улица, дом") },
-                    singleLine = true,
+                    singleLine = false,
+                    minLines = 1,
+                    maxLines = 3,
                     trailingIcon = {
                         if (isSearchingAddress) {
                             CircularProgressIndicator(
@@ -1199,15 +1205,46 @@ fun ClientFormDialog(
                     modifier = Modifier.fillMaxWidth()
                 )
 
+                if (selectedLat != null && selectedLon != null && addressStreet.isNotBlank()) {
+                    Spacer(modifier = Modifier.height(4.dp))
+                    Row(
+                        verticalAlignment = Alignment.CenterVertically,
+                        modifier = Modifier.padding(horizontal = 4.dp)
+                    ) {
+                        Icon(
+                            imageVector = Icons.Rounded.CheckCircle,
+                            contentDescription = null,
+                            tint = Color(0xFF4E9E76),
+                            modifier = Modifier.size(15.dp)
+                        )
+                        Spacer(modifier = Modifier.width(5.dp))
+                        val cleanDisplay = addressStreet.removePrefix("Санкт-Петербург, ").trim()
+                        Text(
+                            text = "✓ Точный адрес выбран: $cleanDisplay",
+                            color = Color(0xFF4E9E76),
+                            fontSize = 12.sp,
+                            fontWeight = FontWeight.Medium,
+                            maxLines = 2,
+                            overflow = TextOverflow.Ellipsis
+                        )
+                    }
+                }
+
                 if (addressSuggestions.isNotEmpty()) {
+                    val isDark = LocalIsDarkTheme.current
+                    val dropContainerColor = if (isDark) Color(0xFF232D26) else Color.White
+                    val dropBorderColor = if (isDark) Color(0xFF4C7A5B) else SageGreenPrimary.copy(alpha = 0.35f)
+                    val dropTextColor = if (isDark) Color.White else Color(0xFF1B1B1B)
+                    val dropDividerColor = if (isDark) Color(0xFF334237) else DividerMuted.copy(alpha = 0.5f)
+
                     Card(
                         modifier = Modifier
                             .fillMaxWidth()
                             .padding(top = 4.dp)
                             .heightIn(max = 240.dp),
                         shape = RoundedCornerShape(14.dp),
-                        colors = CardDefaults.cardColors(containerColor = Color.White),
-                        border = BorderStroke(1.dp, SageGreenPrimary.copy(alpha = 0.35f)),
+                        colors = CardDefaults.cardColors(containerColor = dropContainerColor),
+                        border = BorderStroke(1.dp, dropBorderColor),
                         elevation = CardDefaults.cardElevation(defaultElevation = 6.dp)
                     ) {
                         Column(
@@ -1217,7 +1254,22 @@ fun ClientFormDialog(
                                 .padding(vertical = 4.dp)
                         ) {
                             addressSuggestions.forEachIndexed { index, suggestion ->
-                                Column(
+                                val full = suggestion.fullAddress
+                                val spbPrefix = "Санкт-Петербург, "
+                                val annotatedAddress = buildAnnotatedString {
+                                    if (full.startsWith(spbPrefix, ignoreCase = true)) {
+                                        append(spbPrefix)
+                                        withStyle(style = SpanStyle(fontWeight = FontWeight.SemiBold)) {
+                                            append(full.substring(spbPrefix.length))
+                                        }
+                                    } else {
+                                        withStyle(style = SpanStyle(fontWeight = FontWeight.SemiBold)) {
+                                            append(full)
+                                        }
+                                    }
+                                }
+
+                                Box(
                                     modifier = Modifier
                                         .fillMaxWidth()
                                         .clickable {
@@ -1226,41 +1278,20 @@ fun ClientFormDialog(
                                             selectedLon = suggestion.lon
                                             viewModel.clearAddressSuggestions()
                                         }
-                                        .padding(horizontal = 14.dp, vertical = 9.dp)
+                                        .padding(horizontal = 14.dp, vertical = 10.dp)
                                 ) {
-                                    Row(
-                                        verticalAlignment = Alignment.CenterVertically
-                                    ) {
-                                        Icon(
-                                            imageVector = Icons.Rounded.LocationOn,
-                                            contentDescription = null,
-                                            tint = SageGreenPrimary,
-                                            modifier = Modifier.size(16.dp)
-                                        )
-                                        Spacer(modifier = Modifier.width(8.dp))
-                                        Text(
-                                            text = suggestion.fullAddress,
-                                            fontSize = 14.sp,
-                                            fontWeight = FontWeight.Medium,
-                                            color = CharcoalPrimary,
-                                            maxLines = 1,
-                                            overflow = TextOverflow.Ellipsis
-                                        )
-                                    }
-                                    if (suggestion.subtitle.isNotBlank() && suggestion.subtitle != suggestion.fullAddress) {
-                                        Text(
-                                            text = suggestion.subtitle,
-                                            fontSize = 12.sp,
-                                            color = OliveGreySecondary,
-                                            modifier = Modifier.padding(start = 24.dp, top = 2.dp),
-                                            maxLines = 1,
-                                            overflow = TextOverflow.Ellipsis
-                                        )
-                                    }
+                                    Text(
+                                        text = annotatedAddress,
+                                        fontSize = 14.sp,
+                                        color = dropTextColor,
+                                        maxLines = 2,
+                                        overflow = TextOverflow.Ellipsis,
+                                        lineHeight = 18.sp
+                                    )
                                 }
                                 if (index < addressSuggestions.lastIndex) {
                                     HorizontalDivider(
-                                        color = DividerMuted.copy(alpha = 0.5f),
+                                        color = dropDividerColor,
                                         thickness = 0.5.dp,
                                         modifier = Modifier.padding(horizontal = 12.dp)
                                     )
