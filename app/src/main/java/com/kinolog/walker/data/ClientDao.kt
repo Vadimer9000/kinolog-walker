@@ -23,7 +23,7 @@ interface ClientDao {
     @Query("SELECT * FROM clients WHERE id = :id LIMIT 1")
     suspend fun getClientByIdSync(id: Long): ClientEntity?
 
-    @Query("SELECT * FROM clients WHERE fullName LIKE '%' || :query || '%' OR phone LIKE '%' || :query || '%' OR addressStreet LIKE '%' || :query || '%' ORDER BY fullName ASC")
+    @Query("SELECT * FROM clients WHERE fullName LIKE '%' || :query || '%' OR phone LIKE '%' || :query || '%' OR addressStreet LIKE '%' || :query || '%' OR petsJson LIKE '%' || :query || '%' ORDER BY fullName ASC")
     fun searchClients(query: String): Flow<List<ClientEntity>>
 
     @Insert(onConflict = OnConflictStrategy.REPLACE)

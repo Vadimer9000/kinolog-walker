@@ -5,12 +5,14 @@ import android.net.Uri
 import androidx.core.content.FileProvider
 import com.kinolog.walker.model.BackupData
 import com.kinolog.walker.model.ClientEntity
+import com.kinolog.walker.model.PetItem
 import com.kinolog.walker.model.WalkEventEntity
 import com.kinolog.walker.util.GeocoderHelper
 import com.kinolog.walker.util.PreferencesManager
 import com.kinolog.walker.worker.WalkNotificationWorker
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.flow.Flow
+import kotlinx.coroutines.flow.map
 import kotlinx.coroutines.withContext
 import kotlinx.serialization.encodeToString
 import kotlinx.serialization.json.Json
@@ -35,10 +37,25 @@ class KinologRepository(
     val allWalks: Flow<List<WalkEventEntity>> = walkEventDao.getAllWalks()
 
     fun searchClients(query: String): Flow<List<ClientEntity>> {
-        return if (query.isBlank()) {
-            clientDao.getAllClients()
-        } else {
-            clientDao.searchClients(query.trim())
+        val q = query.trim()
+        if (q.isBlank()) {
+            return clientDao.getAllClients()
+        }
+        return clientDao.getAllClients().map { list ->
+            list.filter { client ->
+                client.fullName.contains(q, ignoreCase = true) ||
+                client.phone.contains(q, ignoreCase = true) ||
+                client.addressStreet.contains(q, ignoreCase = true) ||
+                try {
+                    val pets = json.decodeFromString<List<PetItem>>(client.petsJson)
+                    pets.any { pet ->
+                        pet.name.contains(q, ignoreCase = true) ||
+                        pet.breedOrDetails.contains(q, ignoreCase = true)
+                    }
+                } catch (e: Exception) {
+                    client.petsJson.contains(q, ignoreCase = true)
+                }
+            }
         }
     }
 

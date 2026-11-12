@@ -20,7 +20,20 @@ class PreferencesManager(context: Context) {
         private const val KEY_THEME_MODE = "theme_mode"
         private const val KEY_IS_MAP_ENABLED = "is_map_enabled"
         private const val KEY_GEOCODING_VERSION = "geocoding_version"
+        private const val KEY_PRICE_PRESETS = "price_presets"
+        val DEFAULT_PRICE_PRESETS = listOf(500, 800, 1000, 1500)
     }
+
+    var pricePresets: List<Int>
+        get() {
+            val raw = prefs.getString(KEY_PRICE_PRESETS, null) ?: return DEFAULT_PRICE_PRESETS
+            val list = raw.split(",").mapNotNull { it.trim().toIntOrNull() }.filter { it > 0 }
+            return if (list.isNotEmpty()) list else DEFAULT_PRICE_PRESETS
+        }
+        set(value) {
+            val str = value.filter { it > 0 }.joinToString(",")
+            prefs.edit().putString(KEY_PRICE_PRESETS, str).apply()
+        }
 
     var geocodingVersion: Int
         get() = prefs.getInt(KEY_GEOCODING_VERSION, 0)

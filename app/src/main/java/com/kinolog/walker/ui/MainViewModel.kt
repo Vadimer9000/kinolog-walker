@@ -85,6 +85,17 @@ class MainViewModel(application: Application) : AndroidViewModel(application) {
         _isMapEnabled.value = enabled
     }
 
+    // Quick Price Presets
+    private val _pricePresets = MutableStateFlow(prefs.pricePresets)
+    val pricePresets: StateFlow<List<Int>> = _pricePresets.asStateFlow()
+
+    fun setPricePresets(presets: List<Int>) {
+        val clean = presets.filter { it > 0 }.distinct()
+        val finalPresets = if (clean.isNotEmpty()) clean else PreferencesManager.DEFAULT_PRICE_PRESETS
+        prefs.pricePresets = finalPresets
+        _pricePresets.value = finalPresets
+    }
+
     // Client search query
     private val _searchQuery = MutableStateFlow("")
     val searchQuery: StateFlow<String> = _searchQuery.asStateFlow()

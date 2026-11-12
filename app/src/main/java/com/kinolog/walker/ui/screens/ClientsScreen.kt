@@ -186,7 +186,7 @@ fun ClientsScreen(
                     OutlinedTextField(
                         value = searchQuery,
                         onValueChange = { viewModel.setSearchQuery(it) },
-                        placeholder = { Text("Поиск по имени, телефону, адресу...", fontSize = 13.sp) },
+                        placeholder = { Text("Поиск по имени, кличке питомца, адресу...", fontSize = 13.sp) },
                         modifier = Modifier.weight(1f),
                         singleLine = true,
                         colors = OutlinedTextFieldDefaults.colors(

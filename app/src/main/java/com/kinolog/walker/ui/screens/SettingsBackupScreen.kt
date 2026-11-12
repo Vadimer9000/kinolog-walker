@@ -29,6 +29,7 @@ import androidx.compose.material.icons.rounded.FileUpload
 import androidx.compose.material.icons.rounded.Key
 import androidx.compose.material.icons.rounded.Map
 import androidx.compose.material.icons.rounded.Palette
+import androidx.compose.material.icons.rounded.Payments
 import androidx.compose.material.icons.rounded.Save
 import androidx.compose.material.icons.rounded.Send
 import androidx.compose.material.icons.rounded.Shield
@@ -38,6 +39,7 @@ import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
 import androidx.compose.material3.OutlinedTextField
 import androidx.compose.material3.Text
+import androidx.compose.material3.TextButton
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.getValue
@@ -62,9 +64,12 @@ import com.kinolog.walker.ui.theme.LocalIsDarkTheme
 import com.kinolog.walker.ui.theme.CharcoalPrimary
 import com.kinolog.walker.ui.theme.DeepForest
 import com.kinolog.walker.ui.theme.OliveGreySecondary
+import com.kinolog.walker.ui.theme.PriceBadgeBg
+import com.kinolog.walker.ui.theme.PriceBadgeText
 import com.kinolog.walker.ui.theme.SageGreenPrimary
 import com.kinolog.walker.ui.theme.SandBeige
 import com.kinolog.walker.ui.theme.SoftMint
+import com.kinolog.walker.util.PreferencesManager
 import com.kinolog.walker.util.ThemeMode
 import java.time.LocalDate
 
@@ -83,6 +88,10 @@ fun SettingsBackupScreen(
     val allWalks by viewModel.allWalks.collectAsState()
     val themeMode by viewModel.themeMode.collectAsState()
     val isMapEnabled by viewModel.isMapEnabled.collectAsState()
+    val currentPricePresets by viewModel.pricePresets.collectAsState()
+    var pricePresetsInput by remember(currentPricePresets) {
+        mutableStateOf(currentPricePresets.joinToString(", "))
+    }
 
     // Import file launcher
     val openDocumentLauncher = rememberLauncherForActivityResult(
@@ -232,6 +241,111 @@ fun SettingsBackupScreen(
                         modifier = Modifier.fillMaxWidth(),
                         height = 40.dp
                     )
+                }
+            }
+
+            Spacer(modifier = Modifier.height(16.dp))
+
+            // Section: Quick Price Presets
+            GlassBox(
+                modifier = Modifier.fillMaxWidth(),
+                elevation = 4.dp
+            ) {
+                Column(
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .padding(16.dp)
+                ) {
+                    Row(verticalAlignment = Alignment.CenterVertically) {
+                        Icon(Icons.Rounded.Payments, contentDescription = null, tint = SageGreenPrimary)
+                        Spacer(modifier = Modifier.width(8.dp))
+                        Text(
+                            text = "Быстрые цены (шаблоны стоимости)",
+                            fontWeight = FontWeight.SemiBold,
+                            fontSize = 16.sp,
+                            color = CharcoalPrimary
+                        )
+                    }
+
+                    Spacer(modifier = Modifier.height(4.dp))
+
+                    Text(
+                        text = "Чипы для быстрого выбора стоимости в форме записи. Укажите суммы через запятую:",
+                        fontSize = 12.sp,
+                        color = OliveGreySecondary
+                    )
+
+                    Spacer(modifier = Modifier.height(10.dp))
+
+                    OutlinedTextField(
+                        value = pricePresetsInput,
+                        onValueChange = { pricePresetsInput = it },
+                        label = { Text("Суммы в рублях (через запятую)") },
+                        placeholder = { Text("500, 800, 1000, 1500") },
+                        singleLine = true,
+                        modifier = Modifier.fillMaxWidth()
+                    )
+
+                    Spacer(modifier = Modifier.height(8.dp))
+
+                    val previewList = pricePresetsInput
+                        .split(",")
+                        .mapNotNull { it.trim().toIntOrNull() }
+                        .filter { it > 0 }
+
+                    if (previewList.isNotEmpty()) {
+                        Row(
+                            modifier = Modifier.fillMaxWidth(),
+                            horizontalArrangement = Arrangement.spacedBy(6.dp),
+                            verticalAlignment = Alignment.CenterVertically
+                        ) {
+                            Text("Превью:", fontSize = 11.sp, color = OliveGreySecondary)
+                            previewList.forEach { p ->
+                                Box(
+                                    modifier = Modifier
+                                        .clip(RoundedCornerShape(8.dp))
+                                        .background(PriceBadgeBg)
+                                        .padding(horizontal = 8.dp, vertical = 3.dp)
+                                ) {
+                                    Text(
+                                        text = "$p ₽",
+                                        fontSize = 11.sp,
+                                        fontWeight = FontWeight.Bold,
+                                        color = PriceBadgeText
+                                    )
+                                }
+                            }
+                        }
+                        Spacer(modifier = Modifier.height(10.dp))
+                    }
+
+                    Row(
+                        modifier = Modifier.fillMaxWidth(),
+                        horizontalArrangement = Arrangement.SpaceBetween,
+                        verticalAlignment = Alignment.CenterVertically
+                    ) {
+                        TextButton(
+                            onClick = {
+                                val def = PreferencesManager.DEFAULT_PRICE_PRESETS
+                                pricePresetsInput = def.joinToString(", ")
+                                viewModel.setPricePresets(def)
+                            }
+                        ) {
+                            Text("Сбросить", color = OliveGreySecondary, fontSize = 12.sp)
+                        }
+
+                        Button(
+                            onClick = {
+                                if (previewList.isNotEmpty()) {
+                                    viewModel.setPricePresets(previewList)
+                                }
+                            },
+                            colors = ButtonDefaults.buttonColors(containerColor = SageGreenPrimary),
+                            shape = RoundedCornerShape(12.dp)
+                        ) {
+                            Text("Сохранить цены", color = Color.White, fontSize = 13.sp)
+                        }
+                    }
                 }
             }
 

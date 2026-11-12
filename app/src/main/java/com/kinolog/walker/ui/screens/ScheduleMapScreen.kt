@@ -1,7 +1,6 @@
 package com.kinolog.walker.ui.screens
 
 import android.app.DatePickerDialog
-import android.app.TimePickerDialog
 import androidx.compose.animation.AnimatedVisibility
 import androidx.compose.animation.core.animateDpAsState
 import androidx.compose.animation.core.spring
@@ -114,6 +113,7 @@ import com.kinolog.walker.model.WalkEventEntity
 import com.kinolog.walker.ui.MainViewModel
 import com.kinolog.walker.ui.components.AnimatedSegmentedControl
 import com.kinolog.walker.ui.components.GlassBox
+import com.kinolog.walker.ui.components.KinologTimePickerDialog
 import com.kinolog.walker.ui.components.NavigationTab
 import com.kinolog.walker.ui.components.PetTag
 import com.kinolog.walker.ui.components.TransportSlider
@@ -1459,6 +1459,7 @@ fun ScheduleMapScreen(
     // Add or Edit Walk Dialog
     if (showWalkFormDialog) {
         WalkFormDialog(
+            viewModel = viewModel,
             clients = clients,
             initialDate = selectedDate,
             walkToEdit = walkToEdit,
@@ -1593,9 +1594,40 @@ fun ScheduleMapScreen(
     }
 }
 
-@OptIn(ExperimentalMaterial3Api::class)
+private data class CategoryFormLabels(
+    val dialogTitle: String,
+    val dateLabel: String,
+    val priceLabel: String,
+    val commentLabel: String
+)
+
+private fun getCategoryFormLabels(category: WalkCategory, isEdit: Boolean): CategoryFormLabels {
+    return when (category) {
+        WalkCategory.REGULAR_WALK -> CategoryFormLabels(
+            dialogTitle = if (isEdit) "Редактировать выгул" else "Запланировать выгул",
+            dateLabel = "Дата выгула",
+            priceLabel = "Стоимость выгула (₽)",
+            commentLabel = "Заметка к выгулу (что отработать, самочувствие)"
+        )
+        WalkCategory.CANINE_TRAINING, WalkCategory.BEHAVIOR_CORRECTION -> CategoryFormLabels(
+            dialogTitle = if (isEdit) "Редактировать занятие" else "Запланировать занятие",
+            dateLabel = "Дата занятия",
+            priceLabel = "Стоимость занятия (₽)",
+            commentLabel = "Заметка к занятию (цель, прогресс, ДЗ)"
+        )
+        WalkCategory.PET_SITTING -> CategoryFormLabels(
+            dialogTitle = if (isEdit) "Редактировать визит / передержку" else "Запланировать визит",
+            dateLabel = "Дата визита / передержки",
+            priceLabel = "Стоимость услуги (₽)",
+            commentLabel = "Заметка к визиту (кормление, уход)"
+        )
+    }
+}
+
+@OptIn(ExperimentalMaterial3Api::class, ExperimentalLayoutApi::class)
 @Composable
 fun WalkFormDialog(
+    viewModel: MainViewModel,
     clients: List<ClientEntity>,
     initialDate: LocalDate,
     walkToEdit: WalkEventEntity? = null,
@@ -1618,12 +1650,16 @@ fun WalkFormDialog(
     val context = LocalContext.current
     val isDark = LocalIsDarkTheme.current
     val json = remember { Json { ignoreUnknownKeys = true } }
+    val pricePresets by viewModel.pricePresets.collectAsState()
 
     var selectedClientId by remember {
         mutableStateOf(walkToEdit?.clientId ?: clients.firstOrNull()?.id ?: 0L)
     }
     var selectedCategory by remember {
         mutableStateOf(walkToEdit?.category ?: WalkCategory.REGULAR_WALK)
+    }
+    val formLabels = remember(selectedCategory, walkToEdit) {
+        getCategoryFormLabels(selectedCategory, walkToEdit != null)
     }
     var walkDate by remember {
         mutableStateOf(
@@ -1633,6 +1669,7 @@ fun WalkFormDialog(
     var startTimeMinutes by remember {
         mutableIntStateOf(walkToEdit?.startTimeMinutes ?: (19 * 60))
     }
+    var showTimePicker by remember { mutableStateOf(false) }
     var durationMinutes by remember {
         mutableIntStateOf(walkToEdit?.durationMinutes ?: 45)
     }
@@ -1683,7 +1720,7 @@ fun WalkFormDialog(
                     .padding(20.dp)
             ) {
                 Text(
-                    text = if (walkToEdit != null) "Редактировать выгул" else "Запланировать выгул",
+                    text = formLabels.dialogTitle,
                     fontSize = 20.sp,
                     fontWeight = FontWeight.Bold,
                     color = CharcoalPrimary
@@ -1757,7 +1794,7 @@ fun WalkFormDialog(
                 Spacer(modifier = Modifier.height(12.dp))
 
                 // Walk Date Selector with overlay for 100% reliable tap
-                Text("Дата выгула:", fontSize = 13.sp, fontWeight = FontWeight.Medium)
+                Text("${formLabels.dateLabel}:", fontSize = 13.sp, fontWeight = FontWeight.Medium)
                 Spacer(modifier = Modifier.height(4.dp))
                 val dateFormatted = walkDate.format(DateTimeFormatter.ofPattern("EEEE, d MMMM yyyy", Locale("ru")))
                 Box(modifier = Modifier.fillMaxWidth()) {
@@ -1787,8 +1824,8 @@ fun WalkFormDialog(
 
                 Spacer(modifier = Modifier.height(12.dp))
 
-                // Walk Category Selector
-                Text("Категория выгула:", fontSize = 13.sp, fontWeight = FontWeight.Medium)
+                // Service Type / Category Selector
+                Text("Тип услуги:", fontSize = 13.sp, fontWeight = FontWeight.Medium)
                 Spacer(modifier = Modifier.height(6.dp))
 
                 WalkCategory.entries.chunked(2).forEach { rowCategories ->
@@ -1847,15 +1884,7 @@ fun WalkFormDialog(
                         Box(
                             modifier = Modifier
                                 .matchParentSize()
-                                .clickable {
-                                    TimePickerDialog(
-                                        context,
-                                        { _, h, m -> startTimeMinutes = h * 60 + m },
-                                        hours,
-                                        mins,
-                                        true
-                                    ).show()
-                                }
+                                .clickable { showTimePicker = true }
                         )
                     }
 
@@ -1902,10 +1931,22 @@ fun WalkFormDialog(
                     }
                 }
 
+                if (showTimePicker) {
+                    KinologTimePickerDialog(
+                        initialHour = startTimeMinutes / 60,
+                        initialMinute = startTimeMinutes % 60,
+                        onDismiss = { showTimePicker = false },
+                        onTimeSelected = { h, m ->
+                            startTimeMinutes = h * 60 + m
+                            showTimePicker = false
+                        }
+                    )
+                }
+
                 Spacer(modifier = Modifier.height(12.dp))
 
                 // Price Field with Quick Preset Chips
-                Text("Стоимость выгула:", fontSize = 13.sp, fontWeight = FontWeight.Medium)
+                Text("${formLabels.priceLabel}:", fontSize = 13.sp, fontWeight = FontWeight.Medium)
                 Spacer(modifier = Modifier.height(4.dp))
                 OutlinedTextField(
                     value = priceInput,
@@ -1914,19 +1955,20 @@ fun WalkFormDialog(
                         priceInput = digits
                         price = digits.toIntOrNull() ?: 0
                     },
-                    label = { Text("Стоимость (руб.)") },
+                    label = { Text(formLabels.priceLabel) },
                     leadingIcon = { Icon(Icons.Rounded.Payments, contentDescription = null, tint = SageGreenPrimary) },
                     keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Number),
                     singleLine = true,
                     modifier = Modifier.fillMaxWidth()
                 )
 
-                Spacer(modifier = Modifier.height(4.dp))
-                Row(
+                Spacer(modifier = Modifier.height(6.dp))
+                FlowRow(
                     modifier = Modifier.fillMaxWidth(),
-                    horizontalArrangement = Arrangement.spacedBy(6.dp)
+                    horizontalArrangement = Arrangement.spacedBy(6.dp),
+                    verticalArrangement = Arrangement.spacedBy(4.dp)
                 ) {
-                    listOf(300, 500, 800, 1000, 1500).forEach { presetPrice ->
+                    pricePresets.forEach { presetPrice ->
                         val isSel = price == presetPrice
                         Box(
                             modifier = Modifier
@@ -1936,7 +1978,7 @@ fun WalkFormDialog(
                                     price = presetPrice
                                     priceInput = presetPrice.toString()
                                 }
-                                .padding(horizontal = 10.dp, vertical = 4.dp)
+                                .padding(horizontal = 10.dp, vertical = 5.dp)
                         ) {
                             Text(
                                 text = "$presetPrice ₽",
@@ -2050,7 +2092,7 @@ fun WalkFormDialog(
                 OutlinedTextField(
                     value = walkComment,
                     onValueChange = { walkComment = it },
-                    label = { Text("Заметка к выгулу (что отработать, самочувствие)") },
+                    label = { Text(formLabels.commentLabel) },
                     maxLines = 3,
                     modifier = Modifier.fillMaxWidth()
                 )
