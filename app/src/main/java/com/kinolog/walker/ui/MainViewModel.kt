@@ -306,7 +306,21 @@ class MainViewModel(application: Application) : AndroidViewModel(application) {
 
     fun toggleWalkCompletion(walk: WalkEventEntity) {
         viewModelScope.launch {
-            repository.updateWalk(walk.copy(isCompleted = !walk.isCompleted))
+            try {
+                val newCompleted = !walk.isCompleted
+                val updated = walk.copy(isCompleted = newCompleted)
+                repository.updateWalk(updated)
+                try {
+                    if (newCompleted) {
+                        NotificationHelper.cancelReminder(getApplication(), walk.id)
+                    } else {
+                        val client = clientsMap.value[walk.clientId] ?: repository.getClientSync(walk.clientId)
+                        if (client != null) {
+                            NotificationHelper.scheduleReminder(getApplication(), client, updated)
+                        }
+                    }
+                } catch (_: Exception) {}
+            } catch (_: Exception) {}
         }
     }
 
@@ -385,7 +399,18 @@ class MainViewModel(application: Application) : AndroidViewModel(application) {
                         walkComment = walkComment.trim(),
                         isCompleted = false
                     )
-                    repository.saveWalk(walk)
+                    val insertedId = repository.saveWalk(walk)
+                    val savedWalk = walk.copy(id = insertedId)
+                    try {
+                        if (savedWalk.isCompleted) {
+                            NotificationHelper.cancelReminder(getApplication(), savedWalk.id)
+                        } else {
+                            val client = clientsMap.value[clientId] ?: repository.getClientSync(clientId)
+                            if (client != null) {
+                                NotificationHelper.scheduleReminder(getApplication(), client, savedWalk)
+                            }
+                        }
+                    } catch (_: Exception) {}
                 } else {
                     val seriesId = UUID.randomUUID().toString()
                     val walksToCreate = mutableListOf<WalkEventEntity>()
@@ -413,6 +438,9 @@ class MainViewModel(application: Application) : AndroidViewModel(application) {
                         walks = walksToCreate,
                         isInfiniteRecurrence = (recurrenceEndDate == null)
                     )
+                    try {
+                        NotificationHelper.rescheduleAllReminders(getApplication())
+                    } catch (_: Exception) {}
                 }
             } catch (_: Exception) {}
             onDone()
@@ -423,6 +451,16 @@ class MainViewModel(application: Application) : AndroidViewModel(application) {
         viewModelScope.launch {
             try {
                 repository.updateWalk(walk)
+                try {
+                    if (walk.isCompleted) {
+                        NotificationHelper.cancelReminder(getApplication(), walk.id)
+                    } else {
+                        val client = clientsMap.value[walk.clientId] ?: repository.getClientSync(walk.clientId)
+                        if (client != null) {
+                            NotificationHelper.scheduleReminder(getApplication(), client, walk)
+                        }
+                    }
+                } catch (_: Exception) {}
             } catch (_: Exception) {}
             onDone()
         }
@@ -440,11 +478,26 @@ class MainViewModel(application: Application) : AndroidViewModel(application) {
                         seriesId = walk.seriesId,
                         startTimeMinutes = walk.startTimeMinutes,
                         durationMinutes = walk.durationMinutes,
-                        price = walk.price
+                        price = walk.price,
+                        category = walk.category,
+                        walkComment = walk.walkComment
                     )
                     repository.updateWalk(walk)
+                    try {
+                        NotificationHelper.rescheduleAllReminders(getApplication())
+                    } catch (_: Exception) {}
                 } else {
                     repository.updateWalk(walk)
+                    try {
+                        if (walk.isCompleted) {
+                            NotificationHelper.cancelReminder(getApplication(), walk.id)
+                        } else {
+                            val client = clientsMap.value[walk.clientId] ?: repository.getClientSync(walk.clientId)
+                            if (client != null) {
+                                NotificationHelper.scheduleReminder(getApplication(), client, walk)
+                            }
+                        }
+                    } catch (_: Exception) {}
                 }
             } catch (_: Exception) {}
             onDone()
@@ -456,8 +509,15 @@ class MainViewModel(application: Application) : AndroidViewModel(application) {
             try {
                 if (deleteEntireSeries && !walk.seriesId.isNullOrBlank()) {
                     repository.deleteWalkSeries(walk.seriesId, fromEpochDay = walk.dateEpochDay)
+                    try {
+                        NotificationHelper.cancelReminder(getApplication(), walk.id)
+                        NotificationHelper.rescheduleAllReminders(getApplication())
+                    } catch (_: Exception) {}
                 } else {
                     repository.deleteWalk(walk.id)
+                    try {
+                        NotificationHelper.cancelReminder(getApplication(), walk.id)
+                    } catch (_: Exception) {}
                 }
             } catch (_: Exception) {}
         }
@@ -468,12 +528,23 @@ class MainViewModel(application: Application) : AndroidViewModel(application) {
         val sortedWalks = walks.sortedBy { it.startTimeMinutes }
         val map = clientsMap.value
         val points = mutableListOf<Pair<Double, Double>>()
+        var missingCoordsCount = 0
 
         for (w in sortedWalks) {
-            val c = map[w.clientId] ?: continue
-            if (c.latitude != null && c.longitude != null) {
+            val c = map[w.clientId]
+            if (c != null && c.latitude != null && c.longitude != null) {
                 points.add(Pair(c.latitude, c.longitude))
+            } else {
+                missingCoordsCount++
             }
+        }
+
+        if (missingCoordsCount > 0) {
+            Toast.makeText(
+                context,
+                "$missingCoordsCount адресов без координат не включены в маршрут",
+                Toast.LENGTH_LONG
+            ).show()
         }
 
         if (points.isEmpty()) {
@@ -484,6 +555,7 @@ class MainViewModel(application: Application) : AndroidViewModel(application) {
         IntentHelper.openYandexMapsRoute(
             context = context,
             points = points,
+            currentLocation = _currentLocation.value,
             routingMode = _routingMode.value
         )
     }
@@ -576,6 +648,9 @@ class MainViewModel(application: Application) : AndroidViewModel(application) {
                 }
 
                 val result = repository.importBackup(jsonString)
+                try {
+                    NotificationHelper.rescheduleAllReminders(getApplication())
+                } catch (_: Exception) {}
                 Toast.makeText(
                     context,
                     "База восстановлена: ${result.first} клиентов, ${result.second} выгулов",

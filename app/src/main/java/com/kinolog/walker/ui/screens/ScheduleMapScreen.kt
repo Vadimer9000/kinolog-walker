@@ -10,7 +10,7 @@ import androidx.compose.animation.shrinkVertically
 import androidx.compose.foundation.background
 import androidx.compose.foundation.border
 import androidx.compose.foundation.clickable
-import androidx.compose.foundation.gestures.detectHorizontalDragGestures
+import androidx.compose.foundation.gestures.detectDragGestures
 import androidx.compose.foundation.gestures.detectVerticalDragGestures
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
@@ -52,10 +52,13 @@ import androidx.compose.material.icons.rounded.Close
 import androidx.compose.material.icons.rounded.Delete
 import androidx.compose.material.icons.rounded.Directions
 import androidx.compose.material.icons.rounded.Edit
+import androidx.compose.material.icons.rounded.Key
 import androidx.compose.material.icons.rounded.KeyboardArrowDown
 import androidx.compose.material.icons.rounded.KeyboardArrowUp
 import androidx.compose.material.icons.rounded.LocationOn
+import androidx.compose.material.icons.rounded.MoreVert
 import androidx.compose.material.icons.rounded.Payments
+import androidx.compose.material.icons.rounded.Pets
 import androidx.compose.material.icons.rounded.RadioButtonUnchecked
 import androidx.compose.material.icons.rounded.Route
 import androidx.compose.material.icons.rounded.Schedule
@@ -69,6 +72,7 @@ import androidx.compose.material3.Button
 import androidx.compose.material3.ButtonDefaults
 import androidx.compose.material3.Card
 import androidx.compose.material3.CardDefaults
+import androidx.compose.material3.DropdownMenu
 import androidx.compose.material3.DropdownMenuItem
 import androidx.compose.material3.ExperimentalMaterial3Api
 import androidx.compose.material3.ExposedDropdownMenuBox
@@ -521,25 +525,40 @@ fun ScheduleMapScreen(
 
     @Composable
     fun WalksListContent(contentModifier: Modifier = Modifier) {
-        var daySwipeAccumulator by remember { mutableFloatStateOf(0f) }
+        var totalDragX by remember { mutableFloatStateOf(0f) }
+        var totalDragY by remember { mutableFloatStateOf(0f) }
 
         Column(
             modifier = contentModifier
                 .fillMaxWidth()
                 .pointerInput(selectedDate) {
-                    detectHorizontalDragGestures(
-                        onDragStart = { daySwipeAccumulator = 0f },
-                        onDragEnd = {
-                            if (daySwipeAccumulator < -50f) {
-                                HapticHelper.lightClick(view, context)
-                                viewModel.setSelectedDate(selectedDate.plusDays(1))
-                            } else if (daySwipeAccumulator > 50f) {
-                                HapticHelper.lightClick(view, context)
-                                viewModel.setSelectedDate(selectedDate.minusDays(1))
-                            }
+                    detectDragGestures(
+                        onDragStart = {
+                            totalDragX = 0f
+                            totalDragY = 0f
                         },
-                        onHorizontalDrag = { _, dragAmount ->
-                            daySwipeAccumulator += dragAmount
+                        onDragEnd = {
+                            val absX = kotlin.math.abs(totalDragX)
+                            val absY = kotlin.math.abs(totalDragY)
+                            if (absX >= 120f && absX > absY * 2f) {
+                                if (totalDragX < -120f) {
+                                    HapticHelper.lightClick(view, context)
+                                    viewModel.setSelectedDate(selectedDate.plusDays(1))
+                                } else if (totalDragX > 120f) {
+                                    HapticHelper.lightClick(view, context)
+                                    viewModel.setSelectedDate(selectedDate.minusDays(1))
+                                }
+                            }
+                            totalDragX = 0f
+                            totalDragY = 0f
+                        },
+                        onDragCancel = {
+                            totalDragX = 0f
+                            totalDragY = 0f
+                        },
+                        onDrag = { _, dragAmount ->
+                            totalDragX += dragAmount.x
+                            totalDragY += dragAmount.y
                         }
                     )
                 }
@@ -715,7 +734,7 @@ fun ScheduleMapScreen(
                                 val walkLocationTint = if (isDone) (if (isDark) Color(0xFF81C784) else OliveGreySecondary) else SageGreenPrimary
     
                                 if (isCompactView) {
-                                    // Narrow Compact Walk Card (~56dp height)
+                                    // Narrow Compact Walk Card
                                     Box(
                                         modifier = Modifier
                                             .fillMaxWidth()
@@ -729,13 +748,13 @@ fun ScheduleMapScreen(
                                             Column(
                                                 modifier = Modifier
                                                     .fillMaxWidth()
-                                                    .padding(horizontal = 12.dp, vertical = 6.dp)
+                                                    .padding(horizontal = 12.dp, vertical = 8.dp)
                                             ) {
-                                                // Line 1: Time, Client, Pet, Price, and Checkbox
+                                                // Line 1: Time, Client, Pet, Price, and Checkbox (40dp touch target)
                                                 Row(
                                                     modifier = Modifier.fillMaxWidth(),
                                                     horizontalArrangement = Arrangement.SpaceBetween,
-                                                    verticalAlignment = Alignment.Top
+                                                    verticalAlignment = Alignment.CenterVertically
                                                 ) {
                                                     FlowRow(
                                                         modifier = Modifier.weight(1f),
@@ -762,7 +781,10 @@ fun ScheduleMapScreen(
                                                             )
 
                                                             if (pets.isNotEmpty()) {
-                                                                val petSummary = pets.joinToString(" ") { "${it.type.icon} ${it.name}" }
+                                                                val petSummary = pets.joinToString(", ") { pet ->
+                                                                    if (pet.breedOrDetails.isNotBlank()) "${pet.type.icon} ${pet.name} (${pet.breedOrDetails})"
+                                                                    else "${pet.type.icon} ${pet.name}"
+                                                                }
                                                                 Text(
                                                                     text = "($petSummary)",
                                                                     fontSize = 11.sp,
@@ -800,20 +822,17 @@ fun ScheduleMapScreen(
                                                             HapticHelper.success(view, context)
                                                             viewModel.toggleWalkCompletion(walk)
                                                         },
-                                                        modifier = Modifier.size(24.dp)
+                                                        modifier = Modifier.size(40.dp)
                                                     ) {
                                                         Icon(
                                                             imageVector = if (isDone) Icons.Rounded.CheckCircle else Icons.Rounded.RadioButtonUnchecked,
                                                             contentDescription = "Статус",
                                                             tint = if (isDone) walkDoneCheckTint else OliveGreySecondary,
-                                                            modifier = Modifier.size(20.dp)
+                                                            modifier = Modifier.size(22.dp)
                                                         )
                                                     }
                                                 }
-    
-                                                Spacer(modifier = Modifier.height(3.dp))
-    
-                                                // Line 2: Address (left) + micro action buttons (right)
+
                                                 if (client != null) {
                                                     val fullAddr = buildString {
                                                         append(client.addressStreet)
@@ -821,119 +840,197 @@ fun ScheduleMapScreen(
                                                         if (client.floor.isNotBlank()) append(", эт. ${client.floor}")
                                                         if (client.apartment.isNotBlank()) append(", кв. ${client.apartment}")
                                                     }
-    
+
+                                                    Spacer(modifier = Modifier.height(3.dp))
+
+                                                    // Address line
                                                     Row(
                                                         modifier = Modifier.fillMaxWidth(),
-                                                        horizontalArrangement = Arrangement.SpaceBetween,
                                                         verticalAlignment = Alignment.CenterVertically
                                                     ) {
+                                                        Icon(
+                                                            imageVector = Icons.Rounded.LocationOn,
+                                                            contentDescription = "Адрес",
+                                                            tint = walkLocationTint,
+                                                            modifier = Modifier.size(13.dp)
+                                                        )
+                                                        Spacer(modifier = Modifier.width(4.dp))
+                                                        Text(
+                                                            text = fullAddr,
+                                                            fontSize = 11.sp,
+                                                            color = walkPrimaryText,
+                                                            maxLines = 1,
+                                                            overflow = TextOverflow.Ellipsis
+                                                        )
+                                                    }
+
+                                                    // Client Comment (Intercom / Access code)
+                                                    if (client.clientComment.isNotBlank()) {
+                                                        Spacer(modifier = Modifier.height(2.dp))
                                                         Row(
-                                                            modifier = Modifier.weight(1f),
+                                                            modifier = Modifier.fillMaxWidth(),
                                                             verticalAlignment = Alignment.CenterVertically
                                                         ) {
                                                             Icon(
-                                                                imageVector = Icons.Rounded.LocationOn,
-                                                                contentDescription = "Адрес",
-                                                                tint = walkLocationTint,
+                                                                imageVector = Icons.Rounded.Key,
+                                                                contentDescription = "Домофон/код",
+                                                                tint = if (isDark) Color(0xFFFFB74D) else Color(0xFFE65100),
                                                                 modifier = Modifier.size(12.dp)
                                                             )
-                                                            Spacer(modifier = Modifier.width(3.dp))
+                                                            Spacer(modifier = Modifier.width(4.dp))
                                                             Text(
-                                                                text = fullAddr,
+                                                                text = "Домофон / код: ${client.clientComment}",
                                                                 fontSize = 11.sp,
-                                                                color = walkPrimaryText,
+                                                                fontWeight = FontWeight.Medium,
+                                                                color = if (isDark) Color(0xFFFFCC80) else Color(0xFFD84315),
                                                                 maxLines = 1,
                                                                 overflow = TextOverflow.Ellipsis
                                                             )
                                                         }
-    
-                                                        Spacer(modifier = Modifier.width(6.dp))
-    
+                                                    }
+
+                                                    // Pet Details / Breed
+                                                    val petsWithDetails = pets.filter { it.breedOrDetails.isNotBlank() }
+                                                    if (petsWithDetails.isNotEmpty()) {
+                                                        Spacer(modifier = Modifier.height(2.dp))
                                                         Row(
-                                                            horizontalArrangement = Arrangement.spacedBy(4.dp),
+                                                            modifier = Modifier.fillMaxWidth(),
                                                             verticalAlignment = Alignment.CenterVertically
                                                         ) {
-                                                            // Route
+                                                            Icon(
+                                                                imageVector = Icons.Rounded.Pets,
+                                                                contentDescription = "Особенности питомца",
+                                                                tint = SageGreenPrimary,
+                                                                modifier = Modifier.size(12.dp)
+                                                            )
+                                                            Spacer(modifier = Modifier.width(4.dp))
+                                                            Text(
+                                                                text = petsWithDetails.joinToString("; ") { "${it.name}: ${it.breedOrDetails}" },
+                                                                fontSize = 11.sp,
+                                                                color = walkSecondaryText,
+                                                                maxLines = 1,
+                                                                overflow = TextOverflow.Ellipsis
+                                                            )
+                                                        }
+                                                    }
+
+                                                    Spacer(modifier = Modifier.height(6.dp))
+
+                                                    // Action buttons (40-48 dp touch target)
+                                                    Row(
+                                                        modifier = Modifier.fillMaxWidth(),
+                                                        horizontalArrangement = Arrangement.spacedBy(6.dp),
+                                                        verticalAlignment = Alignment.CenterVertically
+                                                    ) {
+                                                        // Route
+                                                        FilledTonalIconButton(
+                                                            onClick = {
+                                                                HapticHelper.lightClick(view, context)
+                                                                viewModel.routeSingleWalk(context, walk)
+                                                            },
+                                                            colors = IconButtonDefaults.filledTonalIconButtonColors(
+                                                                containerColor = SoftMint,
+                                                                contentColor = DeepForest
+                                                            ),
+                                                            shape = RoundedCornerShape(10.dp),
+                                                            modifier = Modifier.size(40.dp)
+                                                        ) {
+                                                            Icon(Icons.Rounded.Directions, contentDescription = "Маршрут", modifier = Modifier.size(18.dp))
+                                                        }
+
+                                                        // Call
+                                                        FilledTonalIconButton(
+                                                            onClick = {
+                                                                if (client.secondaryContactPhone.isNotBlank()) {
+                                                                    clientForCallChooser = client
+                                                                } else {
+                                                                    IntentHelper.dialPhone(context, client.phone)
+                                                                }
+                                                            },
+                                                            colors = IconButtonDefaults.filledTonalIconButtonColors(
+                                                                containerColor = SandBeige,
+                                                                contentColor = CharcoalPrimary
+                                                            ),
+                                                            shape = RoundedCornerShape(10.dp),
+                                                            modifier = Modifier.size(40.dp)
+                                                        ) {
+                                                            Icon(Icons.Rounded.Call, contentDescription = "Звонок", modifier = Modifier.size(18.dp))
+                                                        }
+
+                                                        // Messenger
+                                                        FilledTonalIconButton(
+                                                            onClick = {
+                                                                IntentHelper.openMessenger(
+                                                                    context,
+                                                                    client.messengerType,
+                                                                    client.messengerIdentifier.ifBlank { client.phone }
+                                                                )
+                                                            },
+                                                            colors = IconButtonDefaults.filledTonalIconButtonColors(
+                                                                containerColor = MintLight,
+                                                                contentColor = DeepForest
+                                                            ),
+                                                            shape = RoundedCornerShape(10.dp),
+                                                            modifier = Modifier.size(40.dp)
+                                                        ) {
+                                                            Icon(Icons.Rounded.Chat, contentDescription = "Мессенджер", modifier = Modifier.size(18.dp))
+                                                        }
+
+                                                        // Edit
+                                                        FilledTonalIconButton(
+                                                            onClick = {
+                                                                walkToEdit = walk
+                                                                showWalkFormDialog = true
+                                                            },
+                                                            colors = IconButtonDefaults.filledTonalIconButtonColors(
+                                                                containerColor = SandBeige,
+                                                                contentColor = CharcoalPrimary
+                                                            ),
+                                                            shape = RoundedCornerShape(10.dp),
+                                                            modifier = Modifier.size(40.dp)
+                                                        ) {
+                                                            Icon(Icons.Rounded.Edit, contentDescription = "Редактировать", modifier = Modifier.size(18.dp))
+                                                        }
+
+                                                        // Overflow Menu (More actions: Calendar, Delete)
+                                                        var compactMenuExpanded by remember { mutableStateOf(false) }
+                                                        Box {
                                                             FilledTonalIconButton(
-                                                                onClick = {
-                                                                    HapticHelper.lightClick(view, context)
-                                                                    viewModel.routeSingleWalk(context, walk)
-                                                                },
+                                                                onClick = { compactMenuExpanded = true },
                                                                 colors = IconButtonDefaults.filledTonalIconButtonColors(
-                                                                    containerColor = SoftMint,
-                                                                    contentColor = DeepForest
+                                                                    containerColor = SandBeige,
+                                                                    contentColor = CharcoalPrimary
                                                                 ),
-                                                                shape = RoundedCornerShape(8.dp),
-                                                                modifier = Modifier.size(28.dp)
+                                                                shape = RoundedCornerShape(10.dp),
+                                                                modifier = Modifier.size(40.dp)
                                                             ) {
-                                                                Icon(Icons.Rounded.Directions, contentDescription = "Маршрут", modifier = Modifier.size(15.dp))
+                                                                Icon(Icons.Rounded.MoreVert, contentDescription = "Еще", modifier = Modifier.size(18.dp))
                                                             }
-    
-                                                            // Call
-                                                            FilledTonalIconButton(
-                                                                onClick = {
-                                                                    if (client.secondaryContactPhone.isNotBlank()) {
-                                                                        clientForCallChooser = client
-                                                                    } else {
-                                                                        IntentHelper.dialPhone(context, client.phone)
+
+                                                            DropdownMenu(
+                                                                expanded = compactMenuExpanded,
+                                                                onDismissRequest = { compactMenuExpanded = false }
+                                                            ) {
+                                                                DropdownMenuItem(
+                                                                    text = { Text("Календарь") },
+                                                                    onClick = {
+                                                                        compactMenuExpanded = false
+                                                                        IntentHelper.openGoogleCalendar(context, client, walk)
+                                                                    },
+                                                                    leadingIcon = {
+                                                                        Icon(Icons.Rounded.CalendarMonth, contentDescription = null)
                                                                     }
-                                                                },
-                                                                colors = IconButtonDefaults.filledTonalIconButtonColors(
-                                                                    containerColor = SandBeige,
-                                                                    contentColor = CharcoalPrimary
-                                                                ),
-                                                                shape = RoundedCornerShape(8.dp),
-                                                                modifier = Modifier.size(28.dp)
-                                                            ) {
-                                                                Icon(Icons.Rounded.Call, contentDescription = "Звонок", modifier = Modifier.size(14.dp))
-                                                            }
-    
-                                                            // Messenger
-                                                            FilledTonalIconButton(
-                                                                onClick = {
-                                                                    IntentHelper.openMessenger(
-                                                                        context,
-                                                                        client.messengerType,
-                                                                        client.messengerIdentifier.ifBlank { client.phone }
-                                                                    )
-                                                                },
-                                                                colors = IconButtonDefaults.filledTonalIconButtonColors(
-                                                                    containerColor = MintLight,
-                                                                    contentColor = DeepForest
-                                                                ),
-                                                                shape = RoundedCornerShape(8.dp),
-                                                                modifier = Modifier.size(28.dp)
-                                                            ) {
-                                                                Icon(Icons.Rounded.Chat, contentDescription = "Мессенджер", modifier = Modifier.size(14.dp))
-                                                            }
-    
-                                                            // Edit
-                                                            FilledTonalIconButton(
-                                                                onClick = {
-                                                                    walkToEdit = walk
-                                                                    showWalkFormDialog = true
-                                                                },
-                                                                colors = IconButtonDefaults.filledTonalIconButtonColors(
-                                                                    containerColor = SandBeige,
-                                                                    contentColor = CharcoalPrimary
-                                                                ),
-                                                                shape = RoundedCornerShape(8.dp),
-                                                                modifier = Modifier.size(28.dp)
-                                                            ) {
-                                                                Icon(Icons.Rounded.Edit, contentDescription = "Редактировать", modifier = Modifier.size(14.dp))
-                                                            }
-    
-                                                            // Delete
-                                                            FilledTonalIconButton(
-                                                                onClick = { walkToDelete = walk },
-                                                                colors = IconButtonDefaults.filledTonalIconButtonColors(
-                                                                    containerColor = DangerRedBg,
-                                                                    contentColor = DangerRedText
-                                                                ),
-                                                                shape = RoundedCornerShape(8.dp),
-                                                                modifier = Modifier.size(28.dp)
-                                                            ) {
-                                                                Icon(Icons.Rounded.Delete, contentDescription = "Удалить", modifier = Modifier.size(14.dp))
+                                                                )
+                                                                DropdownMenuItem(
+                                                                    text = { Text("Удалить", color = Color(0xFFD9534F), fontWeight = FontWeight.Medium) },
+                                                                    onClick = {
+                                                                        compactMenuExpanded = false
+                                                                        walkToDelete = walk
+                                                                    },
+                                                                    leadingIcon = {
+                                                                        Icon(Icons.Rounded.Delete, contentDescription = null, tint = Color(0xFFD9534F))
+                                                                    }
+                                                                )
                                                             }
                                                         }
                                                     }
@@ -998,7 +1095,7 @@ fun ScheduleMapScreen(
                                                         HapticHelper.success(view, context)
                                                         viewModel.toggleWalkCompletion(walk)
                                                     },
-                                                    modifier = Modifier.size(32.dp)
+                                                    modifier = Modifier.size(42.dp)
                                                 ) {
                                                     Icon(
                                                         imageVector = if (isDone) Icons.Rounded.CheckCircle else Icons.Rounded.RadioButtonUnchecked,
@@ -1094,6 +1191,31 @@ fun ScheduleMapScreen(
                                                         maxLines = 2,
                                                         overflow = TextOverflow.Ellipsis
                                                     )
+                                                }
+
+                                                // Client Comment (Intercom / Access code)
+                                                if (client.clientComment.isNotBlank()) {
+                                                    Spacer(modifier = Modifier.height(2.dp))
+                                                    Row(
+                                                        modifier = Modifier.fillMaxWidth(),
+                                                        verticalAlignment = Alignment.CenterVertically
+                                                    ) {
+                                                        Icon(
+                                                            imageVector = Icons.Rounded.Key,
+                                                            contentDescription = "Домофон/код",
+                                                            tint = if (isDark) Color(0xFFFFB74D) else Color(0xFFE65100),
+                                                            modifier = Modifier.size(13.dp)
+                                                        )
+                                                        Spacer(modifier = Modifier.width(4.dp))
+                                                        Text(
+                                                            text = "Домофон / код: ${client.clientComment}",
+                                                            fontSize = 11.sp,
+                                                            fontWeight = FontWeight.Medium,
+                                                            color = if (isDark) Color(0xFFFFCC80) else Color(0xFFD84315),
+                                                            maxLines = 1,
+                                                            overflow = TextOverflow.Ellipsis
+                                                        )
+                                                    }
                                                 }
     
                                                 if (walk.walkComment.isNotBlank()) {
@@ -1762,7 +1884,7 @@ fun WalkFormDialog(
         mutableStateOf(walkToEdit != null && !walkToEdit.seriesId.isNullOrBlank())
     }
     var selectedDays by remember {
-        mutableStateOf(setOf(DayOfWeek.MONDAY, DayOfWeek.WEDNESDAY, DayOfWeek.FRIDAY))
+        mutableStateOf(setOf(walkDate.dayOfWeek))
     }
     var recurrenceEndDate by remember {
         mutableStateOf<LocalDate?>(null)
@@ -2146,7 +2268,7 @@ fun WalkFormDialog(
                             val endFormatted = if (recurrenceEndDate != null) {
                                 recurrenceEndDate!!.format(DateTimeFormatter.ofPattern("d MMMM yyyy", Locale("ru")))
                             } else {
-                                "Бессрочно (без конечной даты)"
+                                "Бессрочно (на 3 месяца вперёд)"
                             }
                             Box(modifier = Modifier.fillMaxWidth()) {
                                 AppTextField(
@@ -2187,6 +2309,14 @@ fun WalkFormDialog(
                                             HapticHelper.lightClick(view, context)
                                             showRecurrenceEndDatePicker = true
                                         }
+                                )
+                            }
+                            if (recurrenceEndDate == null) {
+                                Spacer(modifier = Modifier.height(2.dp))
+                                Text(
+                                    text = "При выборе «Бессрочно» записи создаются на 3 месяца вперёд",
+                                    fontSize = 11.sp,
+                                    color = OliveGreySecondary
                                 )
                             }
 
@@ -2234,7 +2364,9 @@ fun WalkFormDialog(
                             val hasKeyChanges = isSeries && (
                                 walkToEdit!!.price != price ||
                                 walkToEdit.startTimeMinutes != startTimeMinutes ||
-                                walkToEdit.durationMinutes != validDuration
+                                walkToEdit.durationMinutes != validDuration ||
+                                walkToEdit.category != selectedCategory ||
+                                walkToEdit.walkComment.trim() != walkComment.trim()
                             )
 
                             if (hasKeyChanges) {
@@ -2272,7 +2404,7 @@ fun WalkFormDialog(
                 title = { Text("Изменить серию выгулов?", fontWeight = FontWeight.Bold, fontSize = 17.sp) },
                 text = {
                     Text(
-                        "Вы изменили время, длительность или стоимость повторяющегося выгула. Применить эти изменения ко всей серии или только к текущему выгулу?",
+                        "Вы изменили параметры повторяющегося выгула (время, длительность, стоимость, категорию или заметку). Применить эти изменения ко всей серии или только к текущему выгулу?",
                         fontSize = 14.sp
                     )
                 },

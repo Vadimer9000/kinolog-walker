@@ -6,6 +6,7 @@ import androidx.room.Insert
 import androidx.room.OnConflictStrategy
 import androidx.room.Query
 import androidx.room.Update
+import com.kinolog.walker.model.WalkCategory
 import com.kinolog.walker.model.WalkEventEntity
 import kotlinx.coroutines.flow.Flow
 
@@ -38,8 +39,15 @@ interface WalkEventDao {
     @Query("SELECT * FROM walk_events WHERE seriesId = :seriesId AND dateEpochDay >= :fromEpochDay")
     suspend fun getFutureWalksBySeries(seriesId: String, fromEpochDay: Long): List<WalkEventEntity>
 
-    @Query("UPDATE walk_events SET startTimeMinutes = :startTimeMinutes, durationMinutes = :durationMinutes, price = :price WHERE seriesId = :seriesId")
-    suspend fun updateAllWalksInSeries(seriesId: String, startTimeMinutes: Int, durationMinutes: Int, price: Int)
+    @Query("UPDATE walk_events SET startTimeMinutes = :startTimeMinutes, durationMinutes = :durationMinutes, price = :price, category = :category, walkComment = :walkComment WHERE seriesId = :seriesId")
+    suspend fun updateAllWalksInSeries(
+        seriesId: String,
+        startTimeMinutes: Int,
+        durationMinutes: Int,
+        price: Int,
+        category: WalkCategory,
+        walkComment: String
+    )
 
     @Insert(onConflict = OnConflictStrategy.REPLACE)
     suspend fun insertWalk(walk: WalkEventEntity): Long

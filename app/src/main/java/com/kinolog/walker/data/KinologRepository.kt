@@ -6,6 +6,7 @@ import androidx.core.content.FileProvider
 import com.kinolog.walker.model.BackupData
 import com.kinolog.walker.model.ClientEntity
 import com.kinolog.walker.model.PetItem
+import com.kinolog.walker.model.WalkCategory
 import com.kinolog.walker.model.WalkEventEntity
 import com.kinolog.walker.util.GeocoderHelper
 import com.kinolog.walker.util.NotificationHelper
@@ -205,9 +206,18 @@ class KinologRepository(
         seriesId: String,
         startTimeMinutes: Int,
         durationMinutes: Int,
-        price: Int
+        price: Int,
+        category: WalkCategory = WalkCategory.REGULAR_WALK,
+        walkComment: String = ""
     ) = withContext(Dispatchers.IO) {
-        walkEventDao.updateAllWalksInSeries(seriesId, startTimeMinutes, durationMinutes, price)
+        walkEventDao.updateAllWalksInSeries(
+            seriesId = seriesId,
+            startTimeMinutes = startTimeMinutes,
+            durationMinutes = durationMinutes,
+            price = price,
+            category = category,
+            walkComment = walkComment
+        )
         val seriesWalks = walkEventDao.getWalksBySeries(seriesId)
         val minEpochDay = java.time.LocalDate.now().toEpochDay()
         val maxAlarmEpochDay = minEpochDay + 7
