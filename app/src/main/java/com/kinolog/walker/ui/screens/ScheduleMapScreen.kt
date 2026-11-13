@@ -1,6 +1,5 @@
 package com.kinolog.walker.ui.screens
 
-import android.app.DatePickerDialog
 import androidx.compose.animation.AnimatedVisibility
 import androidx.compose.animation.core.animateDpAsState
 import androidx.compose.animation.core.spring
@@ -11,6 +10,7 @@ import androidx.compose.animation.shrinkVertically
 import androidx.compose.foundation.background
 import androidx.compose.foundation.border
 import androidx.compose.foundation.clickable
+import androidx.compose.foundation.gestures.detectHorizontalDragGestures
 import androidx.compose.foundation.gestures.detectVerticalDragGestures
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
@@ -28,6 +28,7 @@ import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.imePadding
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.requiredHeightIn
+import androidx.compose.foundation.layout.requiredSize
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.statusBarsPadding
 import androidx.compose.foundation.layout.width
@@ -47,6 +48,7 @@ import androidx.compose.material.icons.rounded.Chat
 import androidx.compose.material.icons.rounded.CheckCircle
 import androidx.compose.material.icons.rounded.ChevronLeft
 import androidx.compose.material.icons.rounded.ChevronRight
+import androidx.compose.material.icons.rounded.Close
 import androidx.compose.material.icons.rounded.Delete
 import androidx.compose.material.icons.rounded.Directions
 import androidx.compose.material.icons.rounded.Edit
@@ -76,7 +78,6 @@ import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
 import androidx.compose.material3.IconButtonDefaults
 import androidx.compose.material3.MenuAnchorType
-import androidx.compose.material3.OutlinedTextField
 import androidx.compose.material3.SheetValue
 import androidx.compose.material3.Text
 import androidx.compose.material3.TextButton
@@ -113,6 +114,8 @@ import com.kinolog.walker.model.WalkCategory
 import com.kinolog.walker.model.WalkEventEntity
 import com.kinolog.walker.ui.MainViewModel
 import com.kinolog.walker.ui.components.AnimatedSegmentedControl
+import com.kinolog.walker.ui.components.AppCalendarDialog
+import com.kinolog.walker.ui.components.AppTextField
 import com.kinolog.walker.ui.components.GlassBox
 import com.kinolog.walker.ui.components.KinologTimePickerDialog
 import com.kinolog.walker.ui.components.NavigationTab
@@ -182,22 +185,27 @@ private fun ScheduleTopControls(
                 horizontalArrangement = Arrangement.SpaceBetween,
                 verticalAlignment = Alignment.CenterVertically
             ) {
-                IconButton(onClick = {
-                    HapticHelper.lightClick(view, context)
-                    onPrevDay()
-                }) {
-                    Icon(Icons.Rounded.ChevronLeft, contentDescription = "Предыдущий день", tint = SageGreenPrimary)
+                IconButton(
+                    onClick = {
+                        HapticHelper.lightClick(view, context)
+                        onPrevDay()
+                    },
+                    modifier = Modifier.size(36.dp)
+                ) {
+                    Icon(Icons.Rounded.ChevronLeft, contentDescription = "Предыдущий день", tint = SageGreenPrimary, modifier = Modifier.size(20.dp))
                 }
 
                 Row(
                     verticalAlignment = Alignment.CenterVertically,
+                    horizontalArrangement = Arrangement.Center,
                     modifier = Modifier
+                        .weight(1f)
                         .clip(CircleShape)
                         .clickable {
                             HapticHelper.lightClick(view, context)
                             onToggleCalendar()
                         }
-                        .padding(horizontal = 8.dp, vertical = 6.dp)
+                        .padding(horizontal = 6.dp, vertical = 6.dp)
                 ) {
                     Icon(
                         Icons.Rounded.CalendarMonth,
@@ -205,14 +213,17 @@ private fun ScheduleTopControls(
                         tint = SageGreenPrimary,
                         modifier = Modifier.size(16.dp)
                     )
-                    Spacer(modifier = Modifier.width(6.dp))
+                    Spacer(modifier = Modifier.width(4.dp))
                     Text(
                         text = selectedDate.format(dateFormatter).replaceFirstChar { it.uppercase() },
                         fontWeight = FontWeight.SemiBold,
                         fontSize = 13.sp,
-                        color = CharcoalPrimary
+                        maxLines = 1,
+                        overflow = TextOverflow.Ellipsis,
+                        color = CharcoalPrimary,
+                        modifier = Modifier.weight(1f, fill = false)
                     )
-                    Spacer(modifier = Modifier.width(4.dp))
+                    Spacer(modifier = Modifier.width(2.dp))
                     Icon(
                         imageVector = if (isCalendarExpanded) Icons.Rounded.KeyboardArrowUp else Icons.Rounded.KeyboardArrowDown,
                         contentDescription = if (isCalendarExpanded) "Свернуть календарь" else "Развернуть календарь",
@@ -221,11 +232,14 @@ private fun ScheduleTopControls(
                     )
                 }
 
-                IconButton(onClick = {
-                    HapticHelper.lightClick(view, context)
-                    onNextDay()
-                }) {
-                    Icon(Icons.Rounded.ChevronRight, contentDescription = "Следующий день", tint = SageGreenPrimary)
+                IconButton(
+                    onClick = {
+                        HapticHelper.lightClick(view, context)
+                        onNextDay()
+                    },
+                    modifier = Modifier.size(36.dp)
+                ) {
+                    Icon(Icons.Rounded.ChevronRight, contentDescription = "Следующий день", tint = SageGreenPrimary, modifier = Modifier.size(20.dp))
                 }
             }
         }
@@ -499,9 +513,28 @@ fun ScheduleMapScreen(
 
     @Composable
     fun WalksListContent(contentModifier: Modifier = Modifier) {
+        var daySwipeAccumulator by remember { mutableFloatStateOf(0f) }
+
         Column(
             modifier = contentModifier
                 .fillMaxWidth()
+                .pointerInput(selectedDate) {
+                    detectHorizontalDragGestures(
+                        onDragStart = { daySwipeAccumulator = 0f },
+                        onDragEnd = {
+                            if (daySwipeAccumulator < -50f) {
+                                HapticHelper.lightClick(view, context)
+                                viewModel.setSelectedDate(selectedDate.plusDays(1))
+                            } else if (daySwipeAccumulator > 50f) {
+                                HapticHelper.lightClick(view, context)
+                                viewModel.setSelectedDate(selectedDate.minusDays(1))
+                            }
+                        },
+                        onHorizontalDrag = { _, dragAmount ->
+                            daySwipeAccumulator += dragAmount
+                        }
+                    )
+                }
                 .background(Color.Transparent)
         ) {
                         // Header of BottomSheet
@@ -1071,7 +1104,7 @@ fun ScheduleMapScreen(
                                                 // Line 4: Action buttons row
                                                 Row(
                                                     modifier = Modifier.fillMaxWidth(),
-                                                    horizontalArrangement = Arrangement.spacedBy(8.dp),
+                                                    horizontalArrangement = Arrangement.spacedBy(6.dp),
                                                     verticalAlignment = Alignment.CenterVertically
                                                 ) {
                                                     // Route to single walk
@@ -1085,8 +1118,10 @@ fun ScheduleMapScreen(
                                                             contentColor = DeepForest
                                                         ),
                                                         shape = RoundedCornerShape(12.dp),
-                                                        contentPadding = PaddingValues(horizontal = 12.dp, vertical = 0.dp),
-                                                        modifier = Modifier.height(36.dp)
+                                                        contentPadding = PaddingValues(horizontal = 8.dp, vertical = 0.dp),
+                                                        modifier = Modifier
+                                                            .weight(1f)
+                                                            .height(42.dp)
                                                     ) {
                                                         Icon(Icons.Rounded.Directions, contentDescription = null, modifier = Modifier.size(16.dp))
                                                         Spacer(modifier = Modifier.width(4.dp))
@@ -1098,7 +1133,7 @@ fun ScheduleMapScreen(
                                                             softWrap = false
                                                         )
                                                     }
-    
+
                                                     // Call
                                                     FilledTonalIconButton(
                                                         onClick = {
@@ -1113,11 +1148,11 @@ fun ScheduleMapScreen(
                                                             contentColor = CharcoalPrimary
                                                         ),
                                                         shape = RoundedCornerShape(12.dp),
-                                                        modifier = Modifier.size(36.dp)
+                                                        modifier = Modifier.requiredSize(42.dp)
                                                     ) {
-                                                        Icon(Icons.Rounded.Call, contentDescription = "Звонок", modifier = Modifier.size(17.dp))
+                                                        Icon(Icons.Rounded.Call, contentDescription = "Звонок", modifier = Modifier.size(18.dp))
                                                     }
-    
+
                                                     // Messenger
                                                     FilledTonalIconButton(
                                                         onClick = {
@@ -1132,11 +1167,11 @@ fun ScheduleMapScreen(
                                                             contentColor = DeepForest
                                                         ),
                                                         shape = RoundedCornerShape(12.dp),
-                                                        modifier = Modifier.size(36.dp)
+                                                        modifier = Modifier.requiredSize(42.dp)
                                                     ) {
-                                                        Icon(Icons.Rounded.Chat, contentDescription = "Мессенджер", modifier = Modifier.size(17.dp))
+                                                        Icon(Icons.Rounded.Chat, contentDescription = "Мессенджер", modifier = Modifier.size(18.dp))
                                                     }
-    
+
                                                     // Calendar
                                                     FilledTonalIconButton(
                                                         onClick = { IntentHelper.openGoogleCalendar(context, client, walk) },
@@ -1145,11 +1180,11 @@ fun ScheduleMapScreen(
                                                             contentColor = CharcoalPrimary
                                                         ),
                                                         shape = RoundedCornerShape(12.dp),
-                                                        modifier = Modifier.size(36.dp)
+                                                        modifier = Modifier.requiredSize(42.dp)
                                                     ) {
-                                                        Icon(Icons.Rounded.CalendarMonth, contentDescription = "Календарь", modifier = Modifier.size(17.dp))
+                                                        Icon(Icons.Rounded.CalendarMonth, contentDescription = "Календарь", modifier = Modifier.size(18.dp))
                                                     }
-    
+
                                                     // Edit Button
                                                     FilledTonalIconButton(
                                                         onClick = {
@@ -1161,13 +1196,11 @@ fun ScheduleMapScreen(
                                                             contentColor = CharcoalPrimary
                                                         ),
                                                         shape = RoundedCornerShape(12.dp),
-                                                        modifier = Modifier.size(36.dp)
+                                                        modifier = Modifier.requiredSize(42.dp)
                                                     ) {
-                                                        Icon(Icons.Rounded.Edit, contentDescription = "Редактировать", modifier = Modifier.size(17.dp))
+                                                        Icon(Icons.Rounded.Edit, contentDescription = "Редактировать", modifier = Modifier.size(18.dp))
                                                     }
-    
-                                                    Spacer(modifier = Modifier.weight(1f))
-    
+
                                                     // Delete
                                                     FilledTonalIconButton(
                                                         onClick = { walkToDelete = walk },
@@ -1176,9 +1209,9 @@ fun ScheduleMapScreen(
                                                             contentColor = DangerRedText
                                                         ),
                                                         shape = RoundedCornerShape(12.dp),
-                                                        modifier = Modifier.size(36.dp)
+                                                        modifier = Modifier.requiredSize(42.dp)
                                                     ) {
-                                                        Icon(Icons.Rounded.Delete, contentDescription = "Удалить", modifier = Modifier.size(17.dp))
+                                                        Icon(Icons.Rounded.Delete, contentDescription = "Удалить", modifier = Modifier.size(18.dp))
                                                     }
                                                 }
                                             }
@@ -1673,7 +1706,7 @@ fun WalkFormDialog(
         comment: String,
         isRecurring: Boolean,
         selectedDays: Set<DayOfWeek>,
-        recurrenceEndDate: LocalDate,
+        recurrenceEndDate: LocalDate?,
         updateEntireSeries: Boolean
     ) -> Unit
 ) {
@@ -1697,6 +1730,7 @@ fun WalkFormDialog(
             if (walkToEdit != null) LocalDate.ofEpochDay(walkToEdit.dateEpochDay) else initialDate
         )
     }
+    var showWalkDatePicker by remember { mutableStateOf(false) }
     var startTimeMinutes by remember {
         mutableIntStateOf(walkToEdit?.startTimeMinutes ?: (19 * 60))
     }
@@ -1725,8 +1759,9 @@ fun WalkFormDialog(
         mutableStateOf(setOf(DayOfWeek.MONDAY, DayOfWeek.WEDNESDAY, DayOfWeek.FRIDAY))
     }
     var recurrenceEndDate by remember {
-        mutableStateOf(walkDate.plusMonths(1))
+        mutableStateOf<LocalDate?>(null)
     }
+    var showRecurrenceEndDatePicker by remember { mutableStateOf(false) }
 
     var clientMenuExpanded by remember { mutableStateOf(false) }
     var showSeriesEditConfirmDialog by remember { mutableStateOf(false) }
@@ -1790,10 +1825,11 @@ fun WalkFormDialog(
                     }
                     val petsText = pets.joinToString { "${it.type.icon} ${it.name}" }
 
-                    OutlinedTextField(
+                    AppTextField(
                         value = "${currentClient.fullName} (${if (petsText.isNotBlank()) petsText else "Без питомцев"})",
                         onValueChange = {},
                         readOnly = true,
+                        label = "Клиент и питомцы",
                         trailingIcon = { ExposedDropdownMenuDefaults.TrailingIcon(expanded = clientMenuExpanded) },
                         modifier = Modifier
                             .fillMaxWidth()
@@ -1829,10 +1865,11 @@ fun WalkFormDialog(
                 Spacer(modifier = Modifier.height(4.dp))
                 val dateFormatted = walkDate.format(DateTimeFormatter.ofPattern("EEEE, d MMMM yyyy", Locale("ru")))
                 Box(modifier = Modifier.fillMaxWidth()) {
-                    OutlinedTextField(
+                    AppTextField(
                         value = dateFormatted.replaceFirstChar { it.uppercase() },
                         onValueChange = {},
                         readOnly = true,
+                        label = formLabels.dateLabel,
                         trailingIcon = {
                             Icon(Icons.Rounded.CalendarToday, contentDescription = "Выбрать дату", tint = SageGreenPrimary)
                         },
@@ -1842,14 +1879,17 @@ fun WalkFormDialog(
                         modifier = Modifier
                             .matchParentSize()
                             .clickable {
-                                DatePickerDialog(
-                                    context,
-                                    { _, y, m, d -> walkDate = LocalDate.of(y, m + 1, d) },
-                                    walkDate.year,
-                                    walkDate.monthValue - 1,
-                                    walkDate.dayOfMonth
-                                ).show()
+                                HapticHelper.lightClick(view, context)
+                                showWalkDatePicker = true
                             }
+                    )
+                }
+
+                if (showWalkDatePicker) {
+                    AppCalendarDialog(
+                        initialDate = walkDate,
+                        onDateSelected = { walkDate = it },
+                        onDismiss = { showWalkDatePicker = false }
                     )
                 }
 
@@ -1885,7 +1925,8 @@ fun WalkFormDialog(
                                     color = if (isSelected) Color.White else CharcoalPrimary,
                                     fontSize = 11.sp,
                                     fontWeight = if (isSelected) FontWeight.Bold else FontWeight.Normal,
-                                    maxLines = 1
+                                    maxLines = 1,
+                                    softWrap = false
                                 )
                             }
                         }
@@ -1905,11 +1946,11 @@ fun WalkFormDialog(
                 ) {
                     // Start Time with overlay
                     Box(modifier = Modifier.weight(1f)) {
-                        OutlinedTextField(
+                        AppTextField(
                             value = timeString,
                             onValueChange = {},
                             readOnly = true,
-                            label = { Text("Время начала") },
+                            label = "Время начала",
                             trailingIcon = {
                                 Icon(Icons.Rounded.Schedule, contentDescription = "Выбрать время", tint = SageGreenPrimary)
                             },
@@ -1923,14 +1964,14 @@ fun WalkFormDialog(
                     }
 
                     // Duration Input Field (Editable + Quick Chips)
-                    OutlinedTextField(
+                    AppTextField(
                         value = durationInput,
                         onValueChange = { input ->
                             val digits = input.filter { it.isDigit() }.take(3)
                             durationInput = digits
                             digits.toIntOrNull()?.let { durationMinutes = it }
                         },
-                        label = { Text("Длит. (мин)") },
+                        label = "Длит. (мин)",
                         keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Number),
                         singleLine = true,
                         modifier = Modifier.weight(1f)
@@ -1938,10 +1979,11 @@ fun WalkFormDialog(
                 }
 
                 // Quick duration chips
-                Spacer(modifier = Modifier.height(4.dp))
-                Row(
+                Spacer(modifier = Modifier.height(6.dp))
+                FlowRow(
                     modifier = Modifier.fillMaxWidth(),
-                    horizontalArrangement = Arrangement.spacedBy(6.dp)
+                    horizontalArrangement = Arrangement.spacedBy(8.dp),
+                    verticalArrangement = Arrangement.spacedBy(8.dp)
                 ) {
                     listOf(15, 30, 45, 60, 90).forEach { minsPreset ->
                         val isSel = durationMinutes == minsPreset
@@ -1954,13 +1996,15 @@ fun WalkFormDialog(
                                     durationMinutes = minsPreset
                                     durationInput = minsPreset.toString()
                                 }
-                                .padding(horizontal = 8.dp, vertical = 4.dp)
+                                .padding(horizontal = 10.dp, vertical = 5.dp)
                         ) {
                             Text(
                                 text = "$minsPreset мин",
                                 fontSize = 11.sp,
                                 color = if (isSel) Color.White else CharcoalPrimary,
-                                fontWeight = if (isSel) FontWeight.Bold else FontWeight.Normal
+                                fontWeight = if (isSel) FontWeight.Bold else FontWeight.Normal,
+                                maxLines = 1,
+                                softWrap = false
                             )
                         }
                     }
@@ -1983,14 +2027,14 @@ fun WalkFormDialog(
                 // Price Field with Quick Preset Chips
                 Text("${formLabels.priceLabel}:", fontSize = 13.sp, fontWeight = FontWeight.Medium)
                 Spacer(modifier = Modifier.height(4.dp))
-                OutlinedTextField(
+                AppTextField(
                     value = priceInput,
                     onValueChange = { input ->
                         val digits = input.filter { it.isDigit() }.take(6)
                         priceInput = digits
                         price = digits.toIntOrNull() ?: 0
                     },
-                    label = { Text(formLabels.priceLabel) },
+                    label = formLabels.priceLabel,
                     leadingIcon = { Icon(Icons.Rounded.Payments, contentDescription = null, tint = SageGreenPrimary) },
                     keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Number),
                     singleLine = true,
@@ -2000,8 +2044,8 @@ fun WalkFormDialog(
                 Spacer(modifier = Modifier.height(6.dp))
                 FlowRow(
                     modifier = Modifier.fillMaxWidth(),
-                    horizontalArrangement = Arrangement.spacedBy(6.dp),
-                    verticalArrangement = Arrangement.spacedBy(4.dp)
+                    horizontalArrangement = Arrangement.spacedBy(8.dp),
+                    verticalArrangement = Arrangement.spacedBy(8.dp)
                 ) {
                     pricePresets.forEach { presetPrice ->
                         val isSel = price == presetPrice
@@ -2020,7 +2064,9 @@ fun WalkFormDialog(
                                 text = "$presetPrice ₽",
                                 fontSize = 11.sp,
                                 color = if (isSel) Color.White else CharcoalPrimary,
-                                fontWeight = if (isSel) FontWeight.Bold else FontWeight.Normal
+                                fontWeight = if (isSel) FontWeight.Bold else FontWeight.Normal,
+                                maxLines = 1,
+                                softWrap = false
                             )
                         }
                     }
@@ -2090,16 +2136,41 @@ fun WalkFormDialog(
 
                             Spacer(modifier = Modifier.height(10.dp))
 
-                            // End Date Picker with clickable overlay
-                            val endFormatted = recurrenceEndDate.format(DateTimeFormatter.ofPattern("d MMMM yyyy", Locale("ru")))
+                            // End Date Picker with clickable overlay & clear button
+                            val endFormatted = if (recurrenceEndDate != null) {
+                                recurrenceEndDate!!.format(DateTimeFormatter.ofPattern("d MMMM yyyy", Locale("ru")))
+                            } else {
+                                "Бессрочно (без конечной даты)"
+                            }
                             Box(modifier = Modifier.fillMaxWidth()) {
-                                OutlinedTextField(
+                                AppTextField(
                                     value = endFormatted,
                                     onValueChange = {},
                                     readOnly = true,
-                                    label = { Text("Повторять до даты") },
+                                    label = "Повторять до даты",
                                     trailingIcon = {
-                                        Icon(Icons.Rounded.CalendarMonth, contentDescription = "Выбрать дату", tint = SageGreenPrimary)
+                                        if (recurrenceEndDate != null) {
+                                            IconButton(
+                                                onClick = {
+                                                    HapticHelper.lightClick(view, context)
+                                                    recurrenceEndDate = null
+                                                },
+                                                modifier = Modifier.size(36.dp)
+                                            ) {
+                                                Icon(
+                                                    Icons.Rounded.Close,
+                                                    contentDescription = "Сделать бессрочным",
+                                                    tint = OliveGreySecondary,
+                                                    modifier = Modifier.size(18.dp)
+                                                )
+                                            }
+                                        } else {
+                                            Icon(
+                                                Icons.Rounded.CalendarMonth,
+                                                contentDescription = "Выбрать дату",
+                                                tint = SageGreenPrimary
+                                            )
+                                        }
                                     },
                                     modifier = Modifier.fillMaxWidth()
                                 )
@@ -2107,16 +2178,20 @@ fun WalkFormDialog(
                                     modifier = Modifier
                                         .matchParentSize()
                                         .clickable {
-                                            DatePickerDialog(
-                                                context,
-                                                { _, y, m, d ->
-                                                    recurrenceEndDate = LocalDate.of(y, m + 1, d)
-                                                },
-                                                recurrenceEndDate.year,
-                                                recurrenceEndDate.monthValue - 1,
-                                                recurrenceEndDate.dayOfMonth
-                                            ).show()
+                                            HapticHelper.lightClick(view, context)
+                                            showRecurrenceEndDatePicker = true
                                         }
+                                )
+                            }
+
+                            if (showRecurrenceEndDatePicker) {
+                                AppCalendarDialog(
+                                    initialDate = recurrenceEndDate ?: walkDate.plusMonths(1),
+                                    allowClear = true,
+                                    clearButtonText = "Сделать бессрочным",
+                                    onDateSelected = { recurrenceEndDate = it },
+                                    onClearDate = { recurrenceEndDate = null },
+                                    onDismiss = { showRecurrenceEndDatePicker = false }
                                 )
                             }
                         }
@@ -2126,10 +2201,11 @@ fun WalkFormDialog(
                 Spacer(modifier = Modifier.height(12.dp))
 
                 // Walk Comment (at the very end of the form)
-                OutlinedTextField(
+                AppTextField(
                     value = walkComment,
                     onValueChange = { walkComment = it },
-                    label = { Text(formLabels.commentLabel) },
+                    label = formLabels.commentLabel,
+                    placeholder = "домофон, поводок и т.д.",
                     maxLines = 3,
                     modifier = Modifier.fillMaxWidth()
                 )

@@ -12,6 +12,8 @@ import androidx.compose.foundation.background
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
+import androidx.compose.foundation.layout.ExperimentalLayoutApi
+import androidx.compose.foundation.layout.FlowRow
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.fillMaxSize
@@ -28,6 +30,7 @@ import androidx.compose.foundation.verticalScroll
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.rounded.ArrowBack
 import androidx.compose.material.icons.rounded.Assessment
+import androidx.compose.material.icons.rounded.CalendarToday
 import androidx.compose.material.icons.rounded.FileDownload
 import androidx.compose.material.icons.rounded.FileUpload
 import androidx.compose.material.icons.rounded.Info
@@ -43,7 +46,7 @@ import androidx.compose.material3.ButtonDefaults
 import androidx.compose.material3.HorizontalDivider
 import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
-import androidx.compose.material3.OutlinedTextField
+import androidx.compose.material3.OutlinedButton
 import androidx.compose.material3.Switch
 import androidx.compose.material3.SwitchDefaults
 import androidx.compose.material3.Text
@@ -69,6 +72,8 @@ import androidx.core.content.ContextCompat
 import com.kinolog.walker.BuildConfig
 import com.kinolog.walker.ui.MainViewModel
 import com.kinolog.walker.ui.components.AnimatedSegmentedControl
+import com.kinolog.walker.ui.components.AppCalendarDialog
+import com.kinolog.walker.ui.components.AppTextField
 import com.kinolog.walker.ui.components.GlassBox
 import com.kinolog.walker.ui.components.NavigationTab
 import com.kinolog.walker.ui.theme.LocalIsDarkTheme
@@ -83,6 +88,8 @@ import com.kinolog.walker.ui.theme.SandBeige
 import com.kinolog.walker.ui.theme.SoftMint
 import com.kinolog.walker.util.HapticHelper
 import com.kinolog.walker.util.PreferencesManager
+import java.time.format.DateTimeFormatter
+import java.util.Locale
 import com.kinolog.walker.util.ThemeMode
 import java.time.LocalDate
 
@@ -196,7 +203,7 @@ fun SettingsBackupScreen(
                     Spacer(modifier = Modifier.height(12.dp))
 
                     var selectedPeriodIndex by remember { mutableIntStateOf(1) } // Default: Неделя
-                    val periods = listOf("Сегодня", "Неделя", "Месяц", "Все время")
+                    val periods = listOf("Сегодня", "Неделя", "Месяц", "Все время", "Период")
 
                     AnimatedSegmentedControl(
                         items = periods,
@@ -207,8 +214,6 @@ fun SettingsBackupScreen(
                         height = 38.dp
                     )
 
-                    Spacer(modifier = Modifier.height(14.dp))
-
                     val today = remember { LocalDate.now() }
                     val todayEpoch = remember(today) { today.toEpochDay() }
                     val weekStartEpoch = remember(today) { today.minusDays(today.dayOfWeek.value.toLong() - 1).toEpochDay() }
@@ -216,12 +221,92 @@ fun SettingsBackupScreen(
                     val monthStartEpoch = remember(today) { today.withDayOfMonth(1).toEpochDay() }
                     val monthEndEpoch = remember(today) { today.withDayOfMonth(today.lengthOfMonth()).toEpochDay() }
 
-                    val periodWalks = remember(allWalks, selectedPeriodIndex) {
+                    var customStartDate by remember { mutableStateOf(today.withDayOfMonth(1)) }
+                    var customEndDate by remember { mutableStateOf(today) }
+                    var showCustomStartPicker by remember { mutableStateOf(false) }
+                    var showCustomEndPicker by remember { mutableStateOf(false) }
+
+                    val customStartEpoch = remember(customStartDate) { customStartDate.toEpochDay() }
+                    val customEndEpoch = remember(customEndDate) { customEndDate.toEpochDay() }
+                    val customMinEpoch = minOf(customStartEpoch, customEndEpoch)
+                    val customMaxEpoch = maxOf(customStartEpoch, customEndEpoch)
+
+                    AnimatedVisibility(visible = selectedPeriodIndex == 4) {
+                        val dateFormatter = remember { DateTimeFormatter.ofPattern("d MMM yyyy", Locale("ru")) }
+                        Row(
+                            modifier = Modifier
+                                .fillMaxWidth()
+                                .padding(top = 10.dp),
+                            horizontalArrangement = Arrangement.spacedBy(8.dp)
+                        ) {
+                            OutlinedButton(
+                                onClick = {
+                                    HapticHelper.lightClick(view, context)
+                                    showCustomStartPicker = true
+                                },
+                                shape = RoundedCornerShape(12.dp),
+                                modifier = Modifier.weight(1f)
+                            ) {
+                                Icon(Icons.Rounded.CalendarToday, contentDescription = null, tint = SageGreenPrimary, modifier = Modifier.size(16.dp))
+                                Spacer(modifier = Modifier.width(6.dp))
+                                Text(
+                                    text = "С: ${customStartDate.format(dateFormatter)}",
+                                    fontSize = 12.sp,
+                                    fontWeight = FontWeight.Medium,
+                                    color = CharcoalPrimary,
+                                    maxLines = 1,
+                                    overflow = TextOverflow.Ellipsis
+                                )
+                            }
+
+                            OutlinedButton(
+                                onClick = {
+                                    HapticHelper.lightClick(view, context)
+                                    showCustomEndPicker = true
+                                },
+                                shape = RoundedCornerShape(12.dp),
+                                modifier = Modifier.weight(1f)
+                            ) {
+                                Icon(Icons.Rounded.CalendarToday, contentDescription = null, tint = SageGreenPrimary, modifier = Modifier.size(16.dp))
+                                Spacer(modifier = Modifier.width(6.dp))
+                                Text(
+                                    text = "По: ${customEndDate.format(dateFormatter)}",
+                                    fontSize = 12.sp,
+                                    fontWeight = FontWeight.Medium,
+                                    color = CharcoalPrimary,
+                                    maxLines = 1,
+                                    overflow = TextOverflow.Ellipsis
+                                )
+                            }
+                        }
+                    }
+
+                    if (showCustomStartPicker) {
+                        AppCalendarDialog(
+                            initialDate = customStartDate,
+                            onDateSelected = { customStartDate = it },
+                            onDismiss = { showCustomStartPicker = false }
+                        )
+                    }
+
+                    if (showCustomEndPicker) {
+                        AppCalendarDialog(
+                            initialDate = customEndDate,
+                            onDateSelected = { customEndDate = it },
+                            onDismiss = { showCustomEndPicker = false }
+                        )
+                    }
+
+                    Spacer(modifier = Modifier.height(14.dp))
+
+                    val periodWalks = remember(allWalks, selectedPeriodIndex, customMinEpoch, customMaxEpoch) {
                         when (selectedPeriodIndex) {
                             0 -> allWalks.filter { it.dateEpochDay == todayEpoch }
                             1 -> allWalks.filter { it.dateEpochDay in weekStartEpoch..weekEndEpoch }
                             2 -> allWalks.filter { it.dateEpochDay in monthStartEpoch..monthEndEpoch }
-                            else -> allWalks
+                            3 -> allWalks.filter { it.dateEpochDay <= todayEpoch }
+                            4 -> allWalks.filter { it.dateEpochDay in customMinEpoch..customMaxEpoch }
+                            else -> allWalks.filter { it.dateEpochDay <= todayEpoch }
                         }
                     }
 
@@ -703,16 +788,16 @@ fun SettingsBackupScreen(
 
                     Spacer(modifier = Modifier.height(10.dp))
 
-                    OutlinedTextField(
+                    AppTextField(
                         value = pricePresetsInput,
                         onValueChange = { pricePresetsInput = it },
-                        label = { Text("Суммы в рублях (через запятую)") },
-                        placeholder = { Text("500, 800, 1000, 1500") },
+                        label = "Суммы в рублях (через запятую)",
+                        placeholder = "500, 800, 1000, 1500",
                         singleLine = true,
                         modifier = Modifier.fillMaxWidth()
                     )
 
-                    Spacer(modifier = Modifier.height(8.dp))
+                    Spacer(modifier = Modifier.height(10.dp))
 
                     val previewList = pricePresetsInput
                         .split(",")
@@ -720,25 +805,31 @@ fun SettingsBackupScreen(
                         .filter { it > 0 }
 
                     if (previewList.isNotEmpty()) {
-                        Row(
-                            modifier = Modifier.fillMaxWidth(),
-                            horizontalArrangement = Arrangement.spacedBy(6.dp),
-                            verticalAlignment = Alignment.CenterVertically
-                        ) {
+                        Column(modifier = Modifier.fillMaxWidth()) {
                             Text("Превью:", fontSize = 11.sp, color = OliveGreySecondary)
-                            previewList.forEach { p ->
-                                Box(
-                                    modifier = Modifier
-                                        .clip(RoundedCornerShape(8.dp))
-                                        .background(PriceBadgeBg)
-                                        .padding(horizontal = 8.dp, vertical = 3.dp)
-                                ) {
-                                    Text(
-                                        text = "$p ₽",
-                                        fontSize = 11.sp,
-                                        fontWeight = FontWeight.Bold,
-                                        color = PriceBadgeText
-                                    )
+                            Spacer(modifier = Modifier.height(6.dp))
+                            @OptIn(ExperimentalLayoutApi::class)
+                            FlowRow(
+                                modifier = Modifier.fillMaxWidth(),
+                                horizontalArrangement = Arrangement.spacedBy(8.dp),
+                                verticalArrangement = Arrangement.spacedBy(8.dp)
+                            ) {
+                                previewList.forEach { p ->
+                                    Box(
+                                        modifier = Modifier
+                                            .clip(RoundedCornerShape(8.dp))
+                                            .background(PriceBadgeBg)
+                                            .padding(horizontal = 10.dp, vertical = 5.dp)
+                                    ) {
+                                        Text(
+                                            text = "$p ₽",
+                                            fontSize = 11.sp,
+                                            fontWeight = FontWeight.Bold,
+                                            color = PriceBadgeText,
+                                            maxLines = 1,
+                                            softWrap = false
+                                        )
+                                    }
                                 }
                             }
                         }
@@ -884,10 +975,11 @@ fun SettingsBackupScreen(
 
                     Spacer(modifier = Modifier.height(10.dp))
 
-                    OutlinedTextField(
+                    AppTextField(
                         value = apiKeyInput,
                         onValueChange = { apiKeyInput = it },
-                        placeholder = { Text("Вставьте ключ из Кабинета разработчика", fontSize = 12.sp) },
+                        label = "API-ключ Яндекс.Карт",
+                        placeholder = "Вставьте ключ из Кабинета разработчика",
                         singleLine = true,
                         modifier = Modifier.fillMaxWidth()
                     )

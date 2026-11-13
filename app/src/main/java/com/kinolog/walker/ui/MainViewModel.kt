@@ -364,7 +364,7 @@ class MainViewModel(application: Application) : AndroidViewModel(application) {
         walkComment: String,
         isRecurring: Boolean,
         selectedDays: Set<DayOfWeek>,
-        recurrenceEndDate: LocalDate,
+        recurrenceEndDate: LocalDate? = null,
         onDone: () -> Unit
     ) {
         viewModelScope.launch {
@@ -384,8 +384,9 @@ class MainViewModel(application: Application) : AndroidViewModel(application) {
             } else {
                 val seriesId = UUID.randomUUID().toString()
                 val walksToCreate = mutableListOf<WalkEventEntity>()
+                val effectiveEndDate = recurrenceEndDate ?: date.plusMonths(3)
                 var cur = date
-                while (!cur.isAfter(recurrenceEndDate)) {
+                while (!cur.isAfter(effectiveEndDate)) {
                     if (selectedDays.contains(cur.dayOfWeek)) {
                         walksToCreate.add(
                             WalkEventEntity(

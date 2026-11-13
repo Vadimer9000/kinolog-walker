@@ -1,0 +1,121 @@
+package com.kinolog.walker.ui.components
+
+import androidx.compose.foundation.interaction.MutableInteractionSource
+import androidx.compose.foundation.shape.RoundedCornerShape
+import androidx.compose.foundation.text.KeyboardActions
+import androidx.compose.foundation.text.KeyboardOptions
+import androidx.compose.material3.OutlinedTextField
+import androidx.compose.material3.OutlinedTextFieldDefaults
+import androidx.compose.material3.Text
+import androidx.compose.runtime.Composable
+import androidx.compose.runtime.remember
+import androidx.compose.ui.Modifier
+import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.graphics.Shape
+import androidx.compose.ui.text.TextStyle
+import androidx.compose.ui.text.font.FontWeight
+import androidx.compose.ui.text.input.VisualTransformation
+import androidx.compose.ui.text.style.TextOverflow
+import androidx.compose.ui.unit.dp
+import androidx.compose.ui.unit.sp
+import com.kinolog.walker.ui.theme.LocalIsDarkTheme
+
+@Composable
+fun AppTextField(
+    value: String,
+    onValueChange: (String) -> Unit,
+    modifier: Modifier = Modifier,
+    label: String? = null,
+    placeholder: String? = null,
+    leadingIcon: @Composable (() -> Unit)? = null,
+    trailingIcon: @Composable (() -> Unit)? = null,
+    prefix: @Composable (() -> Unit)? = null,
+    suffix: @Composable (() -> Unit)? = null,
+    isError: Boolean = false,
+    visualTransformation: VisualTransformation = VisualTransformation.None,
+    keyboardOptions: KeyboardOptions = KeyboardOptions.Default,
+    keyboardActions: KeyboardActions = KeyboardActions.Default,
+    singleLine: Boolean = false,
+    maxLines: Int = if (singleLine) 1 else Int.MAX_VALUE,
+    minLines: Int = 1,
+    readOnly: Boolean = false,
+    enabled: Boolean = true,
+    shape: Shape = RoundedCornerShape(14.dp),
+    interactionSource: MutableInteractionSource = remember { MutableInteractionSource() }
+) {
+    val isDark = LocalIsDarkTheme.current
+
+    val colors = OutlinedTextFieldDefaults.colors(
+        focusedTextColor = if (isDark) Color(0xFFEAEFEA) else Color(0xFF1A1D1B),
+        unfocusedTextColor = if (isDark) Color(0xFFEAEFEA) else Color(0xFF1A1D1B),
+        disabledTextColor = if (isDark) Color(0xFF627067) else Color(0xFF98A39C),
+        errorTextColor = if (isDark) Color(0xFFEAEFEA) else Color(0xFF1A1D1B),
+        focusedContainerColor = if (isDark) Color(0xFF141E18) else Color(0xFFFFFFFF),
+        unfocusedContainerColor = if (isDark) Color(0xFF141E18) else Color(0xFFFFFFFF),
+        disabledContainerColor = if (isDark) Color(0xFF141E18) else Color(0xFFF3EFEA),
+        errorContainerColor = if (isDark) Color(0xFF141E18) else Color(0xFFFFFFFF),
+        cursorColor = if (isDark) Color(0xFF68B684) else Color(0xFF4A8267),
+        errorCursorColor = if (isDark) Color(0xFFEF9A9A) else Color(0xFFD9534F),
+        focusedBorderColor = if (isDark) Color(0xFF68B684) else Color(0xFF4A8267),
+        unfocusedBorderColor = if (isDark) Color(0xFF34463B) else Color(0xFFCAD7CF),
+        disabledBorderColor = if (isDark) Color(0xFF222C25) else Color(0xFFE0DCD6),
+        errorBorderColor = if (isDark) Color(0xFFEF9A9A) else Color(0xFFD9534F),
+        focusedLabelColor = if (isDark) Color(0xFF68B684) else Color(0xFF4A8267),
+        unfocusedLabelColor = if (isDark) Color(0xFFA0ABA4) else Color(0xFF68706B),
+        disabledLabelColor = if (isDark) Color(0xFF627067) else Color(0xFF98A39C),
+        errorLabelColor = if (isDark) Color(0xFFEF9A9A) else Color(0xFFD9534F),
+        focusedPlaceholderColor = if (isDark) Color(0xFF7A887F) else Color(0xFF98A39C),
+        unfocusedPlaceholderColor = if (isDark) Color(0xFF7A887F) else Color(0xFF98A39C),
+        disabledPlaceholderColor = if (isDark) Color(0xFF4B564E) else Color(0xFFB5BEB8),
+        focusedPrefixColor = if (isDark) Color(0xFFEAEFEA) else Color(0xFF1A1D1B),
+        unfocusedPrefixColor = if (isDark) Color(0xFFEAEFEA) else Color(0xFF1A1D1B),
+        focusedSuffixColor = if (isDark) Color(0xFFEAEFEA) else Color(0xFF1A1D1B),
+        unfocusedSuffixColor = if (isDark) Color(0xFFEAEFEA) else Color(0xFF1A1D1B)
+    )
+
+    OutlinedTextField(
+        value = value,
+        onValueChange = onValueChange,
+        modifier = modifier,
+        label = label?.let {
+            {
+                Text(
+                    text = it,
+                    fontSize = 13.sp,
+                    maxLines = 1,
+                    overflow = TextOverflow.Ellipsis
+                )
+            }
+        },
+        placeholder = placeholder?.let {
+            {
+                Text(
+                    text = it,
+                    fontSize = 13.sp,
+                    maxLines = 1,
+                    overflow = TextOverflow.Ellipsis
+                )
+            }
+        },
+        leadingIcon = leadingIcon,
+        trailingIcon = trailingIcon,
+        prefix = prefix,
+        suffix = suffix,
+        isError = isError,
+        visualTransformation = visualTransformation,
+        keyboardOptions = keyboardOptions,
+        keyboardActions = keyboardActions,
+        singleLine = singleLine,
+        maxLines = maxLines,
+        minLines = minLines,
+        readOnly = readOnly,
+        enabled = enabled,
+        shape = shape,
+        colors = colors,
+        interactionSource = interactionSource,
+        textStyle = TextStyle(
+            fontSize = 14.sp,
+            fontWeight = FontWeight.Normal
+        )
+    )
+}

@@ -31,7 +31,6 @@ import androidx.compose.foundation.lazy.items
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
-import androidx.compose.foundation.text.BasicTextField
 import androidx.compose.foundation.text.KeyboardOptions
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.material.icons.Icons
@@ -61,8 +60,6 @@ import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
 import androidx.compose.material3.IconButtonDefaults
 import androidx.compose.material3.OutlinedButton
-import androidx.compose.material3.OutlinedTextField
-import androidx.compose.material3.OutlinedTextFieldDefaults
 import androidx.compose.material3.Text
 import androidx.compose.material3.TextButton
 import androidx.compose.runtime.Composable
@@ -77,19 +74,11 @@ import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
-import androidx.compose.ui.draw.drawBehind
-import androidx.compose.ui.focus.onFocusChanged
-import androidx.compose.ui.geometry.Rect
 import androidx.compose.ui.graphics.Color
-import androidx.compose.ui.graphics.Path
-import androidx.compose.ui.graphics.SolidColor
-import androidx.compose.ui.graphics.drawscope.Stroke
-import androidx.compose.ui.layout.onGloballyPositioned
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.platform.LocalView
 import androidx.compose.ui.text.AnnotatedString
 import androidx.compose.ui.text.SpanStyle
-import androidx.compose.ui.text.TextStyle
 import androidx.compose.ui.text.buildAnnotatedString
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.withStyle
@@ -108,6 +97,8 @@ import com.kinolog.walker.model.MessengerType
 import com.kinolog.walker.model.PetItem
 import com.kinolog.walker.model.PetType
 import com.kinolog.walker.ui.MainViewModel
+import com.kinolog.walker.ui.components.AnimatedSegmentedControl
+import com.kinolog.walker.ui.components.AppTextField
 import com.kinolog.walker.ui.components.GlassBox
 import com.kinolog.walker.ui.components.PetTag
 import com.kinolog.walker.ui.theme.CanvasAlabaster
@@ -165,46 +156,29 @@ fun ClientsScreen(
                 modifier = Modifier.padding(bottom = 12.dp)
             )
 
-            // Search Bar (Liquid Glass)
-            GlassBox(
-                modifier = Modifier
-                    .fillMaxWidth()
-                    .height(52.dp),
-                shape = CircleShape,
-                elevation = 4.dp
-            ) {
-                Row(
-                    modifier = Modifier
-                        .fillMaxSize()
-                        .padding(horizontal = 16.dp),
-                    verticalAlignment = Alignment.CenterVertically
-                ) {
+            // Search Bar
+            AppTextField(
+                value = searchQuery,
+                onValueChange = { viewModel.setSearchQuery(it) },
+                label = "Поиск клиентов и питомцев",
+                placeholder = "Имя, кличка, адрес или телефон",
+                leadingIcon = {
                     Icon(
                         imageVector = Icons.Rounded.Search,
                         contentDescription = "Поиск",
                         tint = SageGreenPrimary
                     )
-                    Spacer(modifier = Modifier.width(8.dp))
-                    OutlinedTextField(
-                        value = searchQuery,
-                        onValueChange = { viewModel.setSearchQuery(it) },
-                        placeholder = { Text("Поиск по имени, кличке питомца, адресу...", fontSize = 13.sp) },
-                        modifier = Modifier.weight(1f),
-                        singleLine = true,
-                        colors = OutlinedTextFieldDefaults.colors(
-                            focusedBorderColor = Color.Transparent,
-                            unfocusedBorderColor = Color.Transparent,
-                            focusedContainerColor = Color.Transparent,
-                            unfocusedContainerColor = Color.Transparent
-                        )
-                    )
+                },
+                trailingIcon = {
                     if (searchQuery.isNotEmpty()) {
                         IconButton(onClick = { viewModel.setSearchQuery("") }) {
                             Icon(Icons.Rounded.Clear, contentDescription = "Очистить", tint = OliveGreySecondary)
                         }
                     }
-                }
-            }
+                },
+                singleLine = true,
+                modifier = Modifier.fillMaxWidth()
+            )
 
             Spacer(modifier = Modifier.height(12.dp))
 
@@ -592,145 +566,7 @@ class RussianPhoneVisualTransformation : VisualTransformation {
     }
 }
 
-@Composable
-private fun ContourInputField(
-    value: String,
-    onValueChange: (String) -> Unit,
-    label: String,
-    modifier: Modifier = Modifier,
-    keyboardType: KeyboardType = KeyboardType.Text
-) {
-    var isFocused by remember { mutableStateOf(false) }
-    var labelWidthPx by remember { mutableFloatStateOf(0f) }
-    val borderColor = if (isFocused) SageGreenPrimary else DividerMuted
-    val labelColor = if (isFocused) SageGreenPrimary else OliveGreySecondary
-
-    Box(
-        modifier = modifier
-            .padding(top = 8.dp)
-            .height(56.dp)
-            .drawBehind {
-                val strokeWidth = if (isFocused) 2.dp.toPx() else 1.dp.toPx()
-                val r = 12.dp.toPx()
-                val w = size.width
-                val h = size.height
-                val halfStroke = strokeWidth / 2f
-
-                // Notch interval on the top border (gap for the label)
-                val notchStart = 10.dp.toPx()
-                val notchEnd = (notchStart + labelWidthPx + 6.dp.toPx()).coerceAtMost(w - r)
-
-                val path = Path().apply {
-                    // Start right at the end of notch on top edge
-                    moveTo(notchEnd, halfStroke)
-                    // Top edge right of notch
-                    lineTo(w - r, halfStroke)
-                    // Top-Right corner
-                    arcTo(
-                        rect = Rect(
-                            left = w - 2 * r + halfStroke,
-                            top = halfStroke,
-                            right = w - halfStroke,
-                            bottom = 2 * r - halfStroke
-                        ),
-                        startAngleDegrees = 270f,
-                        sweepAngleDegrees = 90f,
-                        forceMoveTo = false
-                    )
-                    // Right edge
-                    lineTo(w - halfStroke, h - r)
-                    // Bottom-Right corner
-                    arcTo(
-                        rect = Rect(
-                            left = w - 2 * r + halfStroke,
-                            top = h - 2 * r + halfStroke,
-                            right = w - halfStroke,
-                            bottom = h - halfStroke
-                        ),
-                        startAngleDegrees = 0f,
-                        sweepAngleDegrees = 90f,
-                        forceMoveTo = false
-                    )
-                    // Bottom edge
-                    lineTo(r, h - halfStroke)
-                    // Bottom-Left corner
-                    arcTo(
-                        rect = Rect(
-                            left = halfStroke,
-                            top = h - 2 * r + halfStroke,
-                            right = 2 * r - halfStroke,
-                            bottom = h - halfStroke
-                        ),
-                        startAngleDegrees = 90f,
-                        sweepAngleDegrees = 90f,
-                        forceMoveTo = false
-                    )
-                    // Left edge
-                    lineTo(halfStroke, r)
-                    // Top-Left corner
-                    arcTo(
-                        rect = Rect(
-                            left = halfStroke,
-                            top = halfStroke,
-                            right = 2 * r - halfStroke,
-                            bottom = 2 * r - halfStroke
-                        ),
-                        startAngleDegrees = 180f,
-                        sweepAngleDegrees = 90f,
-                        forceMoveTo = false
-                    )
-                    // Top edge left of notch
-                    lineTo(notchStart.coerceAtLeast(r), halfStroke)
-                }
-
-                drawPath(
-                    path = path,
-                    color = borderColor,
-                    style = Stroke(width = strokeWidth)
-                )
-            }
-    ) {
-        Text(
-            text = label,
-            fontSize = 12.sp,
-            fontWeight = FontWeight.Medium,
-            color = labelColor,
-            maxLines = 1,
-            softWrap = false,
-            modifier = Modifier
-                .offset(x = 13.dp, y = (-8).dp)
-                .onGloballyPositioned { coords ->
-                    labelWidthPx = coords.size.width.toFloat()
-                }
-        )
-
-        BasicTextField(
-            value = value,
-            onValueChange = onValueChange,
-            singleLine = true,
-            textStyle = TextStyle(
-                color = CharcoalPrimary,
-                fontSize = 15.sp,
-                fontWeight = FontWeight.Normal
-            ),
-            keyboardOptions = KeyboardOptions(keyboardType = keyboardType),
-            cursorBrush = SolidColor(SageGreenPrimary),
-            modifier = Modifier
-                .fillMaxSize()
-                .onFocusChanged { isFocused = it.isFocused }
-                .padding(horizontal = 14.dp, vertical = 14.dp),
-            decorationBox = { innerTextField ->
-                Box(
-                    modifier = Modifier.fillMaxSize(),
-                    contentAlignment = Alignment.CenterStart
-                ) {
-                    innerTextField()
-                }
-            }
-        )
-    }
-}
-
+@OptIn(ExperimentalLayoutApi::class)
 @Composable
 fun ClientFormDialog(
     client: ClientEntity?,
@@ -884,10 +720,11 @@ fun ClientFormDialog(
                 Spacer(modifier = Modifier.height(14.dp))
 
                 // Full Name
-                OutlinedTextField(
+                AppTextField(
                     value = fullName,
                     onValueChange = { fullName = it },
-                    label = { Text("ФИО клиента") },
+                    label = "ФИО клиента",
+                    placeholder = "например: Иванов Иван",
                     singleLine = true,
                     modifier = Modifier.fillMaxWidth()
                 )
@@ -895,7 +732,7 @@ fun ClientFormDialog(
                 Spacer(modifier = Modifier.height(10.dp))
 
                 // Phone with Russian Mask & Visual Transformation
-                OutlinedTextField(
+                AppTextField(
                     value = phoneDigits,
                     onValueChange = { input ->
                         val clean = input.filter { it.isDigit() }
@@ -914,8 +751,8 @@ fun ClientFormDialog(
                         }
                         phoneDigits = normalized.take(10)
                     },
-                    label = { Text("Номер телефона") },
-                    placeholder = { Text("(___) ___-__-__") },
+                    label = "Номер телефона",
+                    placeholder = "(___) ___-__-__",
                     prefix = {
                         Text(
                             text = "+7 ",
@@ -934,29 +771,31 @@ fun ClientFormDialog(
                 // Messenger Type Selector
                 Text("Основной мессенджер:", fontSize = 13.sp, fontWeight = FontWeight.Medium)
                 Spacer(modifier = Modifier.height(4.dp))
-                Row(
+                FlowRow(
                     modifier = Modifier.fillMaxWidth(),
-                    horizontalArrangement = Arrangement.spacedBy(6.dp)
+                    horizontalArrangement = Arrangement.spacedBy(8.dp),
+                    verticalArrangement = Arrangement.spacedBy(8.dp)
                 ) {
                     MessengerType.entries.forEach { type ->
                         val isSelected = type == messengerType
                         Box(
                             modifier = Modifier
-                                .weight(1f)
                                 .clip(CircleShape)
                                 .background(if (isSelected) SageGreenPrimary else SandBeige)
                                 .clickable {
                                     HapticHelper.tick(view, context)
                                     messengerType = type
                                 }
-                                .padding(vertical = 8.dp),
+                                .padding(horizontal = 14.dp, vertical = 8.dp),
                             contentAlignment = Alignment.Center
                         ) {
                             Text(
                                 text = type.title,
                                 color = if (isSelected) Color.White else CharcoalPrimary,
-                                fontSize = 11.sp,
-                                fontWeight = if (isSelected) FontWeight.Bold else FontWeight.Normal
+                                fontSize = 12.sp,
+                                fontWeight = if (isSelected) FontWeight.Bold else FontWeight.Normal,
+                                maxLines = 1,
+                                softWrap = false
                             )
                         }
                     }
@@ -965,10 +804,11 @@ fun ClientFormDialog(
                 Spacer(modifier = Modifier.height(8.dp))
 
                 // Messenger ID
-                OutlinedTextField(
+                AppTextField(
                     value = messengerIdentifier,
                     onValueChange = { messengerIdentifier = it },
-                    label = { Text("Логин / ID в ${messengerType.title} (например: @username)") },
+                    label = "Логин / ID в ${messengerType.title}",
+                    placeholder = "например: @username",
                     singleLine = true,
                     modifier = Modifier.fillMaxWidth()
                 )
@@ -1035,18 +875,18 @@ fun ClientFormDialog(
 
                             Spacer(modifier = Modifier.height(8.dp))
 
-                            OutlinedTextField(
+                            AppTextField(
                                 value = secondaryContactName,
                                 onValueChange = { secondaryContactName = it },
-                                label = { Text("Имя второго контакта") },
-                                placeholder = { Text("Например: Муж, Жена, Догситтер") },
+                                label = "Имя второго контакта",
+                                placeholder = "например: Муж, Жена, Догситтер",
                                 singleLine = true,
                                 modifier = Modifier.fillMaxWidth()
                             )
 
                             Spacer(modifier = Modifier.height(8.dp))
 
-                            OutlinedTextField(
+                            AppTextField(
                                 value = secondaryContactPhoneDigits,
                                 onValueChange = { input ->
                                     val clean = input.filter { it.isDigit() }
@@ -1065,8 +905,8 @@ fun ClientFormDialog(
                                     }
                                     secondaryContactPhoneDigits = normalized.take(10)
                                 },
-                                label = { Text("Второй номер телефона") },
-                                placeholder = { Text("(___) ___-__-__") },
+                                label = "Второй номер телефона",
+                                placeholder = "(___) ___-__-__",
                                 prefix = {
                                     Text(
                                         text = "+7 ",
@@ -1121,29 +961,17 @@ fun ClientFormDialog(
                                 horizontalArrangement = Arrangement.SpaceBetween,
                                 verticalAlignment = Alignment.CenterVertically
                             ) {
-                                // Pet type selector [🐕 Собака | 🐈 Кошка]
-                                Row(horizontalArrangement = Arrangement.spacedBy(6.dp)) {
-                                    PetType.entries.forEach { pType ->
-                                        val isSelected = pet.type == pType
-                                        Box(
-                                            modifier = Modifier
-                                                .clip(CircleShape)
-                                                .background(if (isSelected) SageGreenPrimary else SandBeige)
-                                                .clickable {
-                                                    HapticHelper.tick(view, context)
-                                                    petList[index] = pet.copy(type = pType)
-                                                }
-                                                .padding(horizontal = 10.dp, vertical = 6.dp)
-                                        ) {
-                                            Text(
-                                                text = "${pType.icon} ${pType.title}",
-                                                color = if (isSelected) Color.White else CharcoalPrimary,
-                                                fontSize = 11.sp,
-                                                fontWeight = FontWeight.Medium
-                                            )
-                                        }
-                                    }
-                                }
+                                // Pet type selector [Собака | Кошка]
+                                AnimatedSegmentedControl(
+                                    items = PetType.entries,
+                                    selectedIndex = if (pet.type == PetType.DOG) 0 else 1,
+                                    onItemSelected = { selIndex ->
+                                        petList[index] = pet.copy(type = if (selIndex == 0) PetType.DOG else PetType.CAT)
+                                    },
+                                    itemLabel = { it.title },
+                                    modifier = Modifier.width(170.dp),
+                                    height = 34.dp
+                                )
 
                                 if (petList.size > 1) {
                                     IconButton(onClick = { petList.removeAt(index) }) {
@@ -1154,20 +982,22 @@ fun ClientFormDialog(
 
                             Spacer(modifier = Modifier.height(8.dp))
 
-                            OutlinedTextField(
+                            AppTextField(
                                 value = pet.name,
                                 onValueChange = { petList[index] = pet.copy(name = it) },
-                                label = { Text("Кличка питомца") },
+                                label = "Кличка питомца",
+                                placeholder = "например: Барсик, Джеки",
                                 singleLine = true,
                                 modifier = Modifier.fillMaxWidth()
                             )
 
                             Spacer(modifier = Modifier.height(6.dp))
 
-                            OutlinedTextField(
+                            AppTextField(
                                 value = pet.breedOrDetails,
                                 onValueChange = { petList[index] = pet.copy(breedOrDetails = it) },
-                                label = { Text("Порода / особенности (опционально)") },
+                                label = "Порода / особенности",
+                                placeholder = "например: корги, пугливый",
                                 singleLine = true,
                                 modifier = Modifier.fillMaxWidth()
                             )
@@ -1181,7 +1011,7 @@ fun ClientFormDialog(
                 Text("Адрес выгула:", fontSize = 15.sp, fontWeight = FontWeight.SemiBold)
                 Spacer(modifier = Modifier.height(6.dp))
 
-                OutlinedTextField(
+                AppTextField(
                     value = addressStreet,
                     onValueChange = { newValue ->
                         addressStreet = newValue
@@ -1189,7 +1019,8 @@ fun ClientFormDialog(
                         selectedLon = null
                         viewModel.onAddressQueryChanged(newValue)
                     },
-                    label = { Text("Город, улица, дом") },
+                    label = "Город, улица, дом",
+                    placeholder = "например: Санкт-Петербург, Невский пр. 1",
                     singleLine = false,
                     minLines = 1,
                     maxLines = 3,
@@ -1315,32 +1146,39 @@ fun ClientFormDialog(
                     modifier = Modifier.fillMaxWidth(),
                     horizontalArrangement = Arrangement.spacedBy(8.dp)
                 ) {
-                    ContourInputField(
+                    AppTextField(
                         value = entrance,
                         onValueChange = { entrance = it },
                         label = "Парадная",
+                        placeholder = "1",
+                        singleLine = true,
                         modifier = Modifier.weight(1f)
                     )
-                    ContourInputField(
+                    AppTextField(
                         value = floor,
                         onValueChange = { floor = it },
                         label = "Этаж",
+                        placeholder = "5",
+                        singleLine = true,
                         modifier = Modifier.weight(1f)
                     )
-                    ContourInputField(
+                    AppTextField(
                         value = apartment,
                         onValueChange = { apartment = it },
                         label = "Квартира",
+                        placeholder = "42",
+                        singleLine = true,
                         modifier = Modifier.weight(1f)
                     )
                 }
 
                 Spacer(modifier = Modifier.height(10.dp))
 
-                OutlinedTextField(
+                AppTextField(
                     value = clientComment,
                     onValueChange = { clientComment = it },
-                    label = { Text("Постоянный комментарий (домофон, поводок и т.д.)") },
+                    label = "Постоянный комментарий",
+                    placeholder = "домофон, поводок и т.д.",
                     maxLines = 3,
                     modifier = Modifier.fillMaxWidth()
                 )
