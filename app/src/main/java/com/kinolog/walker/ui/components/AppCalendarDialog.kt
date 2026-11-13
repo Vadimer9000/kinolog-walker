@@ -3,7 +3,6 @@ package com.kinolog.walker.ui.components
 import androidx.compose.foundation.background
 import androidx.compose.foundation.border
 import androidx.compose.foundation.clickable
-import androidx.compose.foundation.gestures.detectHorizontalDragGestures
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
@@ -29,7 +28,6 @@ import androidx.compose.material3.Text
 import androidx.compose.material3.TextButton
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.getValue
-import androidx.compose.runtime.mutableFloatStateOf
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.setValue
@@ -37,7 +35,6 @@ import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.Color
-import androidx.compose.ui.input.pointer.pointerInput
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.platform.LocalView
 import androidx.compose.ui.text.font.FontWeight
@@ -78,8 +75,6 @@ fun AppCalendarDialog(
     val monthFormatter = remember {
         DateTimeFormatter.ofPattern("LLLL yyyy", Locale("ru"))
     }
-
-    var swipeAccumulator by remember { mutableFloatStateOf(0f) }
 
     Dialog(
         onDismissRequest = onDismiss,
@@ -191,27 +186,9 @@ fun AppCalendarDialog(
 
                 Spacer(modifier = Modifier.height(6.dp))
 
-                // Swipeable Month Grid
+                // Month Grid
                 Box(
-                    modifier = Modifier
-                        .fillMaxWidth()
-                        .pointerInput(displayedMonth) {
-                            detectHorizontalDragGestures(
-                                onDragStart = { swipeAccumulator = 0f },
-                                onDragEnd = {
-                                    if (swipeAccumulator < -40f) {
-                                        HapticHelper.lightClick(view, context)
-                                        displayedMonth = displayedMonth.plusMonths(1)
-                                    } else if (swipeAccumulator > 40f) {
-                                        HapticHelper.lightClick(view, context)
-                                        displayedMonth = displayedMonth.minusMonths(1)
-                                    }
-                                },
-                                onHorizontalDrag = { _, dragAmount ->
-                                    swipeAccumulator += dragAmount
-                                }
-                            )
-                        }
+                    modifier = Modifier.fillMaxWidth()
                 ) {
                     val daysInMonth = displayedMonth.lengthOfMonth()
                     val firstDayOfWeek = displayedMonth.atDay(1).dayOfWeek.value // 1 = Monday .. 7 = Sunday

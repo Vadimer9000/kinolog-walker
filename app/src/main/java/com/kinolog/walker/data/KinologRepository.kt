@@ -153,17 +153,36 @@ class KinologRepository(
         val savedWalk = if (walk.id == 0L) walk.copy(id = id) else walk
         val client = clientDao.getClientByIdSync(savedWalk.clientId)
         if (client != null && !savedWalk.isCompleted) {
-            NotificationHelper.scheduleReminder(context, client, savedWalk)
+            try {
+                NotificationHelper.scheduleReminder(context, client, savedWalk)
+            } catch (_: Exception) {}
         }
         id
     }
 
-    suspend fun saveWalks(walks: List<WalkEventEntity>) = withContext(Dispatchers.IO) {
-        walkEventDao.insertWalks(walks)
-        for (w in walks) {
+    suspend fun saveWalks(
+        walks: List<WalkEventEntity>,
+        isInfiniteRecurrence: Boolean = false
+    ) = withContext(Dispatchers.IO) {
+        val ids = walkEventDao.insertWalks(walks)
+        val savedWalks = walks.mapIndexed { index, w ->
+            if (w.id == 0L && index < ids.size) w.copy(id = ids[index]) else w
+        }
+        val minEpochDay = java.time.LocalDate.now().toEpochDay()
+        val maxAlarmEpochDay = if (isInfiniteRecurrence) minEpochDay + 7 else Long.MAX_VALUE
+        val maxAlarms = if (isInfiniteRecurrence) 20 else Int.MAX_VALUE
+
+        var scheduledCount = 0
+        for (w in savedWalks) {
+            if (isInfiniteRecurrence && (w.dateEpochDay > maxAlarmEpochDay || scheduledCount >= maxAlarms)) {
+                continue
+            }
             val client = clientDao.getClientByIdSync(w.clientId)
             if (client != null && !w.isCompleted) {
-                NotificationHelper.scheduleReminder(context, client, w)
+                try {
+                    NotificationHelper.scheduleReminder(context, client, w)
+                    scheduledCount++
+                } catch (_: Exception) {}
             }
         }
     }
@@ -172,11 +191,13 @@ class KinologRepository(
         walkEventDao.updateWalk(walk)
         val client = clientDao.getClientByIdSync(walk.clientId)
         if (client != null) {
-            if (walk.isCompleted) {
-                NotificationHelper.cancelReminder(context, walk.id)
-            } else {
-                NotificationHelper.scheduleReminder(context, client, walk)
-            }
+            try {
+                if (walk.isCompleted) {
+                    NotificationHelper.cancelReminder(context, walk.id)
+                } else {
+                    NotificationHelper.scheduleReminder(context, client, walk)
+                }
+            } catch (_: Exception) {}
         }
     }
 
@@ -188,16 +209,27 @@ class KinologRepository(
     ) = withContext(Dispatchers.IO) {
         walkEventDao.updateAllWalksInSeries(seriesId, startTimeMinutes, durationMinutes, price)
         val seriesWalks = walkEventDao.getWalksBySeries(seriesId)
+        val minEpochDay = java.time.LocalDate.now().toEpochDay()
+        val maxAlarmEpochDay = minEpochDay + 7
+        var scheduledCount = 0
         for (w in seriesWalks) {
+            if (w.dateEpochDay < minEpochDay || w.dateEpochDay > maxAlarmEpochDay || scheduledCount >= 20) {
+                continue
+            }
             val client = clientDao.getClientByIdSync(w.clientId)
             if (client != null && !w.isCompleted) {
-                NotificationHelper.scheduleReminder(context, client, w)
+                try {
+                    NotificationHelper.scheduleReminder(context, client, w)
+                    scheduledCount++
+                } catch (_: Exception) {}
             }
         }
     }
 
     suspend fun deleteWalk(walkId: Long) = withContext(Dispatchers.IO) {
-        NotificationHelper.cancelReminder(context, walkId)
+        try {
+            NotificationHelper.cancelReminder(context, walkId)
+        } catch (_: Exception) {}
         walkEventDao.deleteWalkById(walkId)
     }
 
@@ -205,13 +237,17 @@ class KinologRepository(
         if (fromEpochDay != null) {
             val futureWalks = walkEventDao.getFutureWalksBySeries(seriesId, fromEpochDay)
             for (w in futureWalks) {
-                NotificationHelper.cancelReminder(context, w.id)
+                try {
+                    NotificationHelper.cancelReminder(context, w.id)
+                } catch (_: Exception) {}
             }
             walkEventDao.deleteFutureWalksBySeries(seriesId, fromEpochDay)
         } else {
             val seriesWalks = walkEventDao.getWalksBySeries(seriesId)
             for (w in seriesWalks) {
-                NotificationHelper.cancelReminder(context, w.id)
+                try {
+                    NotificationHelper.cancelReminder(context, w.id)
+                } catch (_: Exception) {}
             }
             walkEventDao.deleteWalksBySeries(seriesId)
         }

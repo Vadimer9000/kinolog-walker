@@ -45,7 +45,7 @@ interface WalkEventDao {
     suspend fun insertWalk(walk: WalkEventEntity): Long
 
     @Insert(onConflict = OnConflictStrategy.REPLACE)
-    suspend fun insertWalks(walks: List<WalkEventEntity>)
+    suspend fun insertWalks(walks: List<WalkEventEntity>): List<Long>
 
     @Update
     suspend fun updateWalk(walk: WalkEventEntity)

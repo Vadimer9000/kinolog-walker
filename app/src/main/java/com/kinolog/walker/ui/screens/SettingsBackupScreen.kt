@@ -203,7 +203,7 @@ fun SettingsBackupScreen(
                     Spacer(modifier = Modifier.height(12.dp))
 
                     var selectedPeriodIndex by remember { mutableIntStateOf(1) } // Default: Неделя
-                    val periods = listOf("Сегодня", "Неделя", "Месяц", "Все время", "Период")
+                    val periods = listOf("Сегодня", "Неделя", "Месяц", "Период")
 
                     AnimatedSegmentedControl(
                         items = periods,
@@ -231,7 +231,7 @@ fun SettingsBackupScreen(
                     val customMinEpoch = minOf(customStartEpoch, customEndEpoch)
                     val customMaxEpoch = maxOf(customStartEpoch, customEndEpoch)
 
-                    AnimatedVisibility(visible = selectedPeriodIndex == 4) {
+                    AnimatedVisibility(visible = selectedPeriodIndex == 3) {
                         val dateFormatter = remember { DateTimeFormatter.ofPattern("d MMM yyyy", Locale("ru")) }
                         Row(
                             modifier = Modifier
@@ -304,9 +304,8 @@ fun SettingsBackupScreen(
                             0 -> allWalks.filter { it.dateEpochDay == todayEpoch }
                             1 -> allWalks.filter { it.dateEpochDay in weekStartEpoch..weekEndEpoch }
                             2 -> allWalks.filter { it.dateEpochDay in monthStartEpoch..monthEndEpoch }
-                            3 -> allWalks.filter { it.dateEpochDay <= todayEpoch }
-                            4 -> allWalks.filter { it.dateEpochDay in customMinEpoch..customMaxEpoch }
-                            else -> allWalks.filter { it.dateEpochDay <= todayEpoch }
+                            3 -> allWalks.filter { it.dateEpochDay in customMinEpoch..customMaxEpoch }
+                            else -> allWalks.filter { it.dateEpochDay == todayEpoch }
                         }
                     }
 
@@ -856,6 +855,7 @@ fun SettingsBackupScreen(
                                 if (previewList.isNotEmpty()) {
                                     HapticHelper.success(view, context)
                                     viewModel.setPricePresets(previewList)
+                                    Toast.makeText(context, "Шаблоны цен сохранены", Toast.LENGTH_SHORT).show()
                                 }
                             },
                             colors = ButtonDefaults.buttonColors(containerColor = SageGreenPrimary),

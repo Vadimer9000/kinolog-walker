@@ -156,7 +156,6 @@ enum class SheetPosition {
 @Composable
 private fun ScheduleTopControls(
     selectedDate: LocalDate,
-    dateFormatter: DateTimeFormatter,
     isCalendarExpanded: Boolean,
     onToggleCalendar: () -> Unit,
     onPrevDay: () -> Unit,
@@ -166,6 +165,19 @@ private fun ScheduleTopControls(
 ) {
     val view = LocalView.current
     val context = LocalContext.current
+    val dayMonthFormatter = remember { DateTimeFormatter.ofPattern("d MMMM", Locale("ru")) }
+    val formattedDate = remember(selectedDate) {
+        val weekday = when (selectedDate.dayOfWeek) {
+            DayOfWeek.MONDAY -> "Пн"
+            DayOfWeek.TUESDAY -> "Вт"
+            DayOfWeek.WEDNESDAY -> "Ср"
+            DayOfWeek.THURSDAY -> "Чт"
+            DayOfWeek.FRIDAY -> "Пт"
+            DayOfWeek.SATURDAY -> "Сб"
+            DayOfWeek.SUNDAY -> "Вс"
+        }
+        "$weekday, ${selectedDate.format(dayMonthFormatter)}"
+    }
 
     Row(
         modifier = modifier.fillMaxWidth(),
@@ -215,7 +227,7 @@ private fun ScheduleTopControls(
                     )
                     Spacer(modifier = Modifier.width(4.dp))
                     Text(
-                        text = selectedDate.format(dateFormatter).replaceFirstChar { it.uppercase() },
+                        text = formattedDate,
                         fontWeight = FontWeight.SemiBold,
                         fontSize = 13.sp,
                         maxLines = 1,
@@ -506,10 +518,6 @@ fun ScheduleMapScreen(
     var isCompactView by remember { mutableStateOf(prefs.isCompactView) }
 
     val json = remember { Json { ignoreUnknownKeys = true } }
-
-    val dateFormatter = remember {
-        DateTimeFormatter.ofPattern("EEEE, d MMMM", Locale("ru"))
-    }
 
     @Composable
     fun WalksListContent(contentModifier: Modifier = Modifier) {
@@ -1241,7 +1249,6 @@ fun ScheduleMapScreen(
                 // Top Date Selector & Settings
                 ScheduleTopControls(
                     selectedDate = selectedDate,
-                    dateFormatter = dateFormatter,
                     isCalendarExpanded = isCalendarExpanded,
                     onToggleCalendar = { isCalendarExpanded = !isCalendarExpanded },
                     onPrevDay = { viewModel.setSelectedDate(selectedDate.minusDays(1)) },
@@ -1318,7 +1325,6 @@ fun ScheduleMapScreen(
             ) {
                 ScheduleTopControls(
                     selectedDate = selectedDate,
-                    dateFormatter = dateFormatter,
                     isCalendarExpanded = isCalendarExpanded,
                     onToggleCalendar = { isCalendarExpanded = !isCalendarExpanded },
                     onPrevDay = { viewModel.setSelectedDate(selectedDate.minusDays(1)) },

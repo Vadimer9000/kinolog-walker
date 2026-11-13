@@ -31,161 +31,184 @@ object NotificationHelper {
     private val json = Json { ignoreUnknownKeys = true }
 
     fun createNotificationChannel(context: Context) {
-        val manager = context.getSystemService(Context.NOTIFICATION_SERVICE) as NotificationManager
-        val channel = NotificationChannel(
-            CHANNEL_ID,
-            CHANNEL_NAME,
-            NotificationManager.IMPORTANCE_HIGH
-        ).apply {
-            description = "Напоминания о предстоящих записях и выгулах"
-            enableVibration(true)
-        }
-        manager.createNotificationChannel(channel)
+        try {
+            val manager = context.getSystemService(Context.NOTIFICATION_SERVICE) as? NotificationManager ?: return
+            val channel = NotificationChannel(
+                CHANNEL_ID,
+                CHANNEL_NAME,
+                NotificationManager.IMPORTANCE_HIGH
+            ).apply {
+                description = "Напоминания о предстоящих записях и выгулах"
+                enableVibration(true)
+            }
+            manager.createNotificationChannel(channel)
+        } catch (_: Exception) {}
     }
 
     fun scheduleReminder(context: Context, client: ClientEntity, walk: WalkEventEntity) {
-        val prefs = PreferencesManager(context)
-        if (!prefs.isNotificationsEnabled || walk.isCompleted) {
-            cancelReminder(context, walk.id)
-            return
-        }
-
-        val date = LocalDate.ofEpochDay(walk.dateEpochDay)
-        val hours = walk.startTimeMinutes / 60
-        val mins = walk.startTimeMinutes % 60
-        val walkDateTime = LocalDateTime.of(date, LocalTime.of(hours, mins))
-        val leadTimeMinutes = prefs.notificationLeadTimeMinutes
-        val reminderDateTime = walkDateTime.minusMinutes(leadTimeMinutes.toLong())
-        val triggerAtMillis = reminderDateTime.atZone(ZoneId.systemDefault()).toInstant().toEpochMilli()
-
-        if (triggerAtMillis <= System.currentTimeMillis()) {
-            // Already in past
-            return
-        }
-
-        val intent = Intent(context, WalkReminderReceiver::class.java).apply {
-            action = ACTION_WALK_REMINDER
-            putExtra(EXTRA_WALK_ID, walk.id)
-            putExtra(EXTRA_CLIENT_ID, walk.clientId)
-        }
-        val requestCode = walk.id.toInt()
-        val pendingIntent = PendingIntent.getBroadcast(
-            context,
-            requestCode,
-            intent,
-            PendingIntent.FLAG_UPDATE_CURRENT or PendingIntent.FLAG_IMMUTABLE
-        )
-
-        val alarmManager = context.getSystemService(Context.ALARM_SERVICE) as AlarmManager
         try {
-            if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.S) {
-                if (alarmManager.canScheduleExactAlarms()) {
-                    alarmManager.setExactAndAllowWhileIdle(AlarmManager.RTC_WAKEUP, triggerAtMillis, pendingIntent)
-                } else {
-                    alarmManager.setAndAllowWhileIdle(AlarmManager.RTC_WAKEUP, triggerAtMillis, pendingIntent)
-                }
-            } else {
-                alarmManager.setExactAndAllowWhileIdle(AlarmManager.RTC_WAKEUP, triggerAtMillis, pendingIntent)
+            val prefs = PreferencesManager(context)
+            if (!prefs.isNotificationsEnabled || walk.isCompleted) {
+                cancelReminder(context, walk.id)
+                return
             }
-        } catch (_: SecurityException) {
-            alarmManager.setAndAllowWhileIdle(AlarmManager.RTC_WAKEUP, triggerAtMillis, pendingIntent)
-        }
+
+            val date = LocalDate.ofEpochDay(walk.dateEpochDay)
+            val hours = walk.startTimeMinutes / 60
+            val mins = walk.startTimeMinutes % 60
+            val walkDateTime = LocalDateTime.of(date, LocalTime.of(hours, mins))
+            val leadTimeMinutes = prefs.notificationLeadTimeMinutes
+            val reminderDateTime = walkDateTime.minusMinutes(leadTimeMinutes.toLong())
+            val triggerAtMillis = reminderDateTime.atZone(ZoneId.systemDefault()).toInstant().toEpochMilli()
+
+            if (triggerAtMillis <= System.currentTimeMillis()) {
+                // Already in past
+                return
+            }
+
+            val intent = Intent(context, WalkReminderReceiver::class.java).apply {
+                action = ACTION_WALK_REMINDER
+                putExtra(EXTRA_WALK_ID, walk.id)
+                putExtra(EXTRA_CLIENT_ID, walk.clientId)
+            }
+            val requestCode = walk.id.toInt()
+            val pendingIntent = PendingIntent.getBroadcast(
+                context,
+                requestCode,
+                intent,
+                PendingIntent.FLAG_UPDATE_CURRENT or PendingIntent.FLAG_IMMUTABLE
+            )
+
+            val alarmManager = context.getSystemService(Context.ALARM_SERVICE) as? AlarmManager ?: return
+            try {
+                if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.S) {
+                    if (alarmManager.canScheduleExactAlarms()) {
+                        alarmManager.setExactAndAllowWhileIdle(AlarmManager.RTC_WAKEUP, triggerAtMillis, pendingIntent)
+                    } else {
+                        alarmManager.setAndAllowWhileIdle(AlarmManager.RTC_WAKEUP, triggerAtMillis, pendingIntent)
+                    }
+                } else {
+                    alarmManager.setExactAndAllowWhileIdle(AlarmManager.RTC_WAKEUP, triggerAtMillis, pendingIntent)
+                }
+            } catch (_: SecurityException) {
+                try {
+                    alarmManager.setAndAllowWhileIdle(AlarmManager.RTC_WAKEUP, triggerAtMillis, pendingIntent)
+                } catch (_: Exception) {}
+            } catch (_: Exception) {}
+        } catch (_: Exception) {}
     }
 
     fun cancelReminder(context: Context, walkId: Long) {
-        val alarmManager = context.getSystemService(Context.ALARM_SERVICE) as AlarmManager
-        val intent = Intent(context, WalkReminderReceiver::class.java).apply {
-            action = ACTION_WALK_REMINDER
-        }
-        val requestCode = walkId.toInt()
-        val pendingIntent = PendingIntent.getBroadcast(
-            context,
-            requestCode,
-            intent,
-            PendingIntent.FLAG_NO_CREATE or PendingIntent.FLAG_IMMUTABLE
-        )
-        if (pendingIntent != null) {
-            alarmManager.cancel(pendingIntent)
-            pendingIntent.cancel()
-        }
+        try {
+            val alarmManager = context.getSystemService(Context.ALARM_SERVICE) as? AlarmManager
+            val intent = Intent(context, WalkReminderReceiver::class.java).apply {
+                action = ACTION_WALK_REMINDER
+            }
+            val requestCode = walkId.toInt()
+            val pendingIntent = PendingIntent.getBroadcast(
+                context,
+                requestCode,
+                intent,
+                PendingIntent.FLAG_UPDATE_CURRENT or PendingIntent.FLAG_IMMUTABLE
+            )
+            if (pendingIntent != null && alarmManager != null) {
+                alarmManager.cancel(pendingIntent)
+                pendingIntent.cancel()
+            }
 
-        val notificationManager = context.getSystemService(Context.NOTIFICATION_SERVICE) as NotificationManager
-        notificationManager.cancel(requestCode)
+            val notificationManager = context.getSystemService(Context.NOTIFICATION_SERVICE) as? NotificationManager
+            notificationManager?.cancel(requestCode)
+        } catch (_: Exception) {}
     }
 
     suspend fun rescheduleAllReminders(context: Context) {
-        val prefs = PreferencesManager(context)
-        val db = AppDatabase.getInstance(context)
-        val todayEpochDay = LocalDate.now().toEpochDay()
-        val upcomingWalks = db.walkEventDao().getUpcomingUncompletedWalks(todayEpochDay)
+        try {
+            val prefs = PreferencesManager(context)
+            val db = AppDatabase.getInstance(context)
+            val today = LocalDate.now()
+            val todayEpochDay = today.toEpochDay()
+            val maxSeriesEpochDay = today.plusDays(7).toEpochDay()
+            val upcomingWalks = db.walkEventDao().getUpcomingUncompletedWalks(todayEpochDay)
 
-        if (!prefs.isNotificationsEnabled) {
+            if (!prefs.isNotificationsEnabled) {
+                for (walk in upcomingWalks) {
+                    cancelReminder(context, walk.id)
+                }
+                return
+            }
+
+            val clients = db.clientDao().getAllClientsList().associateBy { it.id }
+            val seriesAlarmCount = mutableMapOf<String, Int>()
+
             for (walk in upcomingWalks) {
-                cancelReminder(context, walk.id)
+                if (walk.seriesId != null) {
+                    val count = seriesAlarmCount[walk.seriesId] ?: 0
+                    if (walk.dateEpochDay > maxSeriesEpochDay || count >= 20) {
+                        continue
+                    }
+                    seriesAlarmCount[walk.seriesId] = count + 1
+                }
+                val client = clients[walk.clientId]
+                if (client != null) {
+                    scheduleReminder(context, client, walk)
+                }
             }
-            return
-        }
-
-        val clients = db.clientDao().getAllClientsList().associateBy { it.id }
-        for (walk in upcomingWalks) {
-            val client = clients[walk.clientId]
-            if (client != null) {
-                scheduleReminder(context, client, walk)
-            }
-        }
+        } catch (_: Exception) {}
     }
 
     fun showNotification(context: Context, client: ClientEntity, walk: WalkEventEntity) {
-        val prefs = PreferencesManager(context)
-        if (!prefs.isNotificationsEnabled || walk.isCompleted) return
+        try {
+            val prefs = PreferencesManager(context)
+            if (!prefs.isNotificationsEnabled || walk.isCompleted) return
 
-        createNotificationChannel(context)
+            createNotificationChannel(context)
 
-        val petNames = try {
-            if (client.petsJson.isNotBlank()) {
-                val pets = json.decodeFromString<List<PetItem>>(client.petsJson)
-                pets.map { it.name.trim() }.filter { it.isNotBlank() }.joinToString(", ").ifBlank { "Питомец" }
-            } else {
+            val petNames = try {
+                if (client.petsJson.isNotBlank()) {
+                    val pets = json.decodeFromString<List<PetItem>>(client.petsJson)
+                    pets.map { it.name.trim() }.filter { it.isNotBlank() }.joinToString(", ").ifBlank { "Питомец" }
+                } else {
+                    "Питомец"
+                }
+            } catch (_: Exception) {
                 "Питомец"
             }
-        } catch (_: Exception) {
-            "Питомец"
-        }
 
-        val title = "Скоро ${walk.category.title}: $petNames (${client.fullName})"
-        val timeFormatted = String.format("%02d:%02d", walk.startTimeMinutes / 60, walk.startTimeMinutes % 60)
+            val title = "Скоро ${walk.category.title}: $petNames (${client.fullName})"
+            val timeFormatted = String.format("%02d:%02d", walk.startTimeMinutes / 60, walk.startTimeMinutes % 60)
 
-        val fullAddress = buildString {
-            append(client.addressStreet.trim())
-            if (client.entrance.isNotBlank()) append(", под. ${client.entrance.trim()}")
-            if (client.floor.isNotBlank()) append(", эт. ${client.floor.trim()}")
-            if (client.apartment.isNotBlank()) append(", кв. ${client.apartment.trim()}")
-        }
-        val text = "Начало в $timeFormatted • $fullAddress"
+            val fullAddress = buildString {
+                append(client.addressStreet.trim())
+                if (client.entrance.isNotBlank()) append(", под. ${client.entrance.trim()}")
+                if (client.floor.isNotBlank()) append(", эт. ${client.floor.trim()}")
+                if (client.apartment.isNotBlank()) append(", кв. ${client.apartment.trim()}")
+            }
+            val text = "Начало в $timeFormatted • $fullAddress"
 
-        val contentIntent = Intent(context, MainActivity::class.java).apply {
-            flags = Intent.FLAG_ACTIVITY_NEW_TASK or Intent.FLAG_ACTIVITY_CLEAR_TOP
-        }
-        val requestCode = walk.id.toInt()
-        val pendingIntent = PendingIntent.getActivity(
-            context,
-            requestCode,
-            contentIntent,
-            PendingIntent.FLAG_UPDATE_CURRENT or PendingIntent.FLAG_IMMUTABLE
-        )
+            val contentIntent = Intent(context, MainActivity::class.java).apply {
+                flags = Intent.FLAG_ACTIVITY_NEW_TASK or Intent.FLAG_ACTIVITY_CLEAR_TOP
+            }
+            val requestCode = walk.id.toInt()
+            val pendingIntent = PendingIntent.getActivity(
+                context,
+                requestCode,
+                contentIntent,
+                PendingIntent.FLAG_UPDATE_CURRENT or PendingIntent.FLAG_IMMUTABLE
+            )
 
-        val notification = NotificationCompat.Builder(context, CHANNEL_ID)
-            .setSmallIcon(R.drawable.ic_launcher)
-            .setContentTitle(title)
-            .setContentText(text)
-            .setStyle(NotificationCompat.BigTextStyle().bigText(text))
-            .setContentIntent(pendingIntent)
-            .setAutoCancel(true)
-            .setPriority(NotificationCompat.PRIORITY_HIGH)
-            .setDefaults(NotificationCompat.DEFAULT_ALL)
-            .build()
+            val notification = NotificationCompat.Builder(context, CHANNEL_ID)
+                .setSmallIcon(R.drawable.ic_launcher)
+                .setContentTitle(title)
+                .setContentText(text)
+                .setStyle(NotificationCompat.BigTextStyle().bigText(text))
+                .setContentIntent(pendingIntent)
+                .setAutoCancel(true)
+                .setPriority(NotificationCompat.PRIORITY_HIGH)
+                .setDefaults(NotificationCompat.DEFAULT_ALL)
+                .build()
 
-        val notificationManager = context.getSystemService(Context.NOTIFICATION_SERVICE) as NotificationManager
-        notificationManager.notify(requestCode, notification)
+            val notificationManager = context.getSystemService(Context.NOTIFICATION_SERVICE) as? NotificationManager
+            notificationManager?.notify(requestCode, notification)
+        } catch (_: Exception) {}
     }
 }

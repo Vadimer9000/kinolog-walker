@@ -32,6 +32,7 @@ import androidx.compose.runtime.Composable
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableFloatStateOf
 import androidx.compose.runtime.remember
+import androidx.compose.runtime.rememberUpdatedState
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
@@ -40,6 +41,7 @@ import androidx.compose.ui.draw.scale
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.vector.ImageVector
 import androidx.compose.ui.input.pointer.pointerInput
+import androidx.compose.ui.layout.onSizeChanged
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.platform.LocalView
 import androidx.compose.ui.text.font.FontWeight
@@ -70,7 +72,10 @@ fun AppBottomBar(
     val context = LocalContext.current
     val bottomTabs = remember { listOf(NavigationTab.SCHEDULE, NavigationTab.CLIENTS) }
     val selectedIndex = bottomTabs.indexOf(currentTab).coerceAtLeast(0)
-    var dragAccumulator by remember { mutableFloatStateOf(0f) }
+    val currentTabState by rememberUpdatedState(currentTab)
+    val currentOnTabSelected by rememberUpdatedState(onTabSelected)
+    var containerWidth by remember { mutableFloatStateOf(1f) }
+    var currentX by remember { mutableFloatStateOf(0f) }
 
     Box(
         modifier = modifier
@@ -88,20 +93,35 @@ fun AppBottomBar(
                     .fillMaxWidth()
                     .height(52.dp)
                     .padding(4.dp)
-                    .pointerInput(currentTab) {
+                    .onSizeChanged { size ->
+                        if (size.width > 0) {
+                            containerWidth = size.width.toFloat()
+                        }
+                    }
+                    .pointerInput(bottomTabs.size) {
                         detectHorizontalDragGestures(
-                            onDragStart = { dragAccumulator = 0f },
-                            onDragEnd = {
-                                if (dragAccumulator > 30f && selectedIndex < bottomTabs.lastIndex) {
-                                    HapticHelper.lightClick(view, context)
-                                    onTabSelected(bottomTabs[selectedIndex + 1])
-                                } else if (dragAccumulator < -30f && selectedIndex > 0) {
-                                    HapticHelper.lightClick(view, context)
-                                    onTabSelected(bottomTabs[selectedIndex - 1])
+                            onDragStart = { offset ->
+                                currentX = offset.x
+                                if (containerWidth > 0f && bottomTabs.isNotEmpty()) {
+                                    val targetIndex = ((currentX / containerWidth) * bottomTabs.size).toInt().coerceIn(0, bottomTabs.size - 1)
+                                    val targetTab = bottomTabs[targetIndex]
+                                    if (targetTab != currentTabState) {
+                                        HapticHelper.tick(view, context)
+                                        currentOnTabSelected(targetTab)
+                                    }
                                 }
                             },
-                            onHorizontalDrag = { _, dragAmount ->
-                                dragAccumulator += dragAmount
+                            onHorizontalDrag = { change, dragAmount ->
+                                change.consume()
+                                currentX = (currentX + dragAmount).coerceIn(0f, containerWidth)
+                                if (containerWidth > 0f && bottomTabs.isNotEmpty()) {
+                                    val targetIndex = ((currentX / containerWidth) * bottomTabs.size).toInt().coerceIn(0, bottomTabs.size - 1)
+                                    val targetTab = bottomTabs[targetIndex]
+                                    if (targetTab != currentTabState) {
+                                        HapticHelper.tick(view, context)
+                                        currentOnTabSelected(targetTab)
+                                    }
+                                }
                             }
                         )
                     }
@@ -162,7 +182,7 @@ fun AppBottomBar(
                                     indication = null
                                 ) {
                                     if (tab != currentTab) {
-                                        HapticHelper.lightClick(view, context)
+                                        HapticHelper.tick(view, context)
                                     }
                                     onTabSelected(tab)
                                 },

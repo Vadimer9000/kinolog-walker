@@ -108,7 +108,9 @@ class MainViewModel(application: Application) : AndroidViewModel(application) {
         prefs.isNotificationsEnabled = enabled
         _isNotificationsEnabled.value = enabled
         viewModelScope.launch(Dispatchers.IO) {
-            NotificationHelper.rescheduleAllReminders(getApplication())
+            try {
+                NotificationHelper.rescheduleAllReminders(getApplication())
+            } catch (_: Exception) {}
         }
     }
 
@@ -116,7 +118,9 @@ class MainViewModel(application: Application) : AndroidViewModel(application) {
         prefs.notificationLeadTimeMinutes = minutes
         _notificationLeadTimeMinutes.value = minutes
         viewModelScope.launch(Dispatchers.IO) {
-            NotificationHelper.rescheduleAllReminders(getApplication())
+            try {
+                NotificationHelper.rescheduleAllReminders(getApplication())
+            } catch (_: Exception) {}
         }
     }
 
@@ -368,51 +372,58 @@ class MainViewModel(application: Application) : AndroidViewModel(application) {
         onDone: () -> Unit
     ) {
         viewModelScope.launch {
-            if (!isRecurring) {
-                val walk = WalkEventEntity(
-                    seriesId = null,
-                    clientId = clientId,
-                    dateEpochDay = date.toEpochDay(),
-                    startTimeMinutes = startTimeMinutes,
-                    durationMinutes = durationMinutes,
-                    price = price,
-                    category = category,
-                    walkComment = walkComment.trim(),
-                    isCompleted = false
-                )
-                repository.saveWalk(walk)
-            } else {
-                val seriesId = UUID.randomUUID().toString()
-                val walksToCreate = mutableListOf<WalkEventEntity>()
-                val effectiveEndDate = recurrenceEndDate ?: date.plusMonths(3)
-                var cur = date
-                while (!cur.isAfter(effectiveEndDate)) {
-                    if (selectedDays.contains(cur.dayOfWeek)) {
-                        walksToCreate.add(
-                            WalkEventEntity(
-                                seriesId = seriesId,
-                                clientId = clientId,
-                                dateEpochDay = cur.toEpochDay(),
-                                startTimeMinutes = startTimeMinutes,
-                                durationMinutes = durationMinutes,
-                                price = price,
-                                category = category,
-                                walkComment = walkComment.trim(),
-                                isCompleted = false
+            try {
+                if (!isRecurring) {
+                    val walk = WalkEventEntity(
+                        seriesId = null,
+                        clientId = clientId,
+                        dateEpochDay = date.toEpochDay(),
+                        startTimeMinutes = startTimeMinutes,
+                        durationMinutes = durationMinutes,
+                        price = price,
+                        category = category,
+                        walkComment = walkComment.trim(),
+                        isCompleted = false
+                    )
+                    repository.saveWalk(walk)
+                } else {
+                    val seriesId = UUID.randomUUID().toString()
+                    val walksToCreate = mutableListOf<WalkEventEntity>()
+                    val effectiveEndDate = recurrenceEndDate ?: date.plusMonths(3)
+                    var cur = date
+                    while (!cur.isAfter(effectiveEndDate)) {
+                        if (selectedDays.contains(cur.dayOfWeek)) {
+                            walksToCreate.add(
+                                WalkEventEntity(
+                                    seriesId = seriesId,
+                                    clientId = clientId,
+                                    dateEpochDay = cur.toEpochDay(),
+                                    startTimeMinutes = startTimeMinutes,
+                                    durationMinutes = durationMinutes,
+                                    price = price,
+                                    category = category,
+                                    walkComment = walkComment.trim(),
+                                    isCompleted = false
+                                )
                             )
-                        )
+                        }
+                        cur = cur.plusDays(1)
                     }
-                    cur = cur.plusDays(1)
+                    repository.saveWalks(
+                        walks = walksToCreate,
+                        isInfiniteRecurrence = (recurrenceEndDate == null)
+                    )
                 }
-                repository.saveWalks(walksToCreate)
-            }
+            } catch (_: Exception) {}
             onDone()
         }
     }
 
     fun updateWalk(walk: WalkEventEntity, onDone: () -> Unit = {}) {
         viewModelScope.launch {
-            repository.updateWalk(walk)
+            try {
+                repository.updateWalk(walk)
+            } catch (_: Exception) {}
             onDone()
         }
     }
@@ -423,28 +434,32 @@ class MainViewModel(application: Application) : AndroidViewModel(application) {
         onDone: () -> Unit = {}
     ) {
         viewModelScope.launch {
-            if (updateEntireSeries && !walk.seriesId.isNullOrBlank()) {
-                repository.updateWalkSeries(
-                    seriesId = walk.seriesId,
-                    startTimeMinutes = walk.startTimeMinutes,
-                    durationMinutes = walk.durationMinutes,
-                    price = walk.price
-                )
-                repository.updateWalk(walk)
-            } else {
-                repository.updateWalk(walk)
-            }
+            try {
+                if (updateEntireSeries && !walk.seriesId.isNullOrBlank()) {
+                    repository.updateWalkSeries(
+                        seriesId = walk.seriesId,
+                        startTimeMinutes = walk.startTimeMinutes,
+                        durationMinutes = walk.durationMinutes,
+                        price = walk.price
+                    )
+                    repository.updateWalk(walk)
+                } else {
+                    repository.updateWalk(walk)
+                }
+            } catch (_: Exception) {}
             onDone()
         }
     }
 
     fun deleteWalk(walk: WalkEventEntity, deleteEntireSeries: Boolean) {
         viewModelScope.launch {
-            if (deleteEntireSeries && !walk.seriesId.isNullOrBlank()) {
-                repository.deleteWalkSeries(walk.seriesId, fromEpochDay = walk.dateEpochDay)
-            } else {
-                repository.deleteWalk(walk.id)
-            }
+            try {
+                if (deleteEntireSeries && !walk.seriesId.isNullOrBlank()) {
+                    repository.deleteWalkSeries(walk.seriesId, fromEpochDay = walk.dateEpochDay)
+                } else {
+                    repository.deleteWalk(walk.id)
+                }
+            } catch (_: Exception) {}
         }
     }
 

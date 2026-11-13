@@ -22,12 +22,14 @@ import androidx.compose.runtime.Composable
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableFloatStateOf
 import androidx.compose.runtime.remember
+import androidx.compose.runtime.rememberUpdatedState
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.draw.scale
 import androidx.compose.ui.input.pointer.pointerInput
+import androidx.compose.ui.layout.onSizeChanged
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.platform.LocalView
 import androidx.compose.ui.text.font.FontWeight
@@ -52,7 +54,10 @@ fun <T> AnimatedSegmentedControl(
 ) {
     val view = LocalView.current
     val context = LocalContext.current
-    var dragAccumulator by remember { mutableFloatStateOf(0f) }
+    val currentSelectedIndex by rememberUpdatedState(selectedIndex)
+    val currentOnItemSelected by rememberUpdatedState(onItemSelected)
+    var containerWidth by remember { mutableFloatStateOf(1f) }
+    var currentX by remember { mutableFloatStateOf(0f) }
 
     Box(
         modifier = modifier
@@ -61,20 +66,33 @@ fun <T> AnimatedSegmentedControl(
             .clip(CircleShape)
             .background(SandBeige)
             .padding(3.dp)
-            .pointerInput(selectedIndex, items.size) {
+            .onSizeChanged { size ->
+                if (size.width > 0) {
+                    containerWidth = size.width.toFloat()
+                }
+            }
+            .pointerInput(items.size) {
                 detectHorizontalDragGestures(
-                    onDragStart = { dragAccumulator = 0f },
-                    onDragEnd = {
-                        if (dragAccumulator > 30f && selectedIndex < items.lastIndex) {
-                            HapticHelper.lightClick(view, context)
-                            onItemSelected(selectedIndex + 1)
-                        } else if (dragAccumulator < -30f && selectedIndex > 0) {
-                            HapticHelper.lightClick(view, context)
-                            onItemSelected(selectedIndex - 1)
+                    onDragStart = { offset ->
+                        currentX = offset.x
+                        if (containerWidth > 0f && items.isNotEmpty()) {
+                            val targetIndex = ((currentX / containerWidth) * items.size).toInt().coerceIn(0, items.size - 1)
+                            if (targetIndex != currentSelectedIndex) {
+                                HapticHelper.tick(view, context)
+                                currentOnItemSelected(targetIndex)
+                            }
                         }
                     },
-                    onHorizontalDrag = { _, dragAmount ->
-                        dragAccumulator += dragAmount
+                    onHorizontalDrag = { change, dragAmount ->
+                        change.consume()
+                        currentX = (currentX + dragAmount).coerceIn(0f, containerWidth)
+                        if (containerWidth > 0f && items.isNotEmpty()) {
+                            val targetIndex = ((currentX / containerWidth) * items.size).toInt().coerceIn(0, items.size - 1)
+                            if (targetIndex != currentSelectedIndex) {
+                                HapticHelper.tick(view, context)
+                                currentOnItemSelected(targetIndex)
+                            }
+                        }
                     }
                 )
             }
@@ -129,7 +147,7 @@ fun <T> AnimatedSegmentedControl(
                                 indication = null
                             ) {
                                 if (index != selectedIndex) {
-                                    HapticHelper.lightClick(view, context)
+                                    HapticHelper.tick(view, context)
                                     onItemSelected(index)
                                 }
                             },

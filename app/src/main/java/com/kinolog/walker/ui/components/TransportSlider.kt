@@ -28,12 +28,14 @@ import androidx.compose.runtime.Composable
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableFloatStateOf
 import androidx.compose.runtime.remember
+import androidx.compose.runtime.rememberUpdatedState
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.draw.scale
 import androidx.compose.ui.input.pointer.pointerInput
+import androidx.compose.ui.layout.onSizeChanged
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.platform.LocalView
 import androidx.compose.ui.text.font.FontWeight
@@ -54,26 +56,45 @@ fun TransportSlider(
     val view = LocalView.current
     val context = LocalContext.current
     val isPedestrian = currentMode == "pd"
-    var dragAccumulator by remember { mutableFloatStateOf(0f) }
+    val modes = remember { listOf("pd", "mt") }
+    val currentModeState by rememberUpdatedState(currentMode)
+    val currentOnModeChanged by rememberUpdatedState(onModeChanged)
+    var containerWidth by remember { mutableFloatStateOf(1f) }
+    var currentX by remember { mutableFloatStateOf(0f) }
 
     GlassBox(
         modifier = modifier
             .fillMaxWidth()
             .height(50.dp)
-            .pointerInput(isPedestrian) {
+            .onSizeChanged { size ->
+                if (size.width > 0) {
+                    containerWidth = size.width.toFloat()
+                }
+            }
+            .pointerInput(Unit) {
                 detectHorizontalDragGestures(
-                    onDragStart = { dragAccumulator = 0f },
-                    onDragEnd = {
-                        if (dragAccumulator > 30f && isPedestrian) {
-                            HapticHelper.lightClick(view, context)
-                            onModeChanged("mt")
-                        } else if (dragAccumulator < -30f && !isPedestrian) {
-                            HapticHelper.lightClick(view, context)
-                            onModeChanged("pd")
+                    onDragStart = { offset ->
+                        currentX = offset.x
+                        if (containerWidth > 0f) {
+                            val targetIndex = ((currentX / containerWidth) * modes.size).toInt().coerceIn(0, modes.size - 1)
+                            val targetMode = modes[targetIndex]
+                            if (targetMode != currentModeState) {
+                                HapticHelper.tick(view, context)
+                                currentOnModeChanged(targetMode)
+                            }
                         }
                     },
-                    onHorizontalDrag = { _, dragAmount ->
-                        dragAccumulator += dragAmount
+                    onHorizontalDrag = { change, dragAmount ->
+                        change.consume()
+                        currentX = (currentX + dragAmount).coerceIn(0f, containerWidth)
+                        if (containerWidth > 0f) {
+                            val targetIndex = ((currentX / containerWidth) * modes.size).toInt().coerceIn(0, modes.size - 1)
+                            val targetMode = modes[targetIndex]
+                            if (targetMode != currentModeState) {
+                                HapticHelper.tick(view, context)
+                                currentOnModeChanged(targetMode)
+                            }
+                        }
                     }
                 )
             },
@@ -133,7 +154,7 @@ fun TransportSlider(
                             indication = null
                         ) {
                             if (!isPedestrian) {
-                                HapticHelper.lightClick(view, context)
+                                HapticHelper.tick(view, context)
                                 onModeChanged("pd")
                             }
                         },
@@ -179,7 +200,7 @@ fun TransportSlider(
                             indication = null
                         ) {
                             if (isPedestrian) {
-                                HapticHelper.lightClick(view, context)
+                                HapticHelper.tick(view, context)
                                 onModeChanged("mt")
                             }
                         },
