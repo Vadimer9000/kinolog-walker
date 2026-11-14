@@ -118,4 +118,11 @@ object HapticHelper {
             } catch (_: Exception) {}
         }
     }
+
+    /**
+     * Тактильный отклик при ошибке валидации формы или предупреждении.
+     */
+    fun warning(view: View?, context: Context) {
+        lightClick(view, context)
+    }
 }

@@ -451,22 +451,33 @@ fun ClientsScreen(
     if (clientToDelete != null) {
         val client = clientToDelete!!
         val associatedWalksCount = allWalks.count { it.clientId == client.id }
-        val deleteMessage = if (associatedWalksCount > 0) {
-            "Вы уверены, что хотите удалить клиента «${client.fullName}»? Вместе с клиентом будет удалено связанных выгулов: $associatedWalksCount."
-        } else {
-            "Вы уверены, что хотите удалить клиента «${client.fullName}»?"
-        }
         AlertDialog(
             onDismissRequest = { clientToDelete = null },
-            title = { Text("Удалить клиента?") },
-            text = { Text(deleteMessage) },
+            title = { Text("Удалить клиента?", color = CharcoalPrimary) },
+            text = {
+                Column {
+                    Text("Вы уверены, что хотите удалить клиента «${client.fullName}»?")
+                    if (associatedWalksCount > 0) {
+                        Spacer(modifier = Modifier.height(8.dp))
+                        Text(
+                            text = "Внимание: вместе с клиентом будет удалено связанных выгулов: $associatedWalksCount.",
+                            color = MaterialTheme.colorScheme.error,
+                            fontSize = 13.sp,
+                            fontWeight = FontWeight.Medium
+                        )
+                    }
+                }
+            },
             confirmButton = {
                 Button(
                     onClick = {
                         viewModel.deleteClient(client)
                         clientToDelete = null
                     },
-                    colors = ButtonDefaults.buttonColors(containerColor = Color(0xFFD9534F), contentColor = Color.White)
+                    colors = ButtonDefaults.buttonColors(
+                        containerColor = MaterialTheme.colorScheme.error,
+                        contentColor = MaterialTheme.colorScheme.onError
+                    )
                 ) {
                     Text("Удалить")
                 }
@@ -1337,7 +1348,7 @@ fun ClientFormDialog(
                                 HapticHelper.success(view, context)
                                 onSave(updated, validPets)
                             } else {
-                                HapticHelper.warning(view, context)
+                                HapticHelper.lightClick(view, context)
                             }
                         },
                         colors = ButtonDefaults.buttonColors(containerColor = SageGreenPrimary),
