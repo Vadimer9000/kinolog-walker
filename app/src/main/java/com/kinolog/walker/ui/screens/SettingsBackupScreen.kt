@@ -43,6 +43,7 @@ import androidx.compose.material.icons.rounded.Payments
 import androidx.compose.material.icons.rounded.Save
 import androidx.compose.material.icons.rounded.Send
 import androidx.compose.material.icons.rounded.Vibration
+import androidx.compose.material3.AlertDialog
 import androidx.compose.material3.Button
 import androidx.compose.material3.ButtonDefaults
 import androidx.compose.material3.HorizontalDivider
@@ -110,7 +111,7 @@ fun SettingsBackupScreen(
     val currentApiKey by viewModel.yandexApiKey.collectAsState()
     var apiKeyInput by remember(currentApiKey) { mutableStateOf(currentApiKey) }
 
-    val clients by viewModel.clients.collectAsState()
+    val clientsMap by viewModel.clientsMap.collectAsState()
     val allWalks by viewModel.allWalks.collectAsState()
     val themeMode by viewModel.themeMode.collectAsState()
     val isMapEnabled by viewModel.isMapEnabled.collectAsState()
@@ -128,12 +129,14 @@ fun SettingsBackupScreen(
         viewModel.setNotificationsEnabled(isGranted)
     }
 
+    var pendingImportUri by remember { mutableStateOf<Uri?>(null) }
+
     // Import file launcher
     val openDocumentLauncher = rememberLauncherForActivityResult(
         contract = ActivityResultContracts.OpenDocument()
     ) { uri: Uri? ->
         if (uri != null) {
-            viewModel.importDatabaseFromJson(context, uri)
+            pendingImportUri = uri
         }
     }
 
@@ -316,7 +319,6 @@ fun SettingsBackupScreen(
                     val completedWalks = remember(periodWalks) { periodWalks.filter { it.isCompleted } }
                     val totalEarned = remember(completedWalks) { completedWalks.sumOf { it.price } }
                     val plannedEarned = remember(periodWalks) { periodWalks.sumOf { it.price } }
-                    val clientsMap = remember(clients) { clients.associateBy { it.id } }
 
                     // KPI Cards
                     Row(
@@ -1115,6 +1117,36 @@ fun SettingsBackupScreen(
             }
 
             Spacer(modifier = Modifier.height(100.dp))
+        }
+
+        // Import Backup Confirmation Dialog
+        if (pendingImportUri != null) {
+            val uri = pendingImportUri!!
+            AlertDialog(
+                onDismissRequest = { pendingImportUri = null },
+                title = { Text("Восстановление из копии", color = CharcoalPrimary) },
+                text = { Text("Текущие данные будут заменены данными из резервной копии. Продолжить?") },
+                confirmButton = {
+                    Button(
+                        onClick = {
+                            val toImport = uri
+                            pendingImportUri = null
+                            viewModel.importDatabaseFromJson(context, toImport)
+                        },
+                        colors = ButtonDefaults.buttonColors(
+                            containerColor = SageGreenPrimary,
+                            contentColor = Color.White
+                        )
+                    ) {
+                        Text("Продолжить")
+                    }
+                },
+                dismissButton = {
+                    TextButton(onClick = { pendingImportUri = null }) {
+                        Text("Отмена", color = CharcoalPrimary)
+                    }
+                }
+            )
         }
     }
 }

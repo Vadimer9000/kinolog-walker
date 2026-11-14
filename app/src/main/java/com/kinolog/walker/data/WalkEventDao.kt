@@ -6,6 +6,7 @@ import androidx.room.Insert
 import androidx.room.OnConflictStrategy
 import androidx.room.Query
 import androidx.room.Update
+import androidx.room.Upsert
 import com.kinolog.walker.model.WalkEventEntity
 import kotlinx.coroutines.flow.Flow
 
@@ -38,6 +39,9 @@ interface WalkEventDao {
     @Query("SELECT * FROM walk_events WHERE seriesId = :seriesId AND dateEpochDay >= :fromEpochDay")
     suspend fun getFutureWalksBySeries(seriesId: String, fromEpochDay: Long): List<WalkEventEntity>
 
+    @Query("SELECT * FROM walk_events WHERE clientId = :clientId")
+    suspend fun getWalksByClientId(clientId: Long): List<WalkEventEntity>
+
     @Query("UPDATE walk_events SET startTimeMinutes = :startTimeMinutes, durationMinutes = :durationMinutes, price = :price WHERE seriesId = :seriesId")
     suspend fun updateAllWalksInSeries(seriesId: String, startTimeMinutes: Int, durationMinutes: Int, price: Int)
 
@@ -46,6 +50,12 @@ interface WalkEventDao {
 
     @Insert(onConflict = OnConflictStrategy.REPLACE)
     suspend fun insertWalks(walks: List<WalkEventEntity>): List<Long>
+
+    @Upsert
+    suspend fun upsertWalk(walk: WalkEventEntity): Long
+
+    @Upsert
+    suspend fun upsertWalks(walks: List<WalkEventEntity>): List<Long>
 
     @Update
     suspend fun updateWalk(walk: WalkEventEntity)

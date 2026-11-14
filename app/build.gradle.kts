@@ -19,7 +19,7 @@ android {
 
     defaultConfig {
         applicationId = "com.kinolog.walker"
-        minSdk = 33
+        minSdk = 26
         targetSdk = 35
         versionCode = gitCommitCount
         versionName = "1.0.$gitCommitCount"
@@ -88,7 +88,6 @@ dependencies {
     implementation("androidx.lifecycle:lifecycle-runtime-compose:2.8.7")
     implementation("androidx.lifecycle:lifecycle-viewmodel-compose:2.8.7")
     implementation("androidx.activity:activity-compose:1.9.3")
-    implementation("androidx.fragment:fragment-ktx:1.8.5")
 
     implementation("androidx.compose.ui:ui")
     implementation("androidx.compose.ui:ui-graphics")
@@ -107,8 +106,7 @@ dependencies {
     // Kotlinx Serialization
     implementation("org.jetbrains.kotlinx:kotlinx-serialization-json:1.7.3")
 
-    // WorkManager & Location
-    implementation("androidx.work:work-runtime-ktx:2.10.0")
+    // Location
     implementation("com.google.android.gms:play-services-location:21.3.0")
 
     debugImplementation("androidx.compose.ui:ui-tooling")

@@ -152,9 +152,13 @@ class MainViewModel(application: Application) : AndroidViewModel(application) {
 
     private val addressQueryFlow = MutableStateFlow("")
 
-    // Clients flow
+    // Clients flow (filtered by search)
     val clients: StateFlow<List<ClientEntity>> = _searchQuery
         .flatMapLatest { query -> repository.searchClients(query) }
+        .stateIn(viewModelScope, SharingStarted.WhileSubscribed(5000), emptyList())
+
+    // All clients unfiltered
+    val allClients: StateFlow<List<ClientEntity>> = repository.allClients
         .stateIn(viewModelScope, SharingStarted.WhileSubscribed(5000), emptyList())
 
     // All clients mapped by ID for fast lookup

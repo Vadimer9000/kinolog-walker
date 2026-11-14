@@ -22,8 +22,12 @@ object IntentHelper {
             Toast.makeText(context, "Номер телефона не указан", Toast.LENGTH_SHORT).show()
             return
         }
-        val intent = Intent(Intent.ACTION_DIAL, Uri.parse("tel:$cleanPhone"))
-        context.startActivity(intent)
+        try {
+            val intent = Intent(Intent.ACTION_DIAL, Uri.parse("tel:$cleanPhone"))
+            context.startActivity(intent)
+        } catch (e: Exception) {
+            Toast.makeText(context, "Приложение для совершения звонков не найдено", Toast.LENGTH_SHORT).show()
+        }
     }
 
     fun openMessenger(context: Context, messengerType: MessengerType, identifier: String) {
@@ -37,13 +41,15 @@ object IntentHelper {
             when (messengerType) {
                 MessengerType.TELEGRAM -> {
                     val uri = Uri.parse("https://t.me/$cleanId")
-                    val intent = Intent(Intent.ACTION_VIEW, uri)
-                    intent.setPackage("org.telegram.messenger")
                     if (isPackageInstalled(context, "org.telegram.messenger")) {
+                        val intent = Intent(Intent.ACTION_VIEW, uri).apply {
+                            setPackage("org.telegram.messenger")
+                        }
                         context.startActivity(intent)
                     } else {
-                        // Fallback to browser or any telegram client
-                        context.startActivity(Intent(Intent.ACTION_VIEW, uri))
+                        // Fallback через Intent.createChooser для Telegram X, других клиентов и браузеров
+                        val chooser = Intent.createChooser(Intent(Intent.ACTION_VIEW, uri), "Открыть Telegram")
+                        context.startActivity(chooser)
                     }
                 }
                 MessengerType.WHATSAPP -> {
@@ -104,8 +110,9 @@ object IntentHelper {
         val appUri = Uri.parse("yandexmaps://maps.yandex.ru/?rtext=$rtextParam&rtt=$rttParam")
         val webUri = Uri.parse("https://yandex.ru/maps/?rtext=$rtextParam&rtt=$rttParam")
 
-        val mapIntent = Intent(Intent.ACTION_VIEW, appUri)
-        mapIntent.setPackage("ru.yandex.yandexmaps")
+        val mapIntent = Intent(Intent.ACTION_VIEW, appUri).apply {
+            setPackage("ru.yandex.yandexmaps")
+        }
 
         try {
             if (isPackageInstalled(context, "ru.yandex.yandexmaps")) {
@@ -115,11 +122,20 @@ object IntentHelper {
                 val naviUri = Uri.parse("yandexnavi://build_route_on_map?lat_to=${points[0].first}&lon_to=${points[0].second}")
                 context.startActivity(Intent(Intent.ACTION_VIEW, naviUri).setPackage("ru.yandex.yandexnavi"))
             } else {
-                context.startActivity(Intent(Intent.ACTION_VIEW, webUri))
+                // Fallback через Intent.createChooser для 2ГИС, Google Maps, браузеров и других приложений карт
+                val fallbackIntent = if (points.size == 1) {
+                    val geoUri = Uri.parse("geo:${points[0].first},${points[0].second}?q=${points[0].first},${points[0].second}")
+                    Intent(Intent.ACTION_VIEW, geoUri)
+                } else {
+                    Intent(Intent.ACTION_VIEW, webUri)
+                }
+                val chooser = Intent.createChooser(fallbackIntent, "Открыть карты")
+                context.startActivity(chooser)
             }
         } catch (e: Exception) {
             try {
-                context.startActivity(Intent(Intent.ACTION_VIEW, webUri))
+                val chooser = Intent.createChooser(Intent(Intent.ACTION_VIEW, webUri), "Открыть карты")
+                context.startActivity(chooser)
             } catch (_: Exception) {
                 Toast.makeText(context, "Не удалось открыть карту", Toast.LENGTH_SHORT).show()
             }

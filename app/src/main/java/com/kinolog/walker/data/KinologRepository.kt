@@ -3,6 +3,7 @@ package com.kinolog.walker.data
 import android.content.Context
 import android.net.Uri
 import androidx.core.content.FileProvider
+import androidx.room.withTransaction
 import com.kinolog.walker.model.BackupData
 import com.kinolog.walker.model.ClientEntity
 import com.kinolog.walker.model.PetItem
@@ -135,10 +136,22 @@ class KinologRepository(
     }
 
     suspend fun deleteClient(client: ClientEntity) = withContext(Dispatchers.IO) {
+        val clientWalks = walkEventDao.getWalksByClientId(client.id)
+        for (walk in clientWalks) {
+            try {
+                NotificationHelper.cancelReminder(context, walk.id)
+            } catch (_: Exception) {}
+        }
         clientDao.deleteClient(client)
     }
 
     suspend fun deleteClientById(id: Long) = withContext(Dispatchers.IO) {
+        val clientWalks = walkEventDao.getWalksByClientId(id)
+        for (walk in clientWalks) {
+            try {
+                NotificationHelper.cancelReminder(context, walk.id)
+            } catch (_: Exception) {}
+        }
         clientDao.deleteClientById(id)
     }
 
@@ -286,8 +299,10 @@ class KinologRepository(
 
     suspend fun importBackup(jsonString: String): Pair<Int, Int> = withContext(Dispatchers.IO) {
         val backupData = json.decodeFromString<BackupData>(jsonString)
-        clientDao.insertClients(backupData.clients)
-        walkEventDao.insertWalks(backupData.walks)
+        database.withTransaction {
+            clientDao.upsertClients(backupData.clients)
+            walkEventDao.upsertWalks(backupData.walks)
+        }
 
         // Reschedule notifications for pending walks
         NotificationHelper.rescheduleAllReminders(context)

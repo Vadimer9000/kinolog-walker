@@ -6,6 +6,7 @@ import androidx.room.Insert
 import androidx.room.OnConflictStrategy
 import androidx.room.Query
 import androidx.room.Update
+import androidx.room.Upsert
 import com.kinolog.walker.model.ClientEntity
 import kotlinx.coroutines.flow.Flow
 
@@ -31,6 +32,12 @@ interface ClientDao {
 
     @Insert(onConflict = OnConflictStrategy.REPLACE)
     suspend fun insertClients(clients: List<ClientEntity>)
+
+    @Upsert
+    suspend fun upsertClient(client: ClientEntity): Long
+
+    @Upsert
+    suspend fun upsertClients(clients: List<ClientEntity>)
 
     @Update
     suspend fun updateClient(client: ClientEntity)

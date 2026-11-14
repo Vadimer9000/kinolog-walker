@@ -519,7 +519,7 @@ fun ScheduleMapScreen(
     val walks by viewModel.walksForSelectedDate.collectAsState()
     val clientsMap by viewModel.clientsMap.collectAsState()
     val mapMarkers by viewModel.mapMarkerPoints.collectAsState()
-    val clients by viewModel.clients.collectAsState()
+    val allClients by viewModel.allClients.collectAsState()
     val isMapEnabled by viewModel.isMapEnabled.collectAsState()
     val allWalks by viewModel.allWalks.collectAsState()
     val walksCountByEpochDay = remember(allWalks) {
@@ -1810,7 +1810,7 @@ fun ScheduleMapScreen(
     if (showWalkFormDialog) {
         WalkFormDialog(
             viewModel = viewModel,
-            clients = clients,
+            clients = allClients,
             initialDate = selectedDate,
             walkToEdit = walkToEdit,
             onDismiss = {

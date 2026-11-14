@@ -61,6 +61,7 @@ fun AppTextField(
     trailingIcon: @Composable (() -> Unit)? = null,
     prefix: @Composable (() -> Unit)? = null,
     suffix: @Composable (() -> Unit)? = null,
+    supportingText: @Composable (() -> Unit)? = null,
     isError: Boolean = false,
     visualTransformation: VisualTransformation = VisualTransformation.None,
     keyboardOptions: KeyboardOptions = KeyboardOptions.Default,
@@ -105,7 +106,8 @@ fun AppTextField(
         focusedPrefixColor = if (isDark) Color(0xFFEAEFEA) else Color(0xFF1A1D1B),
         unfocusedPrefixColor = if (isDark) Color(0xFFEAEFEA) else Color(0xFF1A1D1B),
         focusedSuffixColor = if (isDark) Color(0xFFEAEFEA) else Color(0xFF1A1D1B),
-        unfocusedSuffixColor = if (isDark) Color(0xFFEAEFEA) else Color(0xFF1A1D1B)
+        unfocusedSuffixColor = if (isDark) Color(0xFFEAEFEA) else Color(0xFF1A1D1B),
+        errorSupportingTextColor = if (isDark) Color(0xFFEF9A9A) else Color(0xFFD9534F)
     )
 
     OutlinedTextField(
@@ -136,6 +138,7 @@ fun AppTextField(
         trailingIcon = trailingIcon,
         prefix = prefix,
         suffix = suffix,
+        supportingText = supportingText,
         isError = isError,
         visualTransformation = visualTransformation,
         keyboardOptions = keyboardOptions,

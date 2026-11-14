@@ -127,6 +127,7 @@ fun ClientsScreen(
     val context = LocalContext.current
     val view = LocalView.current
     val clients by viewModel.clients.collectAsState()
+    val allWalks by viewModel.allWalks.collectAsState()
     val searchQuery by viewModel.searchQuery.collectAsState()
 
     var showEditDialog by remember { mutableStateOf(false) }
@@ -449,10 +450,16 @@ fun ClientsScreen(
     // Delete Client Confirmation Dialog
     if (clientToDelete != null) {
         val client = clientToDelete!!
+        val associatedWalksCount = allWalks.count { it.clientId == client.id }
+        val deleteMessage = if (associatedWalksCount > 0) {
+            "Вы уверены, что хотите удалить клиента «${client.fullName}»? Вместе с клиентом будет удалено связанных выгулов: $associatedWalksCount."
+        } else {
+            "Вы уверены, что хотите удалить клиента «${client.fullName}»?"
+        }
         AlertDialog(
             onDismissRequest = { clientToDelete = null },
             title = { Text("Удалить клиента?") },
-            text = { Text("Вы уверены, что хотите удалить клиента «${client.fullName}» и все связанные с ним данные?") },
+            text = { Text(deleteMessage) },
             confirmButton = {
                 Button(
                     onClick = {
@@ -679,6 +686,7 @@ fun ClientFormDialog(
     var phoneDigits by remember {
         mutableStateOf(extractRussianPhoneDigits(client?.phone ?: ""))
     }
+    var hasAttemptedSave by remember { mutableStateOf(false) }
     var messengerType by remember { mutableStateOf(client?.messengerType ?: MessengerType.TELEGRAM) }
     var messengerIdentifier by remember { mutableStateOf(client?.messengerIdentifier ?: "") }
 
@@ -806,12 +814,19 @@ fun ClientFormDialog(
 
                 Spacer(modifier = Modifier.height(14.dp))
 
+                val isNameError = hasAttemptedSave && fullName.isBlank()
+                val isPhoneError = hasAttemptedSave && phoneDigits.isBlank()
+
                 // Full Name
                 AppTextField(
                     value = fullName,
                     onValueChange = { fullName = it },
-                    label = "ФИО клиента",
+                    label = "ФИО клиента *",
                     placeholder = "например: Иванов Иван",
+                    isError = isNameError,
+                    supportingText = if (isNameError) {
+                        { Text("Обязательное поле: укажите ФИО клиента", fontSize = 11.sp) }
+                    } else null,
                     singleLine = true,
                     modifier = Modifier.fillMaxWidth()
                 )
@@ -838,7 +853,7 @@ fun ClientFormDialog(
                         }
                         phoneDigits = normalized.take(10)
                     },
-                    label = "Номер телефона",
+                    label = "Номер телефона *",
                     placeholder = "(___) ___-__-__",
                     prefix = {
                         Text(
@@ -849,6 +864,10 @@ fun ClientFormDialog(
                     },
                     visualTransformation = RussianPhoneVisualTransformation(),
                     keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Phone),
+                    isError = isPhoneError,
+                    supportingText = if (isPhoneError) {
+                        { Text("Обязательное поле: укажите номер телефона", fontSize = 11.sp) }
+                    } else null,
                     singleLine = true,
                     modifier = Modifier.fillMaxWidth()
                 )
@@ -1286,6 +1305,7 @@ fun ClientFormDialog(
                     Spacer(modifier = Modifier.width(8.dp))
                     Button(
                         onClick = {
+                            hasAttemptedSave = true
                             val formattedPhone = formatRussianPhoneFromDigits(phoneDigits)
                             if (fullName.isNotBlank() && phoneDigits.isNotBlank()) {
                                 val validPets = petList.filter { it.name.isNotBlank() }.ifEmpty {
@@ -1316,6 +1336,8 @@ fun ClientFormDialog(
                                 )
                                 HapticHelper.success(view, context)
                                 onSave(updated, validPets)
+                            } else {
+                                HapticHelper.warning(view, context)
                             }
                         },
                         colors = ButtonDefaults.buttonColors(containerColor = SageGreenPrimary),
