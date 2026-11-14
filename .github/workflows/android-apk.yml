@@ -54,10 +54,12 @@ jobs:
           TELEGRAM_CHAT_ID: ${{ secrets.TELEGRAM_CHAT_ID }}
         run: |
           if [ -n "$TELEGRAM_BOT_TOKEN" ] && [ -n "$TELEGRAM_CHAT_ID" ]; then
+            TARGET_APK="KinologWalker_$(date +'%Y-%m-%d')_$(git rev-parse --short HEAD).apk"
+            cp "${{ steps.locate_apk.outputs.apk_path }}" "$TARGET_APK"
             COMMIT_MSG=$(git log -1 --pretty=%B | head -n 1 | sed 's/[_*`\[\]]/ /g')
-            CAPTION="🐕 *Готова сборка KinologWalker!*%0A%0A💬 _${COMMIT_MSG}_%0A⏰ $(date +'%d.%m.%Y %H:%M:%S UTC')"
+            CAPTION="🐕 *Готова сборка KinologWalker!*%0A%0A💬 _${COMMIT_MSG}_%0A⏰ $(date +'%d.%m.%Y %H:%M:%S UTC')%0A%0A#kinologwalker"
             RESP=$(curl -s -F chat_id="${TELEGRAM_CHAT_ID}" \
-                 -F "document=@${{ steps.locate_apk.outputs.apk_path }};type=application/vnd.android.package-archive" \
+                 -F "document=@${TARGET_APK};type=application/vnd.android.package-archive" \
                  -F caption="${CAPTION}" \
                  -F parse_mode="Markdown" \
                  "https://api.telegram.org/bot${TELEGRAM_BOT_TOKEN}/sendDocument")
@@ -65,8 +67,8 @@ jobs:
             if echo "$RESP" | grep -q '"ok":false'; then
               echo "Retrying without markdown formatting..."
               curl -s -F chat_id="${TELEGRAM_CHAT_ID}" \
-                   -F "document=@${{ steps.locate_apk.outputs.apk_path }};type=application/vnd.android.package-archive" \
-                   -F caption="🐕 Готова сборка KinologWalker! $(date +'%d.%m.%Y %H:%M:%S UTC')" \
+                   -F "document=@${TARGET_APK};type=application/vnd.android.package-archive" \
+                   -F caption="🐕 Готова сборка KinologWalker! $(date +'%d.%m.%Y %H:%M:%S UTC')%0A%0A#kinologwalker" \
                    "https://api.telegram.org/bot${TELEGRAM_BOT_TOKEN}/sendDocument"
             fi
           fi
