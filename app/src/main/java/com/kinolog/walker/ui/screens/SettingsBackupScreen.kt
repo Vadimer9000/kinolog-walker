@@ -31,6 +31,8 @@ import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.rounded.ArrowBack
 import androidx.compose.material.icons.rounded.Assessment
 import androidx.compose.material.icons.rounded.CalendarToday
+import androidx.compose.material.icons.rounded.ChevronLeft
+import androidx.compose.material.icons.rounded.ChevronRight
 import androidx.compose.material.icons.rounded.FileDownload
 import androidx.compose.material.icons.rounded.FileUpload
 import androidx.compose.material.icons.rounded.Info
@@ -52,6 +54,7 @@ import androidx.compose.material3.SwitchDefaults
 import androidx.compose.material3.Text
 import androidx.compose.material3.TextButton
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableIntStateOf
@@ -203,6 +206,7 @@ fun SettingsBackupScreen(
                     Spacer(modifier = Modifier.height(12.dp))
 
                     var selectedPeriodIndex by remember { mutableIntStateOf(1) } // Default: Неделя
+                    var currentPage by remember { mutableIntStateOf(0) }
                     val periods = listOf("Сегодня", "Неделя", "Месяц", "Период")
 
                     AnimatedSegmentedControl(
@@ -408,11 +412,23 @@ fun SettingsBackupScreen(
                                 .sortedByDescending { (_, walks) -> walks.filter { it.isCompleted }.sumOf { it.price } }
                         }
 
+                        val pageSize = 5
+                        val totalPages = ((clientGroups.size + 4) / pageSize).coerceAtLeast(1)
+
+                        LaunchedEffect(selectedPeriodIndex, customStartDate, customEndDate, clientGroups.size) {
+                            currentPage = 0
+                        }
+
+                        val safePage = currentPage.coerceIn(0, totalPages - 1)
+                        val pagedClients = remember(clientGroups, safePage) {
+                            clientGroups.drop(safePage * pageSize).take(pageSize)
+                        }
+
                         Column(
                             verticalArrangement = Arrangement.spacedBy(6.dp),
                             modifier = Modifier.fillMaxWidth()
                         ) {
-                            clientGroups.forEach { (clientId, walksForClient) ->
+                            pagedClients.forEach { (clientId, walksForClient) ->
                                 val client = clientsMap[clientId]
                                 val clientCompleted = walksForClient.count { it.isCompleted }
                                 val clientEarned = walksForClient.filter { it.isCompleted }.sumOf { it.price }
@@ -462,6 +478,64 @@ fun SettingsBackupScreen(
                                             }
                                         }
                                     }
+                                }
+                            }
+                        }
+
+                        if (clientGroups.size > 5) {
+                            Spacer(modifier = Modifier.height(8.dp))
+                            Row(
+                                modifier = Modifier
+                                    .fillMaxWidth()
+                                    .clip(RoundedCornerShape(10.dp))
+                                    .background(SandBeige.copy(alpha = if (isDark) 0.45f else 0.35f))
+                                    .padding(horizontal = 6.dp, vertical = 2.dp),
+                                horizontalArrangement = Arrangement.SpaceBetween,
+                                verticalAlignment = Alignment.CenterVertically
+                            ) {
+                                val canGoBack = currentPage > 0
+                                IconButton(
+                                    onClick = {
+                                        if (canGoBack) {
+                                            HapticHelper.lightClick(view, context)
+                                            currentPage--
+                                        }
+                                    },
+                                    enabled = canGoBack,
+                                    modifier = Modifier.size(36.dp)
+                                ) {
+                                    Icon(
+                                        imageVector = Icons.Rounded.ChevronLeft,
+                                        contentDescription = "Предыдущая страница",
+                                        tint = if (canGoBack) SageGreenPrimary else OliveGreySecondary.copy(alpha = 0.35f),
+                                        modifier = Modifier.size(20.dp)
+                                    )
+                                }
+
+                                Text(
+                                    text = "Стр. ${currentPage + 1} из $totalPages",
+                                    fontSize = 13.sp,
+                                    fontWeight = FontWeight.Medium,
+                                    color = CharcoalPrimary
+                                )
+
+                                val canGoForward = currentPage < totalPages - 1
+                                IconButton(
+                                    onClick = {
+                                        if (canGoForward) {
+                                            HapticHelper.lightClick(view, context)
+                                            currentPage++
+                                        }
+                                    },
+                                    enabled = canGoForward,
+                                    modifier = Modifier.size(36.dp)
+                                ) {
+                                    Icon(
+                                        imageVector = Icons.Rounded.ChevronRight,
+                                        contentDescription = "Следующая страница",
+                                        tint = if (canGoForward) SageGreenPrimary else OliveGreySecondary.copy(alpha = 0.35f),
+                                        modifier = Modifier.size(20.dp)
+                                    )
                                 }
                             }
                         }
