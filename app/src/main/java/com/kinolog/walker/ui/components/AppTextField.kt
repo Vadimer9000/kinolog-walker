@@ -2,6 +2,8 @@ package com.kinolog.walker.ui.components
 
 import androidx.compose.foundation.ExperimentalFoundationApi
 import androidx.compose.foundation.interaction.MutableInteractionSource
+import androidx.compose.foundation.layout.WindowInsets
+import androidx.compose.foundation.layout.ime
 import androidx.compose.foundation.relocation.BringIntoViewRequester
 import androidx.compose.foundation.relocation.bringIntoViewRequester
 import androidx.compose.foundation.shape.RoundedCornerShape
@@ -11,8 +13,10 @@ import androidx.compose.material3.OutlinedTextField
 import androidx.compose.material3.OutlinedTextFieldDefaults
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableFloatStateOf
+import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.rememberCoroutineScope
 import androidx.compose.runtime.setValue
@@ -36,13 +40,31 @@ import kotlinx.coroutines.delay
 import kotlinx.coroutines.launch
 
 @OptIn(ExperimentalFoundationApi::class)
-fun Modifier.bringIntoViewOnFocus(extraBottom: Dp = 96.dp): Modifier = composed {
+fun Modifier.bringIntoViewOnFocus(extraBottom: Dp = 120.dp): Modifier = composed {
     val requester = remember { BringIntoViewRequester() }
     val scope = rememberCoroutineScope()
     val density = LocalDensity.current
     val extraBottomPx = with(density) { extraBottom.toPx() }
     var width by remember { mutableFloatStateOf(0f) }
     var height by remember { mutableFloatStateOf(0f) }
+    var isFocused by remember { mutableStateOf(false) }
+    val imeBottom = WindowInsets.ime.getBottom(density)
+
+    LaunchedEffect(imeBottom) {
+        if (isFocused && imeBottom > 0) {
+            delay(100)
+            val w = if (width > 0f) width else 1000f
+            val h = if (height > 0f) height else 120f
+            requester.bringIntoView(
+                Rect(
+                    left = 0f,
+                    top = 0f,
+                    right = w,
+                    bottom = h + extraBottomPx
+                )
+            )
+        }
+    }
 
     this
         .bringIntoViewRequester(requester)
@@ -51,9 +73,10 @@ fun Modifier.bringIntoViewOnFocus(extraBottom: Dp = 96.dp): Modifier = composed 
             height = size.height.toFloat()
         }
         .onFocusChanged { focusState ->
+            isFocused = focusState.isFocused
             if (focusState.isFocused) {
                 scope.launch {
-                    delay(150)
+                    delay(280)
                     val w = if (width > 0f) width else 1000f
                     val h = if (height > 0f) height else 120f
                     requester.bringIntoView(
@@ -90,19 +113,24 @@ fun AppTextField(
     readOnly: Boolean = false,
     enabled: Boolean = true,
     shape: Shape = RoundedCornerShape(14.dp),
+    containerColor: Color? = null,
+    extraBottom: Dp = 120.dp,
     interactionSource: MutableInteractionSource = remember { MutableInteractionSource() }
 ) {
     val isDark = LocalIsDarkTheme.current
+    val defaultContainer = if (isDark) Color(0xFF141E18) else Color(0xFFFFFFFF)
+    val fieldContainerColor = containerColor ?: defaultContainer
+    val disabledContainer = if (isDark) Color(0xFF141E18) else Color(0xFFF3EFEA)
 
     val colors = OutlinedTextFieldDefaults.colors(
         focusedTextColor = if (isDark) Color(0xFFEAEFEA) else Color(0xFF1A1D1B),
         unfocusedTextColor = if (isDark) Color(0xFFEAEFEA) else Color(0xFF1A1D1B),
         disabledTextColor = if (isDark) Color(0xFF627067) else Color(0xFF98A39C),
         errorTextColor = if (isDark) Color(0xFFEAEFEA) else Color(0xFF1A1D1B),
-        focusedContainerColor = if (isDark) Color(0xFF141E18) else Color(0xFFFFFFFF),
-        unfocusedContainerColor = if (isDark) Color(0xFF141E18) else Color(0xFFFFFFFF),
-        disabledContainerColor = if (isDark) Color(0xFF141E18) else Color(0xFFF3EFEA),
-        errorContainerColor = if (isDark) Color(0xFF141E18) else Color(0xFFFFFFFF),
+        focusedContainerColor = fieldContainerColor,
+        unfocusedContainerColor = fieldContainerColor,
+        disabledContainerColor = containerColor ?: disabledContainer,
+        errorContainerColor = fieldContainerColor,
         cursorColor = if (isDark) Color(0xFF68B684) else Color(0xFF4A8267),
         errorCursorColor = if (isDark) Color(0xFFEF9A9A) else Color(0xFFD9534F),
         focusedBorderColor = if (isDark) Color(0xFF68B684) else Color(0xFF4A8267),
@@ -125,7 +153,7 @@ fun AppTextField(
     OutlinedTextField(
         value = value,
         onValueChange = onValueChange,
-        modifier = modifier.bringIntoViewOnFocus(96.dp),
+        modifier = modifier.bringIntoViewOnFocus(extraBottom),
         label = label?.let {
             {
                 Text(

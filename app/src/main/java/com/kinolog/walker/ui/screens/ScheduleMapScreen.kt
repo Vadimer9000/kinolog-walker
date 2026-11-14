@@ -2060,6 +2060,7 @@ fun WalkFormDialog(
         Card(
             modifier = Modifier
                 .fillMaxWidth(0.95f)
+                .statusBarsPadding()
                 .padding(vertical = 20.dp)
                 .imePadding(),
             shape = RoundedCornerShape(24.dp),
@@ -2068,6 +2069,7 @@ fun WalkFormDialog(
             Column(
                 modifier = Modifier
                     .fillMaxWidth()
+                    .imePadding()
                     .verticalScroll(rememberScrollState())
                     .padding(20.dp)
             ) {
@@ -2543,6 +2545,8 @@ fun WalkFormDialog(
                         Text(if (walkToEdit != null) "Сохранить" else "Запланировать", color = Color.White)
                     }
                 }
+
+                Spacer(modifier = Modifier.height(140.dp))
             }
         }
 

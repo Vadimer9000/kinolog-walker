@@ -757,6 +757,7 @@ fun ClientFormDialog(
         Card(
             modifier = Modifier
                 .fillMaxWidth(0.95f)
+                .statusBarsPadding()
                 .padding(vertical = 20.dp)
                 .imePadding(),
             shape = RoundedCornerShape(24.dp),
@@ -765,6 +766,7 @@ fun ClientFormDialog(
             Column(
                 modifier = Modifier
                     .fillMaxWidth()
+                    .imePadding()
                     .verticalScroll(rememberScrollState())
                     .padding(20.dp)
             ) {
@@ -1074,6 +1076,7 @@ fun ClientFormDialog(
                                 label = "Кличка питомца",
                                 placeholder = "например: Барсик, Джеки",
                                 singleLine = true,
+                                containerColor = MintLight,
                                 modifier = Modifier.fillMaxWidth()
                             )
 
@@ -1085,6 +1088,7 @@ fun ClientFormDialog(
                                 label = "Порода / особенности",
                                 placeholder = "например: корги, пугливый",
                                 singleLine = true,
+                                containerColor = MintLight,
                                 modifier = Modifier.fillMaxWidth()
                             )
                         }
@@ -1110,6 +1114,7 @@ fun ClientFormDialog(
                     singleLine = false,
                     minLines = 1,
                     maxLines = 3,
+                    extraBottom = 180.dp,
                     trailingIcon = {
                         if (isSearchingAddress) {
                             CircularProgressIndicator(
@@ -1320,6 +1325,8 @@ fun ClientFormDialog(
                         Text("Сохранить", color = Color.White)
                     }
                 }
+
+                Spacer(modifier = Modifier.height(140.dp))
             }
         }
     }
