@@ -52,7 +52,6 @@ import androidx.compose.material.icons.rounded.CheckCircle
 import androidx.compose.material.icons.rounded.ChevronLeft
 import androidx.compose.material.icons.rounded.ChevronRight
 import androidx.compose.material.icons.rounded.Close
-import androidx.compose.material.icons.rounded.ContentCopy
 import androidx.compose.material.icons.rounded.Delete
 import androidx.compose.material.icons.rounded.Directions
 import androidx.compose.material.icons.rounded.Edit
@@ -106,9 +105,7 @@ import androidx.compose.ui.draw.shadow
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.input.pointer.pointerInput
 import androidx.compose.ui.platform.LocalContext
-import androidx.compose.ui.platform.LocalClipboardManager
 import androidx.compose.ui.platform.LocalView
-import androidx.compose.ui.text.AnnotatedString
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.input.KeyboardType
 import androidx.compose.ui.text.style.TextDecoration
@@ -555,8 +552,7 @@ fun ScheduleMapScreen(
                         // Header of BottomSheet
                     val totalPlannedEarnings = remember(walks) { walks.sumOf { it.price } }
                     val totalEarned = remember(walks) { walks.filter { it.isCompleted }.sumOf { it.price } }
-                    val clipboardManager = LocalClipboardManager.current
-    
+
                     Row(
                         modifier = Modifier
                             .fillMaxWidth()
@@ -912,7 +908,7 @@ fun ScheduleMapScreen(
                                                     }
                                                 }
 
-                                                // Строка 3: заметка/домофон и видимая кнопка копирования в аккуратной пилюле
+                                                // Строка 3: заметка/домофон
                                                 val clientNote = client?.clientComment?.trim() ?: ""
                                                 val walkNote = walk.walkComment.trim()
                                                 val hasClientNote = clientNote.isNotBlank()
@@ -930,48 +926,16 @@ fun ScheduleMapScreen(
                                                             append("📝 $walkNote")
                                                         }
                                                     }
-                                                    val toCopy = listOfNotNull(clientNote.ifBlank { null }, walkNote.ifBlank { null }).joinToString(" | ")
                                                     Spacer(modifier = Modifier.height(4.dp))
-                                                    Row(
-                                                        modifier = Modifier.fillMaxWidth(),
-                                                        verticalAlignment = Alignment.CenterVertically
-                                                    ) {
-                                                        Text(
-                                                            text = notesSummary,
-                                                            fontSize = 12.sp,
-                                                            color = if (isDark) Color(0xFFFFD59E) else Color(0xFFB45309),
-                                                            maxLines = 2,
-                                                            overflow = TextOverflow.Ellipsis,
-                                                            lineHeight = 15.sp,
-                                                            modifier = Modifier.weight(1f)
-                                                        )
-                                                        Spacer(modifier = Modifier.width(6.dp))
-                                                        Box(
-                                                            modifier = Modifier
-                                                                .minimumInteractiveComponentSize()
-                                                                .clip(RoundedCornerShape(8.dp))
-                                                                .background(if (isDark) Color(0xFF382A1C) else Color(0xFFFEF3C7))
-                                                                .border(
-                                                                    width = 0.5.dp,
-                                                                    color = if (isDark) Color(0xFFD97706).copy(alpha = 0.5f) else Color(0xFFF59E0B).copy(alpha = 0.6f),
-                                                                    shape = RoundedCornerShape(8.dp)
-                                                                )
-                                                                .clickable {
-                                                                    clipboardManager.setText(AnnotatedString(toCopy))
-                                                                    HapticHelper.lightClick(view, context)
-                                                                    Toast.makeText(context, "Скопировано", Toast.LENGTH_SHORT).show()
-                                                                }
-                                                                .padding(horizontal = 8.dp, vertical = 5.dp),
-                                                            contentAlignment = Alignment.Center
-                                                        ) {
-                                                            Icon(
-                                                                imageVector = Icons.Rounded.ContentCopy,
-                                                                contentDescription = "Скопировать заметку",
-                                                                tint = if (isDark) Color(0xFFFFD59E) else Color(0xFFB45309),
-                                                                modifier = Modifier.size(16.dp)
-                                                            )
-                                                        }
-                                                    }
+                                                    Text(
+                                                        text = notesSummary,
+                                                        fontSize = 12.sp,
+                                                        color = if (isDark) Color(0xFFFFD59E) else Color(0xFFB45309),
+                                                        maxLines = 2,
+                                                        overflow = TextOverflow.Ellipsis,
+                                                        lineHeight = 15.sp,
+                                                        modifier = Modifier.fillMaxWidth()
+                                                    )
                                                 }
                                             }
                                         }
@@ -1318,86 +1282,24 @@ fun ScheduleMapScreen(
 
                                                 if (clientNote.isNotBlank()) {
                                                     Spacer(modifier = Modifier.height(6.dp))
-                                                    Row(
-                                                        modifier = Modifier.fillMaxWidth(),
-                                                        verticalAlignment = Alignment.CenterVertically
-                                                    ) {
-                                                        Text(
-                                                            text = "🔑 $clientNote",
-                                                            fontSize = 13.sp,
-                                                            color = if (isDark) Color(0xFFFFD59E) else Color(0xFF92400E),
-                                                            lineHeight = 18.sp,
-                                                            modifier = Modifier.weight(1f)
-                                                        )
-                                                        Spacer(modifier = Modifier.width(6.dp))
-                                                        Box(
-                                                            modifier = Modifier
-                                                                .minimumInteractiveComponentSize()
-                                                                .clip(RoundedCornerShape(8.dp))
-                                                                .background(if (isDark) Color(0xFF382A1C) else Color(0xFFFEF3C7))
-                                                                .border(
-                                                                    width = 0.5.dp,
-                                                                    color = if (isDark) Color(0xFFD97706).copy(alpha = 0.5f) else Color(0xFFF59E0B).copy(alpha = 0.6f),
-                                                                    shape = RoundedCornerShape(8.dp)
-                                                                )
-                                                                .clickable {
-                                                                    clipboardManager.setText(AnnotatedString(clientNote))
-                                                                    HapticHelper.lightClick(view, context)
-                                                                    Toast.makeText(context, "Скопировано", Toast.LENGTH_SHORT).show()
-                                                                }
-                                                                .padding(horizontal = 8.dp, vertical = 5.dp),
-                                                            contentAlignment = Alignment.Center
-                                                        ) {
-                                                            Icon(
-                                                                imageVector = Icons.Rounded.ContentCopy,
-                                                                contentDescription = "Скопировать заметку клиента",
-                                                                tint = if (isDark) Color(0xFFFFD59E) else Color(0xFF92400E),
-                                                                modifier = Modifier.size(16.dp)
-                                                            )
-                                                        }
-                                                    }
+                                                    Text(
+                                                        text = "🔑 $clientNote",
+                                                        fontSize = 13.sp,
+                                                        color = if (isDark) Color(0xFFFFD59E) else Color(0xFF92400E),
+                                                        lineHeight = 18.sp,
+                                                        modifier = Modifier.fillMaxWidth()
+                                                    )
                                                 }
 
                                                 if (walkNote.isNotBlank()) {
                                                     Spacer(modifier = Modifier.height(6.dp))
-                                                    Row(
-                                                        modifier = Modifier.fillMaxWidth(),
-                                                        verticalAlignment = Alignment.CenterVertically
-                                                    ) {
-                                                        Text(
-                                                            text = "📝 $walkNote",
-                                                            fontSize = 13.sp,
-                                                            color = if (isDark) Color(0xFFA5D6A7) else Color(0xFF2E6948),
-                                                            lineHeight = 18.sp,
-                                                            modifier = Modifier.weight(1f)
-                                                        )
-                                                        Spacer(modifier = Modifier.width(6.dp))
-                                                        Box(
-                                                            modifier = Modifier
-                                                                .minimumInteractiveComponentSize()
-                                                                .clip(RoundedCornerShape(8.dp))
-                                                                .background(if (isDark) Color(0xFF23362A) else Color(0xFFDCFCE7))
-                                                                .border(
-                                                                    width = 0.5.dp,
-                                                                    color = if (isDark) Color(0xFF4C7A5B).copy(alpha = 0.6f) else Color(0xFF86EFAC).copy(alpha = 0.8f),
-                                                                    shape = RoundedCornerShape(8.dp)
-                                                                )
-                                                                .clickable {
-                                                                    clipboardManager.setText(AnnotatedString(walkNote))
-                                                                    HapticHelper.lightClick(view, context)
-                                                                    Toast.makeText(context, "Скопировано", Toast.LENGTH_SHORT).show()
-                                                                }
-                                                                .padding(horizontal = 8.dp, vertical = 5.dp),
-                                                            contentAlignment = Alignment.Center
-                                                        ) {
-                                                            Icon(
-                                                                imageVector = Icons.Rounded.ContentCopy,
-                                                                contentDescription = "Скопировать заметку выгула",
-                                                                tint = if (isDark) Color(0xFFA5D6A7) else Color(0xFF166534),
-                                                                modifier = Modifier.size(16.dp)
-                                                            )
-                                                        }
-                                                    }
+                                                    Text(
+                                                        text = "📝 $walkNote",
+                                                        fontSize = 13.sp,
+                                                        color = if (isDark) Color(0xFFA5D6A7) else Color(0xFF2E6948),
+                                                        lineHeight = 18.sp,
+                                                        modifier = Modifier.fillMaxWidth()
+                                                    )
                                                 }
 
                                                 Spacer(modifier = Modifier.height(10.dp))
