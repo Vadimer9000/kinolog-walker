@@ -135,6 +135,16 @@ class MainViewModel(application: Application) : AndroidViewModel(application) {
         _pricePresets.value = finalPresets
     }
 
+    // Default City
+    private val _defaultCity = MutableStateFlow(prefs.defaultCity)
+    val defaultCity: StateFlow<String> = _defaultCity.asStateFlow()
+
+    fun setDefaultCity(city: String) {
+        val trimmed = city.trim().ifBlank { PreferencesManager.DEFAULT_CITY_FALLBACK }
+        prefs.defaultCity = trimmed
+        _defaultCity.value = trimmed
+    }
+
     // Client search query
     private val _searchQuery = MutableStateFlow("")
     val searchQuery: StateFlow<String> = _searchQuery.asStateFlow()
@@ -236,7 +246,8 @@ class MainViewModel(application: Application) : AndroidViewModel(application) {
                         val results = GeocoderHelper.suggestAddresses(
                             context = getApplication(),
                             rawQuery = query,
-                            yandexApiKey = prefs.yandexApiKey
+                            yandexApiKey = prefs.yandexApiKey,
+                            defaultCity = prefs.defaultCity
                         )
                         _addressSuggestions.value = results
                     } catch (_: Exception) {

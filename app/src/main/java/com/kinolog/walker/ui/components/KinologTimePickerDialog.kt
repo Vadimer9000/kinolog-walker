@@ -285,8 +285,9 @@ private fun WheelPickerColumn(
                     },
                 contentAlignment = Alignment.Center
             ) {
+                val formattedValue = if (value < 10) "0$value" else "$value"
                 Text(
-                    text = String.format("%02d", value),
+                    text = formattedValue,
                     fontSize = fontSize,
                     fontWeight = fontWeight,
                     color = textColor.copy(alpha = alpha)

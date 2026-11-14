@@ -24,6 +24,7 @@ import androidx.compose.foundation.layout.imePadding
 import androidx.compose.foundation.layout.offset
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
+import androidx.compose.foundation.layout.sizeIn
 import androidx.compose.foundation.layout.statusBarsPadding
 import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.lazy.LazyColumn
@@ -208,7 +209,7 @@ fun ClientsScreen(
                     verticalArrangement = Arrangement.spacedBy(12.dp)
                 ) {
                     items(clients, key = { it.id }) { client ->
-                        val pets = remember(client.petsJson) {
+                        val pets = remember(client.id, client.petsJson) {
                             try {
                                 json.decodeFromString<List<PetItem>>(client.petsJson)
                             } catch (e: Exception) {
@@ -346,7 +347,7 @@ fun ClientsScreen(
                                         contentPadding = PaddingValues(horizontal = 12.dp, vertical = 0.dp),
                                         modifier = Modifier
                                             .weight(1f)
-                                            .height(36.dp)
+                                            .heightIn(min = 48.dp)
                                     ) {
                                         Icon(Icons.Rounded.Call, contentDescription = null, modifier = Modifier.size(16.dp))
                                         Spacer(modifier = Modifier.width(6.dp))
@@ -370,7 +371,7 @@ fun ClientsScreen(
                                         contentPadding = PaddingValues(horizontal = 12.dp, vertical = 0.dp),
                                         modifier = Modifier
                                             .weight(1f)
-                                            .height(36.dp)
+                                            .heightIn(min = 48.dp)
                                     ) {
                                         Icon(Icons.Rounded.Chat, contentDescription = null, modifier = Modifier.size(16.dp))
                                         Spacer(modifier = Modifier.width(6.dp))
@@ -417,7 +418,7 @@ fun ClientsScreen(
                                                 contentColor = DeepForest
                                             ),
                                             shape = RoundedCornerShape(8.dp),
-                                            modifier = Modifier.size(28.dp)
+                                            modifier = Modifier.sizeIn(minWidth = 48.dp, minHeight = 48.dp)
                                         ) {
                                             Icon(Icons.Rounded.Call, contentDescription = "Позвонить", modifier = Modifier.size(14.dp))
                                         }
@@ -711,8 +712,9 @@ fun ClientFormDialog(
         mutableStateOf(extractRussianPhoneDigits(client?.secondaryContactPhone ?: ""))
     }
 
+    val defaultCity by viewModel.defaultCity.collectAsState()
     var addressStreet by remember {
-        mutableStateOf(client?.addressStreet ?: "Санкт-Петербург, ")
+        mutableStateOf(client?.addressStreet ?: "$defaultCity, ")
     }
     var entrance by remember { mutableStateOf(client?.entrance ?: "") }
     var floor by remember { mutableStateOf(client?.floor ?: "") }

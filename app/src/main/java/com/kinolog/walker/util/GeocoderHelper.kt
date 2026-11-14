@@ -41,12 +41,13 @@ object GeocoderHelper {
     suspend fun suggestAddresses(
         context: Context,
         rawQuery: String,
-        yandexApiKey: String = ""
+        yandexApiKey: String = "",
+        defaultCity: String = "Санкт-Петербург"
     ): List<AddressSuggestion> = withContext(Dispatchers.IO) {
         val trimmed = rawQuery.trim()
         if (trimmed.length < 3) return@withContext emptyList()
 
-        val spbQuery = formatQueryForSpb(trimmed)
+        val spbQuery = formatQueryForSpb(trimmed, defaultCity)
         val key = if (yandexApiKey.isNotBlank()) yandexApiKey else defaultApiKey
 
         // 1. Try Yandex HTTP Geocoder if API key is provided
@@ -150,7 +151,7 @@ object GeocoderHelper {
         yandexApiKey: String = ""
     ): Pair<Double, Double>? = getCoordinates(context, rawAddress, yandexApiKey)
 
-    fun formatQueryForSpb(query: String): String {
+    fun formatQueryForSpb(query: String, defaultCity: String = "Санкт-Петербург"): String {
         val trimmed = query.trim()
         val lower = trimmed.lowercase()
         val spbKeywords = listOf(
@@ -161,8 +162,11 @@ object GeocoderHelper {
             "кировск", "тосно", "луга", "шушары", "янино", "бугры",
             "металлострой", "понтонный", "стрельна"
         )
-        val hasCity = spbKeywords.any { lower.contains(it) }
-        return if (hasCity) trimmed else "Санкт-Петербург, $trimmed"
+        val cityTrimmed = defaultCity.trim()
+        val cityLower = cityTrimmed.lowercase()
+        val hasCity = spbKeywords.any { lower.contains(it) } || (cityLower.isNotBlank() && lower.contains(cityLower))
+        val fallbackCity = if (cityTrimmed.isNotBlank()) cityTrimmed else "Санкт-Петербург"
+        return if (hasCity) trimmed else "$fallbackCity, $trimmed"
     }
 
     fun cleanAddressForGeocoding(raw: String): String {

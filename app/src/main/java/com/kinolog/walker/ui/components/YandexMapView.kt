@@ -8,7 +8,10 @@ import android.webkit.WebViewClient
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
+import androidx.compose.runtime.getValue
+import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
+import androidx.compose.runtime.setValue
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.viewinterop.AndroidView
@@ -35,6 +38,8 @@ fun YandexMapView(
 ) {
     val context = LocalContext.current
     val isDark = LocalIsDarkTheme.current
+    var isPageLoaded by remember { mutableStateOf(false) }
+
     val webView = remember {
         WebView(context).apply {
             layoutParams = ViewGroup.LayoutParams(
@@ -48,7 +53,12 @@ fun YandexMapView(
                 mixedContentMode = WebSettings.MIXED_CONTENT_ALWAYS_ALLOW
                 cacheMode = WebSettings.LOAD_DEFAULT
             }
-            webViewClient = WebViewClient()
+            webViewClient = object : WebViewClient() {
+                override fun onPageFinished(view: WebView?, url: String?) {
+                    super.onPageFinished(view, url)
+                    isPageLoaded = true
+                }
+            }
         }
     }
 
@@ -67,9 +77,20 @@ fun YandexMapView(
         jsonArray.toString()
     }
 
-    LaunchedEffect(apiKey, pointsJson, routingMode, isDark) {
+    // Load base HTML only when API key or theme changes
+    LaunchedEffect(apiKey, isDark) {
+        isPageLoaded = false
         val htmlContent = generateMapHtml(apiKey, pointsJson, routingMode, isDark)
         webView.loadDataWithBaseURL("https://api-maps.yandex.ru", htmlContent, "text/html", "UTF-8", null)
+    }
+
+    // Smoothly update points and routes via JS evaluateJavascript without full page reloads
+    LaunchedEffect(pointsJson, routingMode, isPageLoaded) {
+        if (isPageLoaded) {
+            val routerType = if (routingMode == "mt") "masstransit" else "pedestrian"
+            val js = "if (window.updatePointsAndRoute) { window.updatePointsAndRoute($pointsJson, '$routerType'); }"
+            webView.evaluateJavascript(js, null)
+        }
     }
 
     AndroidView(
@@ -122,28 +143,29 @@ private fun generateMapHtml(apiKey: String, pointsJson: String, routingMode: Str
         <body>
             <div id="map"></div>
             <script type="text/javascript">
-                var pointsData = $pointsJson;
-                var routingType = "$routerType";
+                var map = null;
+                var currentGeoObjects = null;
+                var currentMultiRoute = null;
+                var pendingPoints = $pointsJson;
+                var pendingRoutingType = "$routerType";
+                var isReady = false;
 
-                ymaps.ready(init);
-
-                function init() {
-                    var defaultCenter = [59.9343, 30.3351]; // St. Petersburg
-                    var defaultZoom = 12;
-
-                    if (pointsData.length > 0) {
-                        defaultCenter = [pointsData[0].lat, pointsData[0].lon];
+                window.updatePointsAndRoute = function(pointsData, routingType) {
+                    if (!isReady || !map) {
+                        pendingPoints = pointsData;
+                        pendingRoutingType = routingType;
+                        return;
+                    }
+                    if (currentGeoObjects) {
+                        map.geoObjects.remove(currentGeoObjects);
+                        currentGeoObjects = null;
+                    }
+                    if (currentMultiRoute) {
+                        map.geoObjects.remove(currentMultiRoute);
+                        currentMultiRoute = null;
                     }
 
-                    var map = new ymaps.Map("map", {
-                        center: defaultCenter,
-                        zoom: defaultZoom,
-                        controls: ['zoomControl']
-                    }, {
-                        searchControlProvider: 'yandex#search'
-                    });
-
-                    var geoObjects = new ymaps.GeoObjectCollection();
+                    currentGeoObjects = new ymaps.GeoObjectCollection();
                     var routePoints = [];
 
                     for (var i = 0; i < pointsData.length; i++) {
@@ -160,14 +182,13 @@ private fun generateMapHtml(apiKey: String, pointsJson: String, routingMode: Str
                             preset: 'islands#darkGreenCircleIcon'
                         });
 
-                        geoObjects.add(placemark);
+                        currentGeoObjects.add(placemark);
                     }
 
-                    map.geoObjects.add(geoObjects);
+                    map.geoObjects.add(currentGeoObjects);
 
-                    // Build preview multi-route if there are 2 or more points
                     if (routePoints.length >= 2) {
-                        var multiRoute = new ymaps.multiRouter.MultiRoute({
+                        currentMultiRoute = new ymaps.multiRouter.MultiRoute({
                             referencePoints: routePoints,
                             params: {
                                 routingMode: routingType,
@@ -178,13 +199,35 @@ private fun generateMapHtml(apiKey: String, pointsJson: String, routingMode: Str
                             routeActiveStrokeWidth: 5,
                             routeActiveStrokeColor: "#5E9E7ECC"
                         });
-                        map.geoObjects.add(multiRoute);
+                        map.geoObjects.add(currentMultiRoute);
                     } else if (pointsData.length > 0) {
-                        map.setBounds(geoObjects.getBounds(), {
+                        map.setBounds(currentGeoObjects.getBounds(), {
                             checkZoomRange: true,
                             zoomMargin: 60
                         });
                     }
+                };
+
+                ymaps.ready(init);
+
+                function init() {
+                    var defaultCenter = [59.9343, 30.3351]; // St. Petersburg
+                    var defaultZoom = 12;
+
+                    if (pendingPoints && pendingPoints.length > 0) {
+                        defaultCenter = [pendingPoints[0].lat, pendingPoints[0].lon];
+                    }
+
+                    map = new ymaps.Map("map", {
+                        center: defaultCenter,
+                        zoom: defaultZoom,
+                        controls: ['zoomControl']
+                    }, {
+                        searchControlProvider: 'yandex#search'
+                    });
+
+                    isReady = true;
+                    window.updatePointsAndRoute(pendingPoints, pendingRoutingType);
                 }
             </script>
         </body>

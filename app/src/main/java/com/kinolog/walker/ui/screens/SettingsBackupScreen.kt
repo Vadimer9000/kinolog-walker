@@ -37,6 +37,7 @@ import androidx.compose.material.icons.rounded.FileDownload
 import androidx.compose.material.icons.rounded.FileUpload
 import androidx.compose.material.icons.rounded.Info
 import androidx.compose.material.icons.rounded.Key
+import androidx.compose.material.icons.rounded.LocationOn
 import androidx.compose.material.icons.rounded.Notifications
 import androidx.compose.material.icons.rounded.Palette
 import androidx.compose.material.icons.rounded.Payments
@@ -110,6 +111,9 @@ fun SettingsBackupScreen(
 
     val currentApiKey by viewModel.yandexApiKey.collectAsState()
     var apiKeyInput by remember(currentApiKey) { mutableStateOf(currentApiKey) }
+
+    val currentDefaultCity by viewModel.defaultCity.collectAsState()
+    var defaultCityInput by remember(currentDefaultCity) { mutableStateOf(currentDefaultCity) }
 
     val clientsMap by viewModel.clientsMap.collectAsState()
     val allWalks by viewModel.allWalks.collectAsState()
@@ -1075,6 +1079,55 @@ fun SettingsBackupScreen(
                         Icon(Icons.Rounded.Save, contentDescription = null, modifier = Modifier.size(16.dp))
                         Spacer(modifier = Modifier.width(6.dp))
                         Text("Сохранить ключ", color = Color.White, fontSize = 13.sp)
+                    }
+
+                    HorizontalDivider(modifier = Modifier.padding(vertical = 14.dp), color = dividerColor)
+
+                    Row(verticalAlignment = Alignment.CenterVertically) {
+                        Icon(Icons.Rounded.LocationOn, contentDescription = null, tint = SageGreenPrimary)
+                        Spacer(modifier = Modifier.width(8.dp))
+                        Text(
+                            text = "Базовый город по умолчанию",
+                            fontWeight = FontWeight.SemiBold,
+                            fontSize = 16.sp,
+                            color = CharcoalPrimary
+                        )
+                    }
+
+                    Spacer(modifier = Modifier.height(6.dp))
+
+                    Text(
+                        text = "Используется для поиска адресов и автодополнения (по умолчанию: Санкт-Петербург).",
+                        fontSize = 12.sp,
+                        color = OliveGreySecondary
+                    )
+
+                    Spacer(modifier = Modifier.height(10.dp))
+
+                    AppTextField(
+                        value = defaultCityInput,
+                        onValueChange = { defaultCityInput = it },
+                        label = "Базовый город по умолчанию",
+                        placeholder = "например: Санкт-Петербург",
+                        singleLine = true,
+                        modifier = Modifier.fillMaxWidth()
+                    )
+
+                    Spacer(modifier = Modifier.height(12.dp))
+
+                    Button(
+                        onClick = {
+                            HapticHelper.success(view, context)
+                            viewModel.setDefaultCity(defaultCityInput)
+                            Toast.makeText(context, "Базовый город сохранён", Toast.LENGTH_SHORT).show()
+                        },
+                        colors = ButtonDefaults.buttonColors(containerColor = SageGreenPrimary),
+                        shape = CircleShape,
+                        modifier = Modifier.align(Alignment.End)
+                    ) {
+                        Icon(Icons.Rounded.Save, contentDescription = null, modifier = Modifier.size(16.dp))
+                        Spacer(modifier = Modifier.width(6.dp))
+                        Text("Сохранить город", color = Color.White, fontSize = 13.sp)
                     }
                 }
             }

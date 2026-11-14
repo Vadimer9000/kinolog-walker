@@ -56,8 +56,11 @@ object YandexJsGeocoderBridge {
                     wv.addJavascriptInterface(JsInterface(), "AndroidBridge")
 
                     wv.webViewClient = object : WebViewClient() {
-                        override fun onPageFinished(view: WebView?, url: String?) {
-                            super.onPageFinished(view, url)
+                        override fun onReceivedError(view: WebView?, errorCode: Int, description: String?, failingUrl: String?) {
+                            super.onReceivedError(view, errorCode, description, failingUrl)
+                            isYmapsReady = false
+                            readyDeferred = CompletableDeferred()
+                            currentApiKey = null
                         }
                     }
 
@@ -137,9 +140,9 @@ object YandexJsGeocoderBridge {
                     wv.loadDataWithBaseURL("https://api-maps.yandex.ru", html, "text/html", "UTF-8", null)
                 }
             } catch (e: Exception) {
-                if (!readyDeferred.isCompleted) {
-                    readyDeferred.complete(false)
-                }
+                isYmapsReady = false
+                readyDeferred = CompletableDeferred()
+                currentApiKey = null
             }
         }
     }
@@ -197,6 +200,9 @@ object YandexJsGeocoderBridge {
         if (!isYmapsReady) {
             val ready = withTimeoutOrNull(4500) { readyDeferred.await() }
             if (ready != true) {
+                isYmapsReady = false
+                readyDeferred = CompletableDeferred()
+                currentApiKey = null
                 return emptyList()
             }
         }

@@ -24,8 +24,14 @@ class PreferencesManager(context: Context) {
         private const val KEY_HAPTIC_FEEDBACK_ENABLED = "haptic_feedback_enabled"
         private const val KEY_NOTIFICATIONS_ENABLED = "notifications_enabled"
         private const val KEY_NOTIFICATION_LEAD_TIME_MINUTES = "notification_lead_time_minutes"
+        private const val KEY_DEFAULT_CITY = "default_city"
+        const val DEFAULT_CITY_FALLBACK = "Санкт-Петербург"
         val DEFAULT_PRICE_PRESETS = listOf(500, 800, 1000, 1500)
     }
+
+    var defaultCity: String
+        get() = prefs.getString(KEY_DEFAULT_CITY, DEFAULT_CITY_FALLBACK) ?: DEFAULT_CITY_FALLBACK
+        set(value) = prefs.edit().putString(KEY_DEFAULT_CITY, value.trim()).apply()
 
     var pricePresets: List<Int>
         get() {

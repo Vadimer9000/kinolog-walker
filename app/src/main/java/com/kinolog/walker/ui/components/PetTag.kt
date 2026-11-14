@@ -16,6 +16,7 @@ import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import com.kinolog.walker.model.PetItem
 import com.kinolog.walker.ui.theme.CharcoalPrimary
+import com.kinolog.walker.ui.theme.LocalIsDarkTheme
 import com.kinolog.walker.ui.theme.MintLight
 import com.kinolog.walker.ui.theme.SoftMint
 
@@ -24,6 +25,9 @@ fun PetTag(
     pet: PetItem,
     modifier: Modifier = Modifier
 ) {
+    val isDark = LocalIsDarkTheme.current
+    val breedColor = if (isDark) Color(0xFFD2DDD6) else Color(0xFF555F5A)
+
     Row(
         modifier = modifier
             .clip(CircleShape)
@@ -41,7 +45,7 @@ fun PetTag(
         if (pet.breedOrDetails.isNotBlank()) {
             Text(
                 text = " • ${pet.breedOrDetails}",
-                color = Color(0xFF555F5A),
+                color = breedColor,
                 fontSize = 11.sp,
                 modifier = Modifier.padding(start = 2.dp)
             )

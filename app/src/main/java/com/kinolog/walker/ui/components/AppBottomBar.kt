@@ -58,7 +58,7 @@ import com.kinolog.walker.util.HapticHelper
 enum class NavigationTab(val title: String, val icon: ImageVector) {
     SCHEDULE("Карта и План", Icons.Rounded.Map),
     CLIENTS("Клиенты", Icons.Rounded.Pets),
-    SETTINGS("Бэкап", Icons.Rounded.Settings)
+    SETTINGS("Настройки", Icons.Rounded.Settings)
 }
 
 @Composable
@@ -70,7 +70,7 @@ fun AppBottomBar(
 ) {
     val view = LocalView.current
     val context = LocalContext.current
-    val bottomTabs = remember { listOf(NavigationTab.SCHEDULE, NavigationTab.CLIENTS) }
+    val bottomTabs = remember { listOf(NavigationTab.SCHEDULE, NavigationTab.CLIENTS, NavigationTab.SETTINGS) }
     val selectedIndex = bottomTabs.indexOf(currentTab).coerceAtLeast(0)
     val currentTabState by rememberUpdatedState(currentTab)
     val currentOnTabSelected by rememberUpdatedState(onTabSelected)

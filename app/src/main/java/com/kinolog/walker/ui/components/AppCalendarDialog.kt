@@ -221,7 +221,7 @@ fun AppCalendarDialog(
                                         Box(
                                             modifier = Modifier
                                                 .weight(1f)
-                                                .height(42.dp)
+                                                .height(48.dp)
                                                 .padding(horizontal = 1.dp)
                                                 .clip(RoundedCornerShape(10.dp))
                                                 .then(

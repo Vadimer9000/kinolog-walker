@@ -1,5 +1,6 @@
 package com.kinolog.walker.ui.screens
 
+import android.widget.Toast
 import androidx.compose.animation.AnimatedVisibility
 import androidx.compose.animation.core.animateDpAsState
 import androidx.compose.animation.core.spring
@@ -30,6 +31,8 @@ import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.requiredHeightIn
 import androidx.compose.foundation.layout.requiredSize
 import androidx.compose.foundation.layout.size
+import androidx.compose.foundation.layout.sizeIn
+import androidx.compose.foundation.layout.heightIn
 import androidx.compose.foundation.layout.statusBarsPadding
 import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.lazy.LazyColumn
@@ -49,6 +52,7 @@ import androidx.compose.material.icons.rounded.CheckCircle
 import androidx.compose.material.icons.rounded.ChevronLeft
 import androidx.compose.material.icons.rounded.ChevronRight
 import androidx.compose.material.icons.rounded.Close
+import androidx.compose.material.icons.rounded.ContentCopy
 import androidx.compose.material.icons.rounded.Delete
 import androidx.compose.material.icons.rounded.Directions
 import androidx.compose.material.icons.rounded.Edit
@@ -101,7 +105,9 @@ import androidx.compose.ui.draw.shadow
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.input.pointer.pointerInput
 import androidx.compose.ui.platform.LocalContext
+import androidx.compose.ui.platform.LocalClipboardManager
 import androidx.compose.ui.platform.LocalView
+import androidx.compose.ui.text.AnnotatedString
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.input.KeyboardType
 import androidx.compose.ui.text.style.TextDecoration
@@ -178,8 +184,8 @@ private fun ScheduleTopControls(
     onToggleCalendar: () -> Unit,
     onPrevDay: () -> Unit,
     onNextDay: () -> Unit,
-    onSettingsClick: () -> Unit,
-    modifier: Modifier = Modifier
+    modifier: Modifier = Modifier,
+    onSettingsClick: () -> Unit = {}
 ) {
     val view = LocalView.current
     val context = LocalContext.current
@@ -199,12 +205,11 @@ private fun ScheduleTopControls(
 
     Row(
         modifier = modifier.fillMaxWidth(),
-        verticalAlignment = Alignment.CenterVertically,
-        horizontalArrangement = Arrangement.spacedBy(8.dp)
+        verticalAlignment = Alignment.CenterVertically
     ) {
-        // Date Selector Pill
+        // Date Selector Pill takes full width for clean one-hand view
         GlassBox(
-            modifier = Modifier.weight(1f),
+            modifier = Modifier.fillMaxWidth(),
             shape = CircleShape,
             elevation = 6.dp
         ) {
@@ -271,25 +276,6 @@ private fun ScheduleTopControls(
                 ) {
                     Icon(Icons.Rounded.ChevronRight, contentDescription = "Следующий день", tint = SageGreenPrimary, modifier = Modifier.size(20.dp))
                 }
-            }
-        }
-
-        // Settings / Backup gear button
-        GlassBox(
-            shape = CircleShape,
-            elevation = 6.dp,
-            modifier = Modifier.size(46.dp)
-        ) {
-            IconButton(
-                onClick = onSettingsClick,
-                modifier = Modifier.fillMaxSize()
-            ) {
-                Icon(
-                    imageVector = Icons.Rounded.Settings,
-                    contentDescription = "Настройки и Бэкап",
-                    tint = CharcoalPrimary,
-                    modifier = Modifier.size(22.dp)
-                )
             }
         }
     }
@@ -442,7 +428,7 @@ private fun MonthCalendarDropdown(
                             Box(
                                 modifier = Modifier
                                     .weight(1f)
-                                    .height(44.dp)
+                                    .height(48.dp)
                                     .padding(horizontal = 1.dp)
                                     .clip(RoundedCornerShape(10.dp))
                                     .then(
@@ -493,7 +479,7 @@ private fun MonthCalendarDropdown(
                             Box(
                                 modifier = Modifier
                                     .weight(1f)
-                                    .height(44.dp)
+                                    .height(48.dp)
                                     .padding(horizontal = 1.dp)
                             )
                         }
@@ -566,8 +552,9 @@ fun ScheduleMapScreen(
                 .background(Color.Transparent)
         ) {
                         // Header of BottomSheet
-                    val totalPlannedEarnings = walks.sumOf { it.price }
-                    val totalEarned = walks.filter { it.isCompleted }.sumOf { it.price }
+                    val totalPlannedEarnings = remember(walks) { walks.sumOf { it.price } }
+                    val totalEarned = remember(walks) { walks.filter { it.isCompleted }.sumOf { it.price } }
+                    val clipboardManager = LocalClipboardManager.current
     
                     Row(
                         modifier = Modifier
@@ -686,9 +673,9 @@ fun ScheduleMapScreen(
                             contentPadding = PaddingValues(start = 16.dp, end = 16.dp, top = 8.dp, bottom = 120.dp),
                             verticalArrangement = Arrangement.spacedBy(if (isCompactView) 6.dp else 10.dp)
                         ) {
-                            items(walks.sortedBy { it.startTimeMinutes }, key = { it.id }) { walk ->
+                            items(walks, key = { it.id }) { walk ->
                                 val client = clientsMap[walk.clientId]
-                                val pets = remember(client?.petsJson) {
+                                val pets = remember(client?.id, client?.petsJson) {
                                     if (client != null && client.petsJson.isNotBlank()) {
                                         try {
                                             json.decodeFromString<List<PetItem>>(client.petsJson)
@@ -801,7 +788,7 @@ fun ScheduleMapScreen(
                                                             HapticHelper.success(view, context)
                                                             viewModel.toggleWalkCompletion(walk)
                                                         },
-                                                        modifier = Modifier.size(24.dp)
+                                                        modifier = Modifier.sizeIn(minWidth = 48.dp, minHeight = 48.dp)
                                                     ) {
                                                         Icon(
                                                             imageVector = if (isDone) Icons.Rounded.CheckCircle else Icons.Rounded.RadioButtonUnchecked,
@@ -884,7 +871,7 @@ fun ScheduleMapScreen(
                                                                 contentColor = DeepForest
                                                             ),
                                                             shape = RoundedCornerShape(8.dp),
-                                                            modifier = Modifier.size(28.dp)
+                                                            modifier = Modifier.sizeIn(minWidth = 48.dp, minHeight = 48.dp)
                                                         ) {
                                                             Icon(Icons.Rounded.Directions, contentDescription = "Маршрут", modifier = Modifier.size(15.dp))
                                                         }
@@ -905,7 +892,7 @@ fun ScheduleMapScreen(
                                                                 contentColor = CharcoalPrimary
                                                             ),
                                                             shape = RoundedCornerShape(8.dp),
-                                                            modifier = Modifier.size(28.dp)
+                                                            modifier = Modifier.sizeIn(minWidth = 48.dp, minHeight = 48.dp)
                                                         ) {
                                                             Icon(Icons.Rounded.Call, contentDescription = "Звонок", modifier = Modifier.size(14.dp))
                                                         }
@@ -931,15 +918,36 @@ fun ScheduleMapScreen(
                                                         }
                                                     }
                                                     Spacer(modifier = Modifier.height(3.dp))
-                                                    Text(
-                                                        text = notesSummary,
-                                                        fontSize = 12.sp,
-                                                        color = if (isDark) Color(0xFFFFD59E) else Color(0xFFB45309),
-                                                        maxLines = 2,
-                                                        overflow = TextOverflow.Ellipsis,
-                                                        lineHeight = 15.sp,
-                                                        modifier = Modifier.fillMaxWidth()
-                                                    )
+                                                    Row(
+                                                        modifier = Modifier.fillMaxWidth(),
+                                                        verticalAlignment = Alignment.CenterVertically
+                                                    ) {
+                                                        Text(
+                                                            text = notesSummary,
+                                                            fontSize = 12.sp,
+                                                            color = if (isDark) Color(0xFFFFD59E) else Color(0xFFB45309),
+                                                            maxLines = 2,
+                                                            overflow = TextOverflow.Ellipsis,
+                                                            lineHeight = 15.sp,
+                                                            modifier = Modifier.weight(1f)
+                                                        )
+                                                        IconButton(
+                                                            onClick = {
+                                                                val toCopy = listOfNotNull(clientNote.ifBlank { null }, walkNote.ifBlank { null }).joinToString(" | ")
+                                                                clipboardManager.setText(AnnotatedString(toCopy))
+                                                                HapticHelper.lightClick(view, context)
+                                                                Toast.makeText(context, "Скопировано", Toast.LENGTH_SHORT).show()
+                                                            },
+                                                            modifier = Modifier.sizeIn(minWidth = 48.dp, minHeight = 48.dp)
+                                                        ) {
+                                                            Icon(
+                                                                imageVector = Icons.Rounded.ContentCopy,
+                                                                contentDescription = "Скопировать заметку",
+                                                                tint = if (isDark) Color(0xFFFFD59E) else Color(0xFFB45309),
+                                                                modifier = Modifier.size(15.dp)
+                                                            )
+                                                        }
+                                                    }
                                                 }
                                             }
                                         }
@@ -1288,14 +1296,30 @@ fun ScheduleMapScreen(
                                                     Spacer(modifier = Modifier.height(4.dp))
                                                     Row(
                                                         modifier = Modifier.fillMaxWidth(),
-                                                        verticalAlignment = Alignment.Top
+                                                        verticalAlignment = Alignment.CenterVertically
                                                     ) {
                                                         Text(
                                                             text = "🔑 $clientNote",
                                                             fontSize = 13.sp,
                                                             color = if (isDark) Color(0xFFFFD59E) else Color(0xFF92400E),
-                                                            lineHeight = 18.sp
+                                                            lineHeight = 18.sp,
+                                                            modifier = Modifier.weight(1f)
                                                         )
+                                                        IconButton(
+                                                            onClick = {
+                                                                clipboardManager.setText(AnnotatedString(clientNote))
+                                                                HapticHelper.lightClick(view, context)
+                                                                Toast.makeText(context, "Скопировано", Toast.LENGTH_SHORT).show()
+                                                            },
+                                                            modifier = Modifier.sizeIn(minWidth = 48.dp, minHeight = 48.dp)
+                                                        ) {
+                                                            Icon(
+                                                                imageVector = Icons.Rounded.ContentCopy,
+                                                                contentDescription = "Скопировать заметку",
+                                                                tint = if (isDark) Color(0xFFFFD59E) else Color(0xFF92400E),
+                                                                modifier = Modifier.size(16.dp)
+                                                            )
+                                                        }
                                                     }
                                                 }
 
@@ -1303,20 +1327,36 @@ fun ScheduleMapScreen(
                                                     Spacer(modifier = Modifier.height(4.dp))
                                                     Row(
                                                         modifier = Modifier.fillMaxWidth(),
-                                                        verticalAlignment = Alignment.Top
+                                                        verticalAlignment = Alignment.CenterVertically
                                                     ) {
                                                         Text(
                                                             text = "📝 $walkNote",
                                                             fontSize = 13.sp,
                                                             color = if (isDark) Color(0xFFA5D6A7) else Color(0xFF2E6948),
-                                                            lineHeight = 18.sp
+                                                            lineHeight = 18.sp,
+                                                            modifier = Modifier.weight(1f)
                                                         )
+                                                        IconButton(
+                                                            onClick = {
+                                                                clipboardManager.setText(AnnotatedString(walkNote))
+                                                                HapticHelper.lightClick(view, context)
+                                                                Toast.makeText(context, "Скопировано", Toast.LENGTH_SHORT).show()
+                                                            },
+                                                            modifier = Modifier.sizeIn(minWidth = 48.dp, minHeight = 48.dp)
+                                                        ) {
+                                                            Icon(
+                                                                imageVector = Icons.Rounded.ContentCopy,
+                                                                contentDescription = "Скопировать заметку",
+                                                                tint = if (isDark) Color(0xFFA5D6A7) else Color(0xFF2E6948),
+                                                                modifier = Modifier.size(16.dp)
+                                                            )
+                                                        }
                                                     }
                                                 }
 
                                                 Spacer(modifier = Modifier.height(10.dp))
 
-                                                // 6. Нижний ряд действий: 3 удобные равноширинные кнопки с иконками и подписями: «Маршрут», «Звонок», «Чат» (вместо 6 мелких квадратных кнопок в ряд).
+                                                // 6. Нижний ряд действий: 3 удобные равноширинные кнопки с иконками и подписями: «Маршрут», «Звонок», «Чат»
                                                 Row(
                                                     modifier = Modifier.fillMaxWidth(),
                                                     horizontalArrangement = Arrangement.spacedBy(8.dp),
@@ -1330,7 +1370,7 @@ fun ScheduleMapScreen(
                                                         },
                                                         modifier = Modifier
                                                             .weight(1f)
-                                                            .height(38.dp),
+                                                            .heightIn(min = 48.dp),
                                                         colors = ButtonDefaults.buttonColors(
                                                             containerColor = SoftMint,
                                                             contentColor = DeepForest
@@ -1370,7 +1410,7 @@ fun ScheduleMapScreen(
                                                         },
                                                         modifier = Modifier
                                                             .weight(1f)
-                                                            .height(38.dp),
+                                                            .heightIn(min = 48.dp),
                                                         colors = ButtonDefaults.buttonColors(
                                                             containerColor = SandBeige,
                                                             contentColor = CharcoalPrimary
@@ -1410,7 +1450,7 @@ fun ScheduleMapScreen(
                                                         },
                                                         modifier = Modifier
                                                             .weight(1f)
-                                                            .height(38.dp),
+                                                            .heightIn(min = 48.dp),
                                                         colors = ButtonDefaults.buttonColors(
                                                             containerColor = MintLight,
                                                             contentColor = DeepForest
@@ -1460,14 +1500,13 @@ fun ScheduleMapScreen(
                     .fillMaxWidth()
                     .padding(horizontal = 16.dp)
             ) {
-                // Top Date Selector & Settings
+                // Top Date Selector
                 ScheduleTopControls(
                     selectedDate = selectedDate,
                     isCalendarExpanded = isCalendarExpanded,
                     onToggleCalendar = { isCalendarExpanded = !isCalendarExpanded },
                     onPrevDay = { viewModel.setSelectedDate(selectedDate.minusDays(1)) },
-                    onNextDay = { viewModel.setSelectedDate(selectedDate.plusDays(1)) },
-                    onSettingsClick = { viewModel.setTab(NavigationTab.SETTINGS) }
+                    onNextDay = { viewModel.setSelectedDate(selectedDate.plusDays(1)) }
                 )
 
                 AnimatedVisibility(
@@ -1542,8 +1581,7 @@ fun ScheduleMapScreen(
                     isCalendarExpanded = isCalendarExpanded,
                     onToggleCalendar = { isCalendarExpanded = !isCalendarExpanded },
                     onPrevDay = { viewModel.setSelectedDate(selectedDate.minusDays(1)) },
-                    onNextDay = { viewModel.setSelectedDate(selectedDate.plusDays(1)) },
-                    onSettingsClick = { viewModel.setTab(NavigationTab.SETTINGS) }
+                    onNextDay = { viewModel.setSelectedDate(selectedDate.plusDays(1)) }
                 )
 
                 AnimatedVisibility(
@@ -2053,6 +2091,31 @@ fun WalkFormDialog(
     var clientMenuExpanded by remember { mutableStateOf(false) }
     var showSeriesEditConfirmDialog by remember { mutableStateOf(false) }
 
+    val allWalks by viewModel.allWalks.collectAsState()
+    var conflictingClientName by remember { mutableStateOf<String?>(null) }
+    var pendingSaveCallback by remember { mutableStateOf<(() -> Unit)?>(null) }
+
+    fun checkOverlapAndProceed(action: () -> Unit) {
+        val validDuration = durationMinutes.coerceAtLeast(10)
+        val startMin = startTimeMinutes
+        val endMin = startTimeMinutes + validDuration
+        val walkEpoch = walkDate.toEpochDay()
+        val conflictingWalk = allWalks.firstOrNull { walk ->
+            walk.id != (walkToEdit?.id ?: 0L) &&
+            walk.dateEpochDay == walkEpoch &&
+            startMin < (walk.startTimeMinutes + walk.durationMinutes) &&
+            walk.startTimeMinutes < endMin
+        }
+        if (conflictingWalk != null) {
+            val client = clients.firstOrNull { it.id == conflictingWalk.clientId }
+            val name = client?.fullName ?: "Клиент"
+            conflictingClientName = name
+            pendingSaveCallback = action
+        } else {
+            action()
+        }
+    }
+
     Dialog(
         onDismissRequest = onDismiss,
         properties = DialogProperties(usePlatformDefaultWidth = false)
@@ -2519,23 +2582,27 @@ fun WalkFormDialog(
                             )
 
                             if (hasKeyChanges) {
-                                showSeriesEditConfirmDialog = true
+                                checkOverlapAndProceed {
+                                    showSeriesEditConfirmDialog = true
+                                }
                             } else {
-                                HapticHelper.success(view, context)
-                                onSave(
-                                    walkToEdit?.id ?: 0L,
-                                    selectedClientId,
-                                    selectedCategory,
-                                    walkDate,
-                                    startTimeMinutes,
-                                    validDuration,
-                                    price,
-                                    walkComment,
-                                    isRecurring,
-                                    selectedDays,
-                                    recurrenceEndDate,
-                                    false
-                                )
+                                checkOverlapAndProceed {
+                                    HapticHelper.success(view, context)
+                                    onSave(
+                                        walkToEdit?.id ?: 0L,
+                                        selectedClientId,
+                                        selectedCategory,
+                                        walkDate,
+                                        startTimeMinutes,
+                                        validDuration,
+                                        price,
+                                        walkComment,
+                                        isRecurring,
+                                        selectedDays,
+                                        recurrenceEndDate,
+                                        false
+                                    )
+                                }
                             }
                         },
                         colors = ButtonDefaults.buttonColors(containerColor = SageGreenPrimary),
@@ -2547,6 +2614,45 @@ fun WalkFormDialog(
 
                 Spacer(modifier = Modifier.height(120.dp))
             }
+        }
+
+        if (conflictingClientName != null) {
+            AlertDialog(
+                onDismissRequest = {
+                    conflictingClientName = null
+                    pendingSaveCallback = null
+                },
+                title = { Text("Накладка по времени", fontWeight = FontWeight.Bold, fontSize = 17.sp) },
+                text = {
+                    Text(
+                        "В это время уже есть выгул: ${conflictingClientName}. Всё равно сохранить запись?",
+                        fontSize = 14.sp
+                    )
+                },
+                confirmButton = {
+                    Button(
+                        onClick = {
+                            conflictingClientName = null
+                            val action = pendingSaveCallback
+                            pendingSaveCallback = null
+                            action?.invoke()
+                        },
+                        colors = ButtonDefaults.buttonColors(containerColor = SageGreenPrimary)
+                    ) {
+                        Text("Всё равно сохранить", color = Color.White)
+                    }
+                },
+                dismissButton = {
+                    TextButton(
+                        onClick = {
+                            conflictingClientName = null
+                            pendingSaveCallback = null
+                        }
+                    ) {
+                        Text("Отмена", color = OliveGreySecondary)
+                    }
+                }
+            )
         }
 
         if (showSeriesEditConfirmDialog && walkToEdit != null) {
