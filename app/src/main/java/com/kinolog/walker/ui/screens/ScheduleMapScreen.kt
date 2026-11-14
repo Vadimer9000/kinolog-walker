@@ -965,7 +965,7 @@ fun ScheduleMapScreen(
                                                     verticalAlignment = Alignment.CenterVertically
                                                 ) {
                                                     Row(
-                                                        modifier = Modifier.weight(1f, fill = false),
+                                                        modifier = Modifier.weight(1f),
                                                         verticalAlignment = Alignment.CenterVertically,
                                                         horizontalArrangement = Arrangement.spacedBy(6.dp)
                                                     ) {
@@ -974,7 +974,11 @@ fun ScheduleMapScreen(
                                                             fontSize = 13.sp,
                                                             fontWeight = FontWeight.Bold,
                                                             color = walkPrimaryText,
-                                                            textDecoration = if (isDone) TextDecoration.LineThrough else TextDecoration.None
+                                                            textDecoration = if (isDone) TextDecoration.LineThrough else TextDecoration.None,
+                                                            maxLines = 1,
+                                                            softWrap = false,
+                                                            overflow = TextOverflow.Ellipsis,
+                                                            modifier = Modifier.weight(1f, fill = false)
                                                         )
 
                                                         Box(
@@ -986,12 +990,13 @@ fun ScheduleMapScreen(
                                                             Text(
                                                                 text = if (isDone) "✓ Выполнен" else walk.category.title,
                                                                 color = walkChipText,
-                                                            fontSize = 11.sp,
-                                                            fontWeight = FontWeight.SemiBold,
-                                                            maxLines = 1
-                                                        )
+                                                                fontSize = 11.sp,
+                                                                fontWeight = FontWeight.SemiBold,
+                                                                maxLines = 1,
+                                                                softWrap = false
+                                                            )
+                                                        }
                                                     }
-                                                }
     
                                                 IconButton(
                                                     onClick = {
@@ -1112,34 +1117,23 @@ fun ScheduleMapScreen(
                                                 // Line 4: Action buttons row
                                                 Row(
                                                     modifier = Modifier.fillMaxWidth(),
-                                                    horizontalArrangement = Arrangement.spacedBy(6.dp),
+                                                    horizontalArrangement = Arrangement.SpaceBetween,
                                                     verticalAlignment = Alignment.CenterVertically
                                                 ) {
                                                     // Route to single walk
-                                                    Button(
+                                                    FilledTonalIconButton(
                                                         onClick = {
                                                             HapticHelper.lightClick(view, context)
                                                             viewModel.routeSingleWalk(context, walk)
                                                         },
-                                                        colors = ButtonDefaults.buttonColors(
+                                                        colors = IconButtonDefaults.filledTonalIconButtonColors(
                                                             containerColor = SoftMint,
                                                             contentColor = DeepForest
                                                         ),
                                                         shape = RoundedCornerShape(12.dp),
-                                                        contentPadding = PaddingValues(horizontal = 8.dp, vertical = 0.dp),
-                                                        modifier = Modifier
-                                                            .weight(1f)
-                                                            .height(42.dp)
+                                                        modifier = Modifier.requiredSize(42.dp)
                                                     ) {
-                                                        Icon(Icons.Rounded.Directions, contentDescription = null, modifier = Modifier.size(16.dp))
-                                                        Spacer(modifier = Modifier.width(4.dp))
-                                                        Text(
-                                                            text = "Маршрут",
-                                                            fontSize = 12.sp,
-                                                            fontWeight = FontWeight.SemiBold,
-                                                            maxLines = 1,
-                                                            softWrap = false
-                                                        )
+                                                        Icon(Icons.Rounded.Directions, contentDescription = "Маршрут", modifier = Modifier.size(18.dp))
                                                     }
 
                                                     // Call

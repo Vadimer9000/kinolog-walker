@@ -488,13 +488,7 @@ class MainViewModel(application: Application) : AndroidViewModel(application) {
         )
     }
 
-    fun routeSingleWalk(context: Context, walk: WalkEventEntity) {
-        val client = clientsMap.value[walk.clientId]
-        if (client == null) {
-            Toast.makeText(context, "Клиент не найден", Toast.LENGTH_SHORT).show()
-            return
-        }
-
+    fun routeToClient(context: Context, client: ClientEntity) {
         if (client.latitude != null && client.longitude != null && prefs.geocodingVersion >= 2) {
             IntentHelper.openYandexMapsRoute(
                 context = context,
@@ -535,6 +529,15 @@ class MainViewModel(application: Application) : AndroidViewModel(application) {
         } else {
             Toast.makeText(context, "У клиента не указан адрес", Toast.LENGTH_SHORT).show()
         }
+    }
+
+    fun routeSingleWalk(context: Context, walk: WalkEventEntity) {
+        val client = clientsMap.value[walk.clientId]
+        if (client == null) {
+            Toast.makeText(context, "Клиент не найден", Toast.LENGTH_SHORT).show()
+            return
+        }
+        routeToClient(context, client)
     }
 
     fun exportDatabaseToTelegram(context: Context) {

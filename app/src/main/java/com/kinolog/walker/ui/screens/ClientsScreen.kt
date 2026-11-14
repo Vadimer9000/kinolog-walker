@@ -124,12 +124,14 @@ fun ClientsScreen(
     modifier: Modifier = Modifier
 ) {
     val context = LocalContext.current
+    val view = LocalView.current
     val clients by viewModel.clients.collectAsState()
     val searchQuery by viewModel.searchQuery.collectAsState()
 
     var showEditDialog by remember { mutableStateOf(false) }
     var clientToEdit by remember { mutableStateOf<ClientEntity?>(null) }
     var clientToDelete by remember { mutableStateOf<ClientEntity?>(null) }
+    var clientForMapDialog by remember { mutableStateOf<ClientEntity?>(null) }
 
     val json = remember { Json { ignoreUnknownKeys = true } }
 
@@ -200,7 +202,7 @@ fun ClientsScreen(
             } else {
                 LazyColumn(
                     modifier = Modifier.weight(1f),
-                    contentPadding = PaddingValues(bottom = 120.dp),
+                    contentPadding = PaddingValues(bottom = 88.dp),
                     verticalArrangement = Arrangement.spacedBy(12.dp)
                 ) {
                     items(clients, key = { it.id }) { client ->
@@ -279,28 +281,39 @@ fun ClientsScreen(
                                 }
 
                                 // Address
-                                Spacer(modifier = Modifier.height(6.dp))
-                                Row(verticalAlignment = Alignment.CenterVertically) {
-                                    Icon(
-                                        imageVector = Icons.Rounded.LocationOn,
-                                        contentDescription = "Адрес",
-                                        tint = SageGreenPrimary,
-                                        modifier = Modifier.size(15.dp)
-                                    )
-                                    Spacer(modifier = Modifier.width(4.dp))
-                                    val fullAddress = buildString {
-                                        append(client.addressStreet)
-                                        if (client.entrance.isNotBlank()) append(", под. ${client.entrance}")
-                                        if (client.floor.isNotBlank()) append(", эт. ${client.floor}")
-                                        if (client.apartment.isNotBlank()) append(", кв. ${client.apartment}")
+                                val fullAddress = buildString {
+                                    append(client.addressStreet)
+                                    if (client.entrance.isNotBlank()) append(", под. ${client.entrance}")
+                                    if (client.floor.isNotBlank()) append(", эт. ${client.floor}")
+                                    if (client.apartment.isNotBlank()) append(", кв. ${client.apartment}")
+                                }
+                                if (fullAddress.isNotBlank()) {
+                                    Spacer(modifier = Modifier.height(6.dp))
+                                    Row(
+                                        verticalAlignment = Alignment.CenterVertically,
+                                        modifier = Modifier
+                                            .clip(RoundedCornerShape(8.dp))
+                                            .clickable {
+                                                HapticHelper.lightClick(view, context)
+                                                clientForMapDialog = client
+                                            }
+                                            .padding(horizontal = 4.dp, vertical = 3.dp)
+                                    ) {
+                                        Icon(
+                                            imageVector = Icons.Rounded.LocationOn,
+                                            contentDescription = "Адрес",
+                                            tint = SageGreenPrimary,
+                                            modifier = Modifier.size(15.dp)
+                                        )
+                                        Spacer(modifier = Modifier.width(4.dp))
+                                        Text(
+                                            text = fullAddress,
+                                            fontSize = 12.sp,
+                                            color = CharcoalPrimary,
+                                            maxLines = 2,
+                                            overflow = TextOverflow.Ellipsis
+                                        )
                                     }
-                                    Text(
-                                        text = fullAddress,
-                                        fontSize = 12.sp,
-                                        color = CharcoalPrimary,
-                                        maxLines = 2,
-                                        overflow = TextOverflow.Ellipsis
-                                    )
                                 }
 
                                 if (client.clientComment.isNotBlank()) {
@@ -453,6 +466,79 @@ fun ClientsScreen(
             dismissButton = {
                 TextButton(onClick = { clientToDelete = null }) {
                     Text("Отмена", color = CharcoalPrimary)
+                }
+            }
+        )
+    }
+
+    // Open Map Dialog
+    if (clientForMapDialog != null) {
+        val client = clientForMapDialog!!
+        val addressText = buildString {
+            append(client.addressStreet)
+            if (client.entrance.isNotBlank()) append(", подъезд ${client.entrance}")
+            if (client.floor.isNotBlank()) append(", этаж ${client.floor}")
+            if (client.apartment.isNotBlank()) append(", кв. ${client.apartment}")
+        }.ifBlank { "Адрес не указан" }
+
+        AlertDialog(
+            onDismissRequest = { clientForMapDialog = null },
+            shape = RoundedCornerShape(20.dp),
+            containerColor = GlassSurface,
+            icon = {
+                Box(
+                    modifier = Modifier
+                        .size(44.dp)
+                        .clip(CircleShape)
+                        .background(SoftMint),
+                    contentAlignment = Alignment.Center
+                ) {
+                    Icon(
+                        imageVector = Icons.Rounded.LocationOn,
+                        contentDescription = null,
+                        tint = DeepForest,
+                        modifier = Modifier.size(24.dp)
+                    )
+                }
+            },
+            title = {
+                Text(
+                    text = "Открыть карту?",
+                    fontWeight = FontWeight.Bold,
+                    fontSize = 18.sp,
+                    color = CharcoalPrimary
+                )
+            },
+            text = {
+                Text(
+                    text = addressText,
+                    fontSize = 14.sp,
+                    color = CharcoalPrimary
+                )
+            },
+            confirmButton = {
+                Button(
+                    onClick = {
+                        HapticHelper.lightClick(view, context)
+                        val targetClient = client
+                        clientForMapDialog = null
+                        viewModel.routeToClient(context, targetClient)
+                    },
+                    colors = ButtonDefaults.buttonColors(
+                        containerColor = SageGreenPrimary,
+                        contentColor = Color.White
+                    ),
+                    shape = RoundedCornerShape(10.dp)
+                ) {
+                    Text("Открыть", fontWeight = FontWeight.SemiBold)
+                }
+            },
+            dismissButton = {
+                TextButton(
+                    onClick = { clientForMapDialog = null },
+                    shape = RoundedCornerShape(10.dp)
+                ) {
+                    Text("Отмена", color = OliveGreySecondary)
                 }
             }
         )
