@@ -759,7 +759,16 @@ fun ScheduleMapScreen(
                                                     .fillMaxWidth()
                                                     .padding(horizontal = 12.dp, vertical = 7.dp)
                                             ) {
-                                                // Строка 1: время «07:00–07:30», имя клиента (Modifier.weight(1f), maxLines = 1, Ellipsis), бейдж «500 ₽» и кружок выполнения справа
+                                                // Строка 1: время «07:00–07:30», имя клиента + клички питомцев («Кокся Поля · 🐕 шабака, 🐕 бака») и кружок выполнения справа
+                                                val petSummary = pets.joinToString(", ") { "${it.type.icon} ${it.name}" }
+                                                val line1ClientAndPets = buildString {
+                                                    append(client?.fullName ?: "")
+                                                    if (petSummary.isNotBlank()) {
+                                                        if (isNotEmpty()) append(" · ")
+                                                        append(petSummary)
+                                                    }
+                                                }
+
                                                 Row(
                                                     modifier = Modifier.fillMaxWidth(),
                                                     verticalAlignment = Alignment.CenterVertically
@@ -775,7 +784,7 @@ fun ScheduleMapScreen(
                                                     Spacer(modifier = Modifier.width(6.dp))
 
                                                     Text(
-                                                        text = client?.fullName ?: "",
+                                                        text = line1ClientAndPets,
                                                         fontWeight = FontWeight.SemiBold,
                                                         fontSize = 13.sp,
                                                         color = walkPrimaryText,
@@ -784,26 +793,6 @@ fun ScheduleMapScreen(
                                                         overflow = TextOverflow.Ellipsis,
                                                         modifier = Modifier.weight(1f)
                                                     )
-
-                                                    if (walk.price > 0) {
-                                                        Spacer(modifier = Modifier.width(6.dp))
-                                                        Box(
-                                                            modifier = Modifier
-                                                                .clip(CircleShape)
-                                                                .background(walkPriceBg)
-                                                                .padding(horizontal = 6.dp, vertical = 2.dp),
-                                                            contentAlignment = Alignment.Center
-                                                        ) {
-                                                            Text(
-                                                                text = "${walk.price} ₽",
-                                                                color = walkPriceText,
-                                                                fontSize = 11.sp,
-                                                                fontWeight = FontWeight.Bold,
-                                                                maxLines = 1,
-                                                                softWrap = false
-                                                            )
-                                                        }
-                                                    }
 
                                                     Spacer(modifier = Modifier.width(6.dp))
 
@@ -825,21 +814,13 @@ fun ScheduleMapScreen(
 
                                                 Spacer(modifier = Modifier.height(3.dp))
 
-                                                // Строка 2: клички питомцев («🐕 Дина») + короткий адрес без «Санкт-Петербург, » (Modifier.weight(1f), maxLines = 1, Ellipsis) + только 2 быстрые кнопки справа: «Маршрут» и «Звонок»
-                                                val petSummary = pets.joinToString(", ") { "${it.type.icon} ${it.name}" }
+                                                // Строка 2: полностью под адрес без префикса «Санкт-Петербург, » (с сохранением бейджа цены справа и 2 быстрых кнопок: «Маршрут» и «Звонок»)
                                                 val cleanedStreet = cleanAddress(client?.addressStreet ?: "")
                                                 val fullAddrShort = buildString {
                                                     append(cleanedStreet)
                                                     if (!client?.entrance.isNullOrBlank()) append(", под. ${client.entrance}")
                                                     if (!client?.floor.isNullOrBlank()) append(", эт. ${client.floor}")
                                                     if (!client?.apartment.isNullOrBlank()) append(", кв. ${client.apartment}")
-                                                }
-                                                val line2Text = buildString {
-                                                    if (petSummary.isNotBlank()) {
-                                                        append(petSummary)
-                                                        if (fullAddrShort.isNotBlank()) append(" · ")
-                                                    }
-                                                    append(fullAddrShort)
                                                 }
 
                                                 Row(
@@ -858,12 +839,32 @@ fun ScheduleMapScreen(
                                                         )
                                                         Spacer(modifier = Modifier.width(3.dp))
                                                         Text(
-                                                            text = line2Text,
-                                                            fontSize = 11.sp,
+                                                            text = fullAddrShort.ifBlank { "Адрес не указан" },
+                                                            fontSize = 11.5.sp,
                                                             color = walkSecondaryText,
                                                             maxLines = 1,
                                                             overflow = TextOverflow.Ellipsis
                                                         )
+                                                    }
+
+                                                    if (walk.price > 0) {
+                                                        Spacer(modifier = Modifier.width(6.dp))
+                                                        Box(
+                                                            modifier = Modifier
+                                                                .clip(CircleShape)
+                                                                .background(walkPriceBg)
+                                                                .padding(horizontal = 6.dp, vertical = 2.dp),
+                                                            contentAlignment = Alignment.Center
+                                                        ) {
+                                                            Text(
+                                                                text = "${walk.price} ₽",
+                                                                color = walkPriceText,
+                                                                fontSize = 10.5.sp,
+                                                                fontWeight = FontWeight.Bold,
+                                                                maxLines = 1,
+                                                                softWrap = false
+                                                            )
+                                                        }
                                                     }
 
                                                     Spacer(modifier = Modifier.width(6.dp))
@@ -951,7 +952,16 @@ fun ScheduleMapScreen(
                                             .alpha(walkCardAlpha)
                                     ) {
                                         GlassBox(
-                                            modifier = Modifier.fillMaxWidth(),
+                                            modifier = Modifier
+                                                .fillMaxWidth()
+                                                .then(
+                                                    if (isCompactView) {
+                                                        Modifier.clickable {
+                                                            HapticHelper.lightClick(view, context)
+                                                            isCardExpanded = false
+                                                        }
+                                                    } else Modifier
+                                                ),
                                             backgroundColor = walkCardBg,
                                             elevation = if (isDone) 1.dp else 3.dp
                                         ) {
@@ -962,7 +972,16 @@ fun ScheduleMapScreen(
                                             ) {
                                                 // 1. Верхняя строка (шапка): слева время в компактном формате без обрезки («20:00–20:15 · 15 мин», maxLines = 1), справа аккуратный бейдж стоимости «500 ₽» и кнопка-чекбокс выполнения
                                                 Row(
-                                                    modifier = Modifier.fillMaxWidth(),
+                                                    modifier = Modifier
+                                                        .fillMaxWidth()
+                                                        .then(
+                                                            if (isCompactView) {
+                                                                Modifier.clip(RoundedCornerShape(6.dp)).clickable {
+                                                                    HapticHelper.lightClick(view, context)
+                                                                    isCardExpanded = false
+                                                                }
+                                                            } else Modifier
+                                                        ),
                                                     horizontalArrangement = Arrangement.SpaceBetween,
                                                     verticalAlignment = Alignment.CenterVertically
                                                 ) {
@@ -1021,7 +1040,16 @@ fun ScheduleMapScreen(
 
                                                 // 2. Вторая строка: имя клиента крупным шрифтом (16.sp SemiBold) по левому краю; справа в этой же строке компактная кнопка меню «⋮» (DropdownMenu) для «Перенести дату», «Редактировать», «Удалить»
                                                 Row(
-                                                    modifier = Modifier.fillMaxWidth(),
+                                                    modifier = Modifier
+                                                        .fillMaxWidth()
+                                                        .then(
+                                                            if (isCompactView) {
+                                                                Modifier.clip(RoundedCornerShape(6.dp)).clickable {
+                                                                    HapticHelper.lightClick(view, context)
+                                                                    isCardExpanded = false
+                                                                }
+                                                            } else Modifier
+                                                        ),
                                                     horizontalArrangement = Arrangement.SpaceBetween,
                                                     verticalAlignment = Alignment.CenterVertically
                                                 ) {
@@ -1039,16 +1067,20 @@ fun ScheduleMapScreen(
                                                     Row(verticalAlignment = Alignment.CenterVertically) {
                                                         if (isCompactView) {
                                                             IconButton(
-                                                                onClick = { isCardExpanded = false },
-                                                                modifier = Modifier.size(28.dp)
+                                                                onClick = {
+                                                                    HapticHelper.lightClick(view, context)
+                                                                    isCardExpanded = false
+                                                                },
+                                                                modifier = Modifier.size(38.dp)
                                                             ) {
                                                                 Icon(
                                                                     imageVector = Icons.Rounded.KeyboardArrowUp,
                                                                     contentDescription = "Свернуть",
                                                                     tint = OliveGreySecondary,
-                                                                    modifier = Modifier.size(20.dp)
+                                                                    modifier = Modifier.size(22.dp)
                                                                 )
                                                             }
+                                                            Spacer(modifier = Modifier.width(8.dp))
                                                         }
 
                                                         Box {
@@ -1139,16 +1171,18 @@ fun ScheduleMapScreen(
                                                     }
                                                 }
 
-                                                // 3. Блок питомцев: выводи питомцев списком на всю ширину карточки (Modifier.fillMaxWidth()) с выравниванием текста по левому краю (не центрируй капсулы). Сделай описание характера светлым и читаемым на тёмном фоне (alpha = 0.85f), а при наличии слов «агрессив» или «успокоительн» подсвечивай плашку/текст мягким тёпло-янтарным оттенком.
+                                                // 3. Блок питомцев: аккуратные компактные пилюли по ширине текста (FlowRow), если у питомца нет описания особенностей; при наличии описания выводим светлым контрастным текстом внутри плашки
                                                 if (pets.isNotEmpty()) {
                                                     Spacer(modifier = Modifier.height(6.dp))
-                                                    Column(
+                                                    FlowRow(
                                                         modifier = Modifier.fillMaxWidth(),
+                                                        horizontalArrangement = Arrangement.spacedBy(6.dp),
                                                         verticalArrangement = Arrangement.spacedBy(4.dp)
                                                     ) {
                                                         pets.forEach { pet ->
                                                             val detailsLower = pet.breedOrDetails.lowercase()
                                                             val isAlert = detailsLower.contains("агрессив") || detailsLower.contains("успокоительн")
+                                                            val hasDetails = pet.breedOrDetails.isNotBlank()
 
                                                             val petBg = when {
                                                                 isAlert && isDark -> Color(0xFF382A1C)
@@ -1172,12 +1206,11 @@ fun ScheduleMapScreen(
                                                                 isAlert && isDark -> Color(0xFFFFE0B2).copy(alpha = 0.9f)
                                                                 isAlert && !isDark -> Color(0xFFB45309)
                                                                 isDark -> Color.White.copy(alpha = 0.85f)
-                                                                else -> Color(0xFF4A5550)
+                                                                else -> Color(0xFF38433E)
                                                             }
 
                                                             Row(
-                                                                modifier = Modifier
-                                                                    .fillMaxWidth()
+                                                                modifier = (if (hasDetails) Modifier.fillMaxWidth() else Modifier)
                                                                     .clip(RoundedCornerShape(8.dp))
                                                                     .background(petBg)
                                                                     .border(0.5.dp, petBorder, RoundedCornerShape(8.dp))
@@ -1187,10 +1220,10 @@ fun ScheduleMapScreen(
                                                                 Text(
                                                                     text = "${pet.type.icon} ${pet.name}",
                                                                     color = petNameColor,
-                                                                    fontSize = 13.sp,
+                                                                    fontSize = 12.sp,
                                                                     fontWeight = FontWeight.SemiBold
                                                                 )
-                                                                if (pet.breedOrDetails.isNotBlank()) {
+                                                                if (hasDetails) {
                                                                     Text(
                                                                         text = " • ${pet.breedOrDetails}",
                                                                         color = petDetailsColor,
@@ -2035,7 +2068,6 @@ fun WalkFormDialog(
             Column(
                 modifier = Modifier
                     .fillMaxWidth()
-                    .imePadding()
                     .verticalScroll(rememberScrollState())
                     .padding(20.dp)
             ) {

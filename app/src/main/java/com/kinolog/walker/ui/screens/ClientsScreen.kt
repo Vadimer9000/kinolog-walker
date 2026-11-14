@@ -765,7 +765,6 @@ fun ClientFormDialog(
             Column(
                 modifier = Modifier
                     .fillMaxWidth()
-                    .imePadding()
                     .verticalScroll(rememberScrollState())
                     .padding(20.dp)
             ) {

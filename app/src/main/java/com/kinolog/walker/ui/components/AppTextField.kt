@@ -1,6 +1,9 @@
 package com.kinolog.walker.ui.components
 
+import androidx.compose.foundation.ExperimentalFoundationApi
 import androidx.compose.foundation.interaction.MutableInteractionSource
+import androidx.compose.foundation.relocation.BringIntoViewRequester
+import androidx.compose.foundation.relocation.bringIntoViewRequester
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.text.KeyboardActions
 import androidx.compose.foundation.text.KeyboardOptions
@@ -8,17 +11,63 @@ import androidx.compose.material3.OutlinedTextField
 import androidx.compose.material3.OutlinedTextFieldDefaults
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.getValue
+import androidx.compose.runtime.mutableFloatStateOf
 import androidx.compose.runtime.remember
+import androidx.compose.runtime.rememberCoroutineScope
+import androidx.compose.runtime.setValue
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.composed
+import androidx.compose.ui.focus.onFocusChanged
+import androidx.compose.ui.geometry.Rect
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.Shape
+import androidx.compose.ui.layout.onSizeChanged
+import androidx.compose.ui.platform.LocalDensity
 import androidx.compose.ui.text.TextStyle
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.input.VisualTransformation
 import androidx.compose.ui.text.style.TextOverflow
+import androidx.compose.ui.unit.Dp
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import com.kinolog.walker.ui.theme.LocalIsDarkTheme
+import kotlinx.coroutines.delay
+import kotlinx.coroutines.launch
+
+@OptIn(ExperimentalFoundationApi::class)
+fun Modifier.bringIntoViewOnFocus(extraBottom: Dp = 96.dp): Modifier = composed {
+    val requester = remember { BringIntoViewRequester() }
+    val scope = rememberCoroutineScope()
+    val density = LocalDensity.current
+    val extraBottomPx = with(density) { extraBottom.toPx() }
+    var width by remember { mutableFloatStateOf(0f) }
+    var height by remember { mutableFloatStateOf(0f) }
+
+    this
+        .bringIntoViewRequester(requester)
+        .onSizeChanged { size ->
+            width = size.width.toFloat()
+            height = size.height.toFloat()
+        }
+        .onFocusChanged { focusState ->
+            if (focusState.isFocused) {
+                scope.launch {
+                    delay(150)
+                    val w = if (width > 0f) width else 1000f
+                    val h = if (height > 0f) height else 120f
+                    requester.bringIntoView(
+                        Rect(
+                            left = 0f,
+                            top = 0f,
+                            right = w,
+                            bottom = h + extraBottomPx
+                        )
+                    )
+                }
+            }
+        }
+}
 
 @Composable
 fun AppTextField(
@@ -76,7 +125,7 @@ fun AppTextField(
     OutlinedTextField(
         value = value,
         onValueChange = onValueChange,
-        modifier = modifier,
+        modifier = modifier.bringIntoViewOnFocus(96.dp),
         label = label?.let {
             {
                 Text(
