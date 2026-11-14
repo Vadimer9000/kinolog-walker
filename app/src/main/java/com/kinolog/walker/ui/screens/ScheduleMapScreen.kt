@@ -2069,7 +2069,6 @@ fun WalkFormDialog(
             Column(
                 modifier = Modifier
                     .fillMaxWidth()
-                    .imePadding()
                     .verticalScroll(rememberScrollState())
                     .padding(20.dp)
             ) {
@@ -2546,7 +2545,7 @@ fun WalkFormDialog(
                     }
                 }
 
-                Spacer(modifier = Modifier.height(140.dp))
+                Spacer(modifier = Modifier.height(120.dp))
             }
         }
 

@@ -766,7 +766,6 @@ fun ClientFormDialog(
             Column(
                 modifier = Modifier
                     .fillMaxWidth()
-                    .imePadding()
                     .verticalScroll(rememberScrollState())
                     .padding(20.dp)
             ) {
@@ -1114,7 +1113,7 @@ fun ClientFormDialog(
                     singleLine = false,
                     minLines = 1,
                     maxLines = 3,
-                    extraBottom = 180.dp,
+                    extraBottom = 150.dp,
                     trailingIcon = {
                         if (isSearchingAddress) {
                             CircularProgressIndicator(
@@ -1326,7 +1325,7 @@ fun ClientFormDialog(
                     }
                 }
 
-                Spacer(modifier = Modifier.height(140.dp))
+                Spacer(modifier = Modifier.height(120.dp))
             }
         }
     }
