@@ -77,9 +77,9 @@ fun AppTextField(
     interactionSource: MutableInteractionSource = remember { MutableInteractionSource() }
 ) {
     val isDark = LocalIsDarkTheme.current
-    val defaultContainer = if (isDark) Color(0xFF141E18) else Color(0xFFFFFFFF)
+    val defaultContainer = Color.Transparent
     val fieldContainerColor = containerColor ?: defaultContainer
-    val disabledContainer = if (isDark) Color(0xFF141E18) else Color(0xFFF3EFEA)
+    val disabledContainer = containerColor ?: Color.Transparent
 
     val colors = OutlinedTextFieldDefaults.colors(
         focusedTextColor = if (isDark) Color(0xFFEAEFEA) else Color(0xFF1A1D1B),
@@ -88,7 +88,7 @@ fun AppTextField(
         errorTextColor = if (isDark) Color(0xFFEAEFEA) else Color(0xFF1A1D1B),
         focusedContainerColor = fieldContainerColor,
         unfocusedContainerColor = fieldContainerColor,
-        disabledContainerColor = containerColor ?: disabledContainer,
+        disabledContainerColor = disabledContainer,
         errorContainerColor = fieldContainerColor,
         cursorColor = if (isDark) Color(0xFF68B684) else Color(0xFF4A8267),
         errorCursorColor = if (isDark) Color(0xFFEF9A9A) else Color(0xFFD9534F),

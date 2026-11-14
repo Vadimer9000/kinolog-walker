@@ -84,6 +84,7 @@ import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
 import androidx.compose.material3.IconButtonDefaults
 import androidx.compose.material3.MenuAnchorType
+import androidx.compose.material3.minimumInteractiveComponentSize
 import androidx.compose.material3.SheetValue
 import androidx.compose.material3.Text
 import androidx.compose.material3.TextButton
@@ -744,9 +745,9 @@ fun ScheduleMapScreen(
                                             Column(
                                                 modifier = Modifier
                                                     .fillMaxWidth()
-                                                    .padding(horizontal = 12.dp, vertical = 7.dp)
+                                                    .padding(horizontal = 14.dp, vertical = 10.dp)
                                             ) {
-                                                // Строка 1: время «07:00–07:30», имя клиента + клички питомцев («Кокся Поля · 🐕 шабака, 🐕 бака») и кружок выполнения справа
+                                                // Строка 1: время и клиент/питомцы (Modifier.weight(1f), maxLines = 1, Ellipsis) + бейдж цены («2000 ₽») + компактный кружок статуса (визуально 26.dp, кликабельная зона 48.dp через minimumInteractiveComponentSize())
                                                 val petSummary = pets.joinToString(", ") { "${it.type.icon} ${it.name}" }
                                                 val line1ClientAndPets = buildString {
                                                     append(client?.fullName ?: "")
@@ -760,26 +761,52 @@ fun ScheduleMapScreen(
                                                     modifier = Modifier.fillMaxWidth(),
                                                     verticalAlignment = Alignment.CenterVertically
                                                 ) {
-                                                    Text(
-                                                        text = String.format("%02d:%02d–%02d:%02d", startHours, startMins, endHours, endMins),
-                                                        fontSize = 12.sp,
-                                                        fontWeight = FontWeight.Bold,
-                                                        color = walkPrimaryText,
-                                                        textDecoration = if (isDone) TextDecoration.LineThrough else TextDecoration.None
-                                                    )
+                                                    Row(
+                                                        modifier = Modifier.weight(1f),
+                                                        verticalAlignment = Alignment.CenterVertically
+                                                    ) {
+                                                        Text(
+                                                            text = String.format("%02d:%02d–%02d:%02d", startHours, startMins, endHours, endMins),
+                                                            fontSize = 12.sp,
+                                                            fontWeight = FontWeight.Bold,
+                                                            color = walkPrimaryText,
+                                                            textDecoration = if (isDone) TextDecoration.LineThrough else TextDecoration.None,
+                                                            maxLines = 1
+                                                        )
 
-                                                    Spacer(modifier = Modifier.width(6.dp))
+                                                        Spacer(modifier = Modifier.width(6.dp))
 
-                                                    Text(
-                                                        text = line1ClientAndPets,
-                                                        fontWeight = FontWeight.SemiBold,
-                                                        fontSize = 13.sp,
-                                                        color = walkPrimaryText,
-                                                        textDecoration = if (isDone) TextDecoration.LineThrough else TextDecoration.None,
-                                                        maxLines = 1,
-                                                        overflow = TextOverflow.Ellipsis,
-                                                        modifier = Modifier.weight(1f)
-                                                    )
+                                                        Text(
+                                                            text = line1ClientAndPets,
+                                                            fontWeight = FontWeight.SemiBold,
+                                                            fontSize = 13.sp,
+                                                            color = walkPrimaryText,
+                                                            textDecoration = if (isDone) TextDecoration.LineThrough else TextDecoration.None,
+                                                            maxLines = 1,
+                                                            overflow = TextOverflow.Ellipsis,
+                                                            modifier = Modifier.weight(1f, fill = false)
+                                                        )
+                                                    }
+
+                                                    if (walk.price > 0) {
+                                                        Spacer(modifier = Modifier.width(6.dp))
+                                                        Box(
+                                                            modifier = Modifier
+                                                                .clip(CircleShape)
+                                                                .background(walkPriceBg)
+                                                                .padding(horizontal = 7.dp, vertical = 2.dp),
+                                                            contentAlignment = Alignment.Center
+                                                        ) {
+                                                            Text(
+                                                                text = "${walk.price} ₽",
+                                                                color = walkPriceText,
+                                                                fontSize = 11.sp,
+                                                                fontWeight = FontWeight.Bold,
+                                                                maxLines = 1,
+                                                                softWrap = false
+                                                            )
+                                                        }
+                                                    }
 
                                                     Spacer(modifier = Modifier.width(6.dp))
 
@@ -788,20 +815,22 @@ fun ScheduleMapScreen(
                                                             HapticHelper.success(view, context)
                                                             viewModel.toggleWalkCompletion(walk)
                                                         },
-                                                        modifier = Modifier.sizeIn(minWidth = 48.dp, minHeight = 48.dp)
+                                                        modifier = Modifier
+                                                            .size(26.dp)
+                                                            .minimumInteractiveComponentSize()
                                                     ) {
                                                         Icon(
                                                             imageVector = if (isDone) Icons.Rounded.CheckCircle else Icons.Rounded.RadioButtonUnchecked,
                                                             contentDescription = "Статус",
                                                             tint = if (isDone) walkDoneCheckTint else OliveGreySecondary,
-                                                            modifier = Modifier.size(20.dp)
+                                                            modifier = Modifier.size(26.dp)
                                                         )
                                                     }
                                                 }
 
-                                                Spacer(modifier = Modifier.height(3.dp))
+                                                Spacer(modifier = Modifier.height(4.dp))
 
-                                                // Строка 2: полностью под адрес без префикса «Санкт-Петербург, » (с сохранением бейджа цены справа и 2 быстрых кнопок: «Маршрут» и «Звонок»)
+                                                // Строка 2: иконка пина + адрес без «Санкт-Петербург, » на всю свободную ширину (Modifier.weight(1f), maxLines = 1, Ellipsis — чтобы улица и номер дома влезали целиком!) + справа 2 компактные кнопки «Маршрут» и «Звонок» (визуальный размер 36.dp со скруглением 10.dp, тач-зона 48.dp)
                                                 val cleanedStreet = cleanAddress(client?.addressStreet ?: "")
                                                 val fullAddrShort = buildString {
                                                     append(cleanedStreet)
@@ -822,7 +851,7 @@ fun ScheduleMapScreen(
                                                             imageVector = Icons.Rounded.LocationOn,
                                                             contentDescription = null,
                                                             tint = walkLocationTint,
-                                                            modifier = Modifier.size(12.dp)
+                                                            modifier = Modifier.size(13.dp)
                                                         )
                                                         Spacer(modifier = Modifier.width(3.dp))
                                                         Text(
@@ -832,26 +861,6 @@ fun ScheduleMapScreen(
                                                             maxLines = 1,
                                                             overflow = TextOverflow.Ellipsis
                                                         )
-                                                    }
-
-                                                    if (walk.price > 0) {
-                                                        Spacer(modifier = Modifier.width(6.dp))
-                                                        Box(
-                                                            modifier = Modifier
-                                                                .clip(CircleShape)
-                                                                .background(walkPriceBg)
-                                                                .padding(horizontal = 6.dp, vertical = 2.dp),
-                                                            contentAlignment = Alignment.Center
-                                                        ) {
-                                                            Text(
-                                                                text = "${walk.price} ₽",
-                                                                color = walkPriceText,
-                                                                fontSize = 10.5.sp,
-                                                                fontWeight = FontWeight.Bold,
-                                                                maxLines = 1,
-                                                                softWrap = false
-                                                            )
-                                                        }
                                                     }
 
                                                     Spacer(modifier = Modifier.width(6.dp))
@@ -870,10 +879,12 @@ fun ScheduleMapScreen(
                                                                 containerColor = SoftMint,
                                                                 contentColor = DeepForest
                                                             ),
-                                                            shape = RoundedCornerShape(8.dp),
-                                                            modifier = Modifier.sizeIn(minWidth = 48.dp, minHeight = 48.dp)
+                                                            shape = RoundedCornerShape(10.dp),
+                                                            modifier = Modifier
+                                                                .size(36.dp)
+                                                                .minimumInteractiveComponentSize()
                                                         ) {
-                                                            Icon(Icons.Rounded.Directions, contentDescription = "Маршрут", modifier = Modifier.size(15.dp))
+                                                            Icon(Icons.Rounded.Directions, contentDescription = "Маршрут", modifier = Modifier.size(17.dp))
                                                         }
 
                                                         // Звонок
@@ -891,15 +902,17 @@ fun ScheduleMapScreen(
                                                                 containerColor = SandBeige,
                                                                 contentColor = CharcoalPrimary
                                                             ),
-                                                            shape = RoundedCornerShape(8.dp),
-                                                            modifier = Modifier.sizeIn(minWidth = 48.dp, minHeight = 48.dp)
+                                                            shape = RoundedCornerShape(10.dp),
+                                                            modifier = Modifier
+                                                                .size(36.dp)
+                                                                .minimumInteractiveComponentSize()
                                                         ) {
-                                                            Icon(Icons.Rounded.Call, contentDescription = "Звонок", modifier = Modifier.size(14.dp))
+                                                            Icon(Icons.Rounded.Call, contentDescription = "Звонок", modifier = Modifier.size(16.dp))
                                                         }
                                                     }
                                                 }
 
-                                                // Строка 3 (если заполнена хотя бы одна заметка): компактная строка заметок «🔑 <заметка клиента>  •  📝 <заметка выгула>»
+                                                // Строка 3: заметка/домофон и видимая кнопка копирования в аккуратной пилюле
                                                 val clientNote = client?.clientComment?.trim() ?: ""
                                                 val walkNote = walk.walkComment.trim()
                                                 val hasClientNote = clientNote.isNotBlank()
@@ -917,7 +930,8 @@ fun ScheduleMapScreen(
                                                             append("📝 $walkNote")
                                                         }
                                                     }
-                                                    Spacer(modifier = Modifier.height(3.dp))
+                                                    val toCopy = listOfNotNull(clientNote.ifBlank { null }, walkNote.ifBlank { null }).joinToString(" | ")
+                                                    Spacer(modifier = Modifier.height(4.dp))
                                                     Row(
                                                         modifier = Modifier.fillMaxWidth(),
                                                         verticalAlignment = Alignment.CenterVertically
@@ -931,20 +945,30 @@ fun ScheduleMapScreen(
                                                             lineHeight = 15.sp,
                                                             modifier = Modifier.weight(1f)
                                                         )
-                                                        IconButton(
-                                                            onClick = {
-                                                                val toCopy = listOfNotNull(clientNote.ifBlank { null }, walkNote.ifBlank { null }).joinToString(" | ")
-                                                                clipboardManager.setText(AnnotatedString(toCopy))
-                                                                HapticHelper.lightClick(view, context)
-                                                                Toast.makeText(context, "Скопировано", Toast.LENGTH_SHORT).show()
-                                                            },
-                                                            modifier = Modifier.sizeIn(minWidth = 48.dp, minHeight = 48.dp)
+                                                        Spacer(modifier = Modifier.width(6.dp))
+                                                        Box(
+                                                            modifier = Modifier
+                                                                .minimumInteractiveComponentSize()
+                                                                .clip(RoundedCornerShape(8.dp))
+                                                                .background(if (isDark) Color(0xFF382A1C) else Color(0xFFFEF3C7))
+                                                                .border(
+                                                                    width = 0.5.dp,
+                                                                    color = if (isDark) Color(0xFFD97706).copy(alpha = 0.5f) else Color(0xFFF59E0B).copy(alpha = 0.6f),
+                                                                    shape = RoundedCornerShape(8.dp)
+                                                                )
+                                                                .clickable {
+                                                                    clipboardManager.setText(AnnotatedString(toCopy))
+                                                                    HapticHelper.lightClick(view, context)
+                                                                    Toast.makeText(context, "Скопировано", Toast.LENGTH_SHORT).show()
+                                                                }
+                                                                .padding(horizontal = 8.dp, vertical = 5.dp),
+                                                            contentAlignment = Alignment.Center
                                                         ) {
                                                             Icon(
                                                                 imageVector = Icons.Rounded.ContentCopy,
                                                                 contentDescription = "Скопировать заметку",
                                                                 tint = if (isDark) Color(0xFFFFD59E) else Color(0xFFB45309),
-                                                                modifier = Modifier.size(15.dp)
+                                                                modifier = Modifier.size(16.dp)
                                                             )
                                                         }
                                                     }
@@ -1293,7 +1317,7 @@ fun ScheduleMapScreen(
                                                 val walkNote = walk.walkComment.trim()
 
                                                 if (clientNote.isNotBlank()) {
-                                                    Spacer(modifier = Modifier.height(4.dp))
+                                                    Spacer(modifier = Modifier.height(6.dp))
                                                     Row(
                                                         modifier = Modifier.fillMaxWidth(),
                                                         verticalAlignment = Alignment.CenterVertically
@@ -1305,17 +1329,28 @@ fun ScheduleMapScreen(
                                                             lineHeight = 18.sp,
                                                             modifier = Modifier.weight(1f)
                                                         )
-                                                        IconButton(
-                                                            onClick = {
-                                                                clipboardManager.setText(AnnotatedString(clientNote))
-                                                                HapticHelper.lightClick(view, context)
-                                                                Toast.makeText(context, "Скопировано", Toast.LENGTH_SHORT).show()
-                                                            },
-                                                            modifier = Modifier.sizeIn(minWidth = 48.dp, minHeight = 48.dp)
+                                                        Spacer(modifier = Modifier.width(6.dp))
+                                                        Box(
+                                                            modifier = Modifier
+                                                                .minimumInteractiveComponentSize()
+                                                                .clip(RoundedCornerShape(8.dp))
+                                                                .background(if (isDark) Color(0xFF382A1C) else Color(0xFFFEF3C7))
+                                                                .border(
+                                                                    width = 0.5.dp,
+                                                                    color = if (isDark) Color(0xFFD97706).copy(alpha = 0.5f) else Color(0xFFF59E0B).copy(alpha = 0.6f),
+                                                                    shape = RoundedCornerShape(8.dp)
+                                                                )
+                                                                .clickable {
+                                                                    clipboardManager.setText(AnnotatedString(clientNote))
+                                                                    HapticHelper.lightClick(view, context)
+                                                                    Toast.makeText(context, "Скопировано", Toast.LENGTH_SHORT).show()
+                                                                }
+                                                                .padding(horizontal = 8.dp, vertical = 5.dp),
+                                                            contentAlignment = Alignment.Center
                                                         ) {
                                                             Icon(
                                                                 imageVector = Icons.Rounded.ContentCopy,
-                                                                contentDescription = "Скопировать заметку",
+                                                                contentDescription = "Скопировать заметку клиента",
                                                                 tint = if (isDark) Color(0xFFFFD59E) else Color(0xFF92400E),
                                                                 modifier = Modifier.size(16.dp)
                                                             )
@@ -1324,7 +1359,7 @@ fun ScheduleMapScreen(
                                                 }
 
                                                 if (walkNote.isNotBlank()) {
-                                                    Spacer(modifier = Modifier.height(4.dp))
+                                                    Spacer(modifier = Modifier.height(6.dp))
                                                     Row(
                                                         modifier = Modifier.fillMaxWidth(),
                                                         verticalAlignment = Alignment.CenterVertically
@@ -1336,18 +1371,29 @@ fun ScheduleMapScreen(
                                                             lineHeight = 18.sp,
                                                             modifier = Modifier.weight(1f)
                                                         )
-                                                        IconButton(
-                                                            onClick = {
-                                                                clipboardManager.setText(AnnotatedString(walkNote))
-                                                                HapticHelper.lightClick(view, context)
-                                                                Toast.makeText(context, "Скопировано", Toast.LENGTH_SHORT).show()
-                                                            },
-                                                            modifier = Modifier.sizeIn(minWidth = 48.dp, minHeight = 48.dp)
+                                                        Spacer(modifier = Modifier.width(6.dp))
+                                                        Box(
+                                                            modifier = Modifier
+                                                                .minimumInteractiveComponentSize()
+                                                                .clip(RoundedCornerShape(8.dp))
+                                                                .background(if (isDark) Color(0xFF23362A) else Color(0xFFDCFCE7))
+                                                                .border(
+                                                                    width = 0.5.dp,
+                                                                    color = if (isDark) Color(0xFF4C7A5B).copy(alpha = 0.6f) else Color(0xFF86EFAC).copy(alpha = 0.8f),
+                                                                    shape = RoundedCornerShape(8.dp)
+                                                                )
+                                                                .clickable {
+                                                                    clipboardManager.setText(AnnotatedString(walkNote))
+                                                                    HapticHelper.lightClick(view, context)
+                                                                    Toast.makeText(context, "Скопировано", Toast.LENGTH_SHORT).show()
+                                                                }
+                                                                .padding(horizontal = 8.dp, vertical = 5.dp),
+                                                            contentAlignment = Alignment.Center
                                                         ) {
                                                             Icon(
                                                                 imageVector = Icons.Rounded.ContentCopy,
-                                                                contentDescription = "Скопировать заметку",
-                                                                tint = if (isDark) Color(0xFFA5D6A7) else Color(0xFF2E6948),
+                                                                contentDescription = "Скопировать заметку выгула",
+                                                                tint = if (isDark) Color(0xFFA5D6A7) else Color(0xFF166534),
                                                                 modifier = Modifier.size(16.dp)
                                                             )
                                                         }

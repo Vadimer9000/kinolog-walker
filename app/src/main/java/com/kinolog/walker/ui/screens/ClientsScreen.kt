@@ -1107,7 +1107,6 @@ fun ClientFormDialog(
                                 label = "Кличка питомца",
                                 placeholder = "например: Барсик, Джеки",
                                 singleLine = true,
-                                containerColor = MintLight,
                                 modifier = Modifier.fillMaxWidth()
                             )
 
@@ -1119,7 +1118,6 @@ fun ClientFormDialog(
                                 label = "Порода / особенности",
                                 placeholder = "например: корги, пугливый",
                                 singleLine = true,
-                                containerColor = MintLight,
                                 modifier = Modifier.fillMaxWidth()
                             )
                         }
